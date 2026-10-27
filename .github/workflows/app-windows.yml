@@ -1,0 +1,32 @@
+name: App Windows build
+
+# Manual run only: builds the desktop application for Windows and keeps the
+# installers as a downloadable artifact (7 days). Nothing is published.
+on:
+  workflow_dispatch:
+
+jobs:
+  windows:
+    name: ZaNytky app (Windows x64)
+    runs-on: windows-latest
+    defaults:
+      run:
+        working-directory: app
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      - run: npm install --no-audit --no-fund
+      - run: npm run tauri build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ZaNytky-app-windows-x64
+          path: |
+            app/src-tauri/target/release/bundle/msi/*.msi
+            app/src-tauri/target/release/bundle/nsis/*.exe
+          retention-days: 7
