@@ -119,7 +119,10 @@ mod tests {
         let mut big = report();
         if let Block::Table { rows, .. } = &mut big.blocks[2] {
             for i in 0..200 {
-                rows.push(vec![i.to_string(), "довгий текст для переносу рядка".to_string()]);
+                rows.push(vec![
+                    i.to_string(),
+                    "довгий текст для переносу рядка".to_string(),
+                ]);
             }
         }
         assert!(to_pdf(&big).is_ok());
