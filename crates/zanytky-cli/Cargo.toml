@@ -1,0 +1,17 @@
+[package]
+name = "zanytky-cli"
+description = "Command line for ZaNytky: register, prepare, check, import, report"
+version.workspace = true
+edition.workspace = true
+license-file.workspace = true
+publish.workspace = true
+
+[[bin]]
+name = "zanytky"
+path = "src/main.rs"
+
+[dependencies]
+zanytky-core = { path = "../zanytky-core" }
+
+[dev-dependencies]
+tempfile = "3"

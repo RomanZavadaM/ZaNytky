@@ -57,6 +57,16 @@ pub fn parse_identity(text: &str) -> Result<Identity, SealError> {
     Identity::from_str(text.trim()).map_err(|error| SealError::Crypto(error.to_string()))
 }
 
+/// A fresh investigator key pair as text: (private identity, public key).
+pub fn generate_identity() -> (String, String) {
+    use age::secrecy::ExposeSecret;
+    let identity = Identity::generate();
+    (
+        identity.to_string().expose_secret().to_string(),
+        identity.to_public().to_string(),
+    )
+}
+
 /// Seal the original `value` of `kind` for the given recipients.
 pub fn seal(kind: Kind, value: &str, recipients: &[Recipient]) -> Result<Vec<u8>, SealError> {
     if recipients.is_empty() {
