@@ -196,7 +196,7 @@ fn cmd_init(args: &Args, out: Out) -> Result<(), String> {
     if !recipients.exists() {
         write_file(
             &recipients,
-            b"# Публічні ключі розслідувачів (age1...), по одному в рядку.\n",
+            "# Публічні ключі розслідувачів (age1...), по одному в рядку.\n".as_bytes(),
         )?;
     }
     writeln!(out, "Створено {}", home.display()).map_err(|e| e.to_string())?;
