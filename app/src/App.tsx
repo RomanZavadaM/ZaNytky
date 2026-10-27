@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   api,
   errorText,
@@ -7,10 +7,11 @@ import {
   pickSavePath,
   type ImportOut,
   type PrepareOutput,
+  type StatementRow,
 } from "./api";
 import { fill, LANGS, PACKS, type Lang, type Strings } from "./i18n";
 
-type Tab = "setup" | "prepare" | "result" | "report";
+type Tab = "setup" | "prepare" | "result" | "database" | "report";
 
 function useStored(key: string, initial: string): [string, (value: string) => void] {
   const [value, setValue] = useState(() => {
@@ -324,6 +325,78 @@ function ResultTab({ t, home, note, run }: Shared) {
   );
 }
 
+function DatabaseTab({ t, home, run }: Shared) {
+  const [rows, setRows] = useState<StatementRow[]>([]);
+
+  const load = async () => {
+    if (!home) return;
+    const list = await run(() => api.statements(home));
+    if (list) setRows(list);
+  };
+
+  const change = async (id: number, status: "confirmed" | "refuted") => {
+    if ((await run(() => api.setStatus(home, id, status))) !== undefined) await load();
+  };
+
+  useEffect(() => {
+    void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [home]);
+
+  const statusLabel = (status: string) =>
+    status === "confirmed" ? t.statusConfirmed : status === "refuted" ? t.statusRefuted : t.statusUnverified;
+
+  return (
+    <section>
+      <p className="muted">{t.dbPrivacyNote}</p>
+      <div className="row">
+        <button onClick={load} disabled={!home}>
+          {t.refresh}
+        </button>
+      </div>
+      {rows.length === 0 ? (
+        <p className="muted">{t.noStatements}</p>
+      ) : (
+        <table className="grid">
+          <thead>
+            <tr>
+              <th>№</th>
+              <th>{t.colType}</th>
+              <th>{t.colParties}</th>
+              <th>{t.colValue}</th>
+              <th>{t.colGrade}</th>
+              <th>{t.colStatus}</th>
+              <th>{t.colNote}</th>
+              <th />
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((r) => (
+              <tr key={r.id}>
+                <td>{r.id}</td>
+                <td>{r.kind}</td>
+                <td>{r.parties.join("; ")}</td>
+                <td>{r.value}</td>
+                <td>{r.grade}</td>
+                <td>{statusLabel(r.status)}</td>
+                <td className="note">{r.note}</td>
+                <td>
+                  <button onClick={() => change(r.id, "confirmed")} disabled={r.status === "confirmed"}>
+                    {t.confirmBtn}
+                  </button>{" "}
+                  <button onClick={() => change(r.id, "refuted")} disabled={r.status === "refuted"}>
+                    {t.refuteBtn}
+                  </button>
+                </td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
+    </section>
+  );
+}
+
 function ReportTab({ t, home, identity, note, run }: Shared) {
   const [title, setTitle] = useState("");
   const [format, setFormat] = useState<"md" | "docx" | "pdf">("docx");
@@ -401,6 +474,7 @@ export function App() {
     ["setup", t.tabSetup],
     ["prepare", t.tabPrepare],
     ["result", t.tabResult],
+    ["database", t.tabDatabase],
     ["report", t.tabReport],
   ];
 
@@ -429,6 +503,7 @@ export function App() {
         {tab === "setup" && <SetupTab {...shared} setHome={setHome} setIdentity={setIdentity} />}
         {tab === "prepare" && <PrepareTab {...shared} />}
         {tab === "result" && <ResultTab {...shared} />}
+        {tab === "database" && <DatabaseTab {...shared} />}
         {tab === "report" && <ReportTab {...shared} />}
       </main>
     </div>

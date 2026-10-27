@@ -59,7 +59,20 @@ export interface ReportInput {
   outPath: string;
 }
 
+export interface StatementRow {
+  id: number;
+  kind: string;
+  parties: string[];
+  value: string;
+  grade: string;
+  status: string;
+  note: string;
+}
+
 export const api = {
+  statements: (home: string) => invoke<StatementRow[]>("list_statements", { input: { home } }),
+  setStatus: (home: string, id: number, status: "confirmed" | "refuted" | "unverified") =>
+    invoke<void>("set_statement_status", { input: { home, id, status } }),
   homeStatus: (home: string) => invoke<HomeStatus>("home_status", { input: { home } }),
   initHome: (home: string) => invoke<string>("init_home", { input: { home } }),
   newIdentity: (home: string, path: string) =>

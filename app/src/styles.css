@@ -182,3 +182,22 @@ label.check input {
   padding: 10px;
   white-space: pre-wrap;
 }
+
+table.grid {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 13px;
+}
+
+table.grid th,
+table.grid td {
+  border: 1px solid var(--border);
+  padding: 4px 6px;
+  text-align: left;
+  vertical-align: top;
+}
+
+table.grid td.note {
+  white-space: pre-wrap;
+  max-width: 280px;
+}
