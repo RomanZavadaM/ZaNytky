@@ -2,6 +2,7 @@
 
 pub mod deidentify;
 pub mod export;
+pub mod import;
 pub mod model;
 pub mod normalize;
 pub mod package;
@@ -13,6 +14,7 @@ pub mod wrap;
 
 pub use deidentify::{deidentify, Candidate, Deidentified, DictEntry, Replacement};
 pub use export::{markdown_table, markdown_table_protected};
+pub use import::{import_result, ImportError, ImportSummary};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use package::{build_package, Package, SourceMeta};

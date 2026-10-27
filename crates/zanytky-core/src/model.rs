@@ -281,7 +281,7 @@ impl Model {
         Self::with_connection(Connection::open_in_memory()?, actor)
     }
 
-    fn log(&self, action: &str, reference: &str) -> Result<(), ModelError> {
+    pub(crate) fn log(&self, action: &str, reference: &str) -> Result<(), ModelError> {
         self.conn.execute(
             &format!("INSERT INTO change_log (at, actor, action, ref) VALUES ({NOW}, ?1, ?2, ?3)"),
             params![self.actor, action, reference],
@@ -389,12 +389,25 @@ impl Model {
                 return Err(ModelError::NotFound);
             }
         }
-        let tx = self.conn.unchecked_transaction()?;
-        tx.execute(
+        self.conn.execute_batch("SAVEPOINT add_statement")?;
+        match self.insert_statement(new) {
+            Ok(id) => {
+                self.conn.execute_batch("RELEASE add_statement")?;
+                self.log("add_statement", &format!("statement:{id}"))?;
+                Ok(id)
+            }
+            Err(error) => {
+                self.conn
+                    .execute_batch("ROLLBACK TO add_statement; RELEASE add_statement")?;
+                Err(error)
+            }
+        }
+    }
+
+    fn insert_statement(&self, new: &NewStatement) -> Result<i64, ModelError> {
+        self.conn.execute(
             &format!(
-                "INSERT INTO statement (kind, value, valid_from, valid_to, as_of, status, \
-                 credibility, note, recorded_at) VALUES (?1, ?2, ?3, ?4, ?5, 'unverified', \
-                 ?6, ?7, {NOW})"
+                "INSERT INTO statement (kind, value, valid_from, valid_to, as_of, status,                  credibility, note, recorded_at) VALUES (?1, ?2, ?3, ?4, ?5, 'unverified',                  ?6, ?7, {NOW})"
             ),
             params![
                 new.kind.as_str(),
@@ -406,24 +419,93 @@ impl Model {
                 new.note
             ],
         )?;
-        let id = tx.last_insert_rowid();
+        let id = self.conn.last_insert_rowid();
         for (entity, role) in new.parties {
-            tx.execute(
-                "INSERT OR IGNORE INTO statement_party (statement_id, entity_id, role) \
-                 VALUES (?1, ?2, ?3)",
+            self.conn.execute(
+                "INSERT OR IGNORE INTO statement_party (statement_id, entity_id, role)                  VALUES (?1, ?2, ?3)",
                 params![id, entity, role],
             )?;
         }
         for source in new.sources {
-            tx.execute(
-                "INSERT OR IGNORE INTO statement_source (statement_id, source_id) \
-                 VALUES (?1, ?2)",
+            self.conn.execute(
+                "INSERT OR IGNORE INTO statement_source (statement_id, source_id)                  VALUES (?1, ?2)",
                 params![id, source],
             )?;
         }
-        tx.commit()?;
-        self.log("add_statement", &format!("statement:{id}"))?;
         Ok(id)
+    }
+
+    /// Run `work` in one transaction: all of it is written, or none of it.
+    pub fn in_transaction<T>(
+        &self,
+        work: impl FnOnce(&Model) -> Result<T, ModelError>,
+    ) -> Result<T, ModelError> {
+        self.conn.execute_batch("BEGIN")?;
+        match work(self) {
+            Ok(value) => {
+                self.conn.execute_batch("COMMIT")?;
+                Ok(value)
+            }
+            Err(error) => {
+                self.conn.execute_batch("ROLLBACK")?;
+                Err(error)
+            }
+        }
+    }
+
+    /// An existing entity: by pseudonym, else by public code within the kind.
+    pub fn find_entity(
+        &self,
+        kind: EntityKind,
+        token: Option<&str>,
+        public_code: Option<&str>,
+    ) -> Result<Option<i64>, ModelError> {
+        if let Some(token) = token {
+            return Ok(self
+                .conn
+                .query_row(
+                    "SELECT id FROM entity WHERE token = ?1",
+                    params![token],
+                    |r| r.get(0),
+                )
+                .optional()?);
+        }
+        if let Some(code) = public_code {
+            return Ok(self
+                .conn
+                .query_row(
+                    "SELECT id FROM entity WHERE kind = ?1 AND public_code = ?2",
+                    params![kind.as_str(), code],
+                    |r| r.get(0),
+                )
+                .optional()?);
+        }
+        Ok(None)
+    }
+
+    /// An existing source with this address.
+    pub fn find_source_by_url(&self, url: &str) -> Result<Option<i64>, ModelError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT id FROM source WHERE url = ?1 ORDER BY id LIMIT 1",
+                params![url],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Whether the log already records the import of this parse package.
+    pub fn package_imported(&self, package: &str) -> Result<bool, ModelError> {
+        let found: Option<i64> = self
+            .conn
+            .query_row(
+                "SELECT 1 FROM change_log WHERE action = 'import_result' AND ref = ?1",
+                params![format!("package:{package}")],
+                |r| r.get(0),
+            )
+            .optional()?;
+        Ok(found.is_some())
     }
 
     /// Change the status. A rumor or testimony alone can never confirm.
@@ -811,6 +893,47 @@ mod tests {
         m.set_status(st, Status::Refuted).unwrap();
         assert!(m.ownership_up(company, 5).unwrap().is_empty());
         assert_eq!(m.status(st).unwrap(), Status::Refuted);
+    }
+
+    #[test]
+    fn a_failed_transaction_writes_nothing() {
+        let m = model();
+        let result: Result<(), ModelError> = m.in_transaction(|m| {
+            org(m, "тимчасова");
+            Err(ModelError::Invalid("stop"))
+        });
+        assert!(result.is_err());
+        assert_eq!(m.find_entity(EntityKind::Org, None, Some("x")).unwrap(), None);
+        assert_eq!(m.log_len().unwrap(), 0);
+    }
+
+    #[test]
+    fn entities_and_sources_can_be_found_again() {
+        let m = model();
+        let id = m
+            .add_entity(&NewEntity {
+                kind: EntityKind::Org,
+                token: None,
+                label: Some("Фірма"),
+                public_code: Some("12345678"),
+            })
+            .unwrap();
+        assert_eq!(
+            m.find_entity(EntityKind::Org, None, Some("12345678")).unwrap(),
+            Some(id)
+        );
+        let s = m
+            .add_source(&NewSource {
+                kind: SourceKind::Media,
+                title: "стаття",
+                url: Some("https://example.org/a"),
+                published_at: None,
+                reliability: Reliability::C,
+                parent_id: None,
+            })
+            .unwrap();
+        assert_eq!(m.find_source_by_url("https://example.org/a").unwrap(), Some(s));
+        assert_eq!(m.find_source_by_url("https://example.org/b").unwrap(), None);
     }
 
     #[test]
