@@ -173,14 +173,7 @@ pub fn build_report(
             },
             Block::Heading(2, "Джерела".to_string()),
             Block::Table {
-                header: strings(&[
-                    "№",
-                    "Вид",
-                    "Назва",
-                    "Адреса",
-                    "Надійність",
-                    "Отримано від",
-                ]),
+                header: strings(&["№", "Вид", "Назва", "Адреса", "Надійність", "Отримано від"]),
                 rows: source_rows,
             },
         ],
@@ -241,8 +234,9 @@ pub fn to_docx(report: &Report) -> Result<Vec<u8>, ReportError> {
                 docx.add_paragraph(Paragraph::new().add_run(Run::new().add_text(text)))
             }
             Block::Table { header, rows } => {
-                let mut table_rows =
-                    vec![TableRow::new(header.iter().map(|h| cell(h, true)).collect())];
+                let mut table_rows = vec![TableRow::new(
+                    header.iter().map(|h| cell(h, true)).collect(),
+                )];
                 for row in rows {
                     table_rows.push(TableRow::new(row.iter().map(|c| cell(c, false)).collect()));
                 }
@@ -351,7 +345,9 @@ mod tests {
             .windows("Іваненко".len())
             .any(|w| w == "Іваненко".as_bytes()));
         let opened = unwrap(&markdown, "пароль").unwrap();
-        assert!(String::from_utf8(opened).unwrap().contains("Іваненко Петро"));
+        assert!(String::from_utf8(opened)
+            .unwrap()
+            .contains("Іваненко Петро"));
         assert!(unwrap(&markdown, "інший").is_err());
 
         let docx = docx_protected(&report, "пароль").unwrap();

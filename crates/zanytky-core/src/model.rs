@@ -780,7 +780,9 @@ impl Model {
                  ORDER BY role, entity_id",
             )?;
             let parties = parties_stmt
-                .query_map(params![id], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
+                .query_map(params![id], |r| {
+                    Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+                })?
                 .collect::<Result<Vec<_>, _>>()?;
             let mut sources_stmt = self.conn.prepare(
                 "SELECT source_id FROM statement_source WHERE statement_id = ?1 ORDER BY source_id",
@@ -790,8 +792,9 @@ impl Model {
                 .collect::<Result<Vec<_>, _>>()?;
             out.push(StatementRow {
                 id,
-                kind: StatementType::parse(&kind)
-                    .ok_or(ModelError::Invalid("unknown statement kind in the database"))?,
+                kind: StatementType::parse(&kind).ok_or(ModelError::Invalid(
+                    "unknown statement kind in the database",
+                ))?,
                 value,
                 valid_from,
                 valid_to,
