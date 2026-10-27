@@ -4,12 +4,16 @@ ZaNytky includes or can be distributed with third-party software. Those componen
 
 ## Direct dependencies
 
-None yet (the project contains documents only). Every new direct dependency is added here, with its license and purpose, in the same pull request that introduces it, after the license check (`deny.toml` for Rust crates).
+Core library `crates/zanytky-core`:
 
-Planned (not yet added; each is checked before use):
-- age (Rust crate) - MIT OR Apache-2.0 - sealing originals (ADR-0001);
-- a SHA-256/HMAC implementation (RustCrypto `hmac`, `sha2`) - MIT OR Apache-2.0;
-- rusqlite - MIT, bundling SQLite (public domain) - ADR-0002.
+- hmac, sha2 (RustCrypto) - MIT OR Apache-2.0 - keyed pseudonyms (HMAC-SHA256)
+- unicode-normalization - MIT OR Apache-2.0 - canonical form of text values
+- getrandom - MIT OR Apache-2.0 - random system key
+- age - MIT OR Apache-2.0 - sealing originals to the investigator's public key; no default features (no CLI, plugin or SSH code)
+
+Every new direct dependency is added here, with its license and purpose, in the same pull request that introduces it, after the license check (`deny.toml` for Rust crates).
+
+Planned (not yet added; each is checked before use): rusqlite - MIT, bundling SQLite (public domain).
 
 ## License review
 
