@@ -262,7 +262,11 @@ fn is_cap_word(word: &str) -> bool {
     let rest: Vec<char> = chars.collect();
     !rest.is_empty()
         && rest.iter().all(|c| {
-            c.is_lowercase() || APOSTROPHES.contains(c) || *c == '\'' || DASHES.contains(c) || *c == '-'
+            c.is_lowercase()
+                || APOSTROPHES.contains(c)
+                || *c == '\''
+                || DASHES.contains(c)
+                || *c == '-'
         })
 }
 
@@ -270,7 +274,9 @@ fn is_initials(word: &str) -> bool {
     let chars: Vec<char> = word.chars().collect();
     !chars.is_empty()
         && chars.len() % 2 == 0
-        && chars.chunks(2).all(|pair| pair[0].is_uppercase() && pair[1] == '.')
+        && chars
+            .chunks(2)
+            .all(|pair| pair[0].is_uppercase() && pair[1] == '.')
 }
 
 #[derive(Default)]
@@ -433,7 +439,10 @@ mod tests {
 
     #[test]
     fn unknown_names_are_reported_as_candidates() {
-        let result = run("заступник Олексій Коваль підписав; звернувся Мельник І. П.", &[]);
+        let result = run(
+            "заступник Олексій Коваль підписав; звернувся Мельник І. П.",
+            &[],
+        );
         let texts: Vec<&str> = result.candidates.iter().map(|c| c.text.as_str()).collect();
         assert!(texts.contains(&"Олексій Коваль"));
         assert!(texts.contains(&"Мельник І. П."));
