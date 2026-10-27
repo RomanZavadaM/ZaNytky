@@ -12,7 +12,9 @@ fn main() {
     if no_command {
         // Started by a double click: keep the window open so the help can be read.
         println!();
-        println!("Це програма командного рядка: запускайте її з термінала (PowerShell) з командою.");
+        println!(
+            "Це програма командного рядка: запускайте її з термінала (PowerShell) з командою."
+        );
         println!("Натисніть Enter, щоб закрити це вікно.");
         let _ = stdout.flush();
         let mut line = String::new();
