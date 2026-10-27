@@ -1,0 +1,35 @@
+# License gate for Rust dependencies (cargo-deny). ZaNytky is proprietary
+# software (LICENSE.md): every bundled dependency must be usable in a
+# closed-source distribution. See THIRD_PARTY_NOTICES.md and
+# PROJECT_RULES.md, section 6.
+
+[graph]
+all-features = true
+
+[licenses]
+version = 2
+confidence-threshold = 0.9
+allow = [
+    "MIT",
+    "MIT-0",
+    "Apache-2.0",
+    "Apache-2.0 WITH LLVM-exception",
+    "BSD-2-Clause",
+    "BSD-3-Clause",
+    "ISC",
+    "Zlib",
+    "0BSD",
+    "BSL-1.0",
+    "CC0-1.0",
+    "Unlicense",
+    "Unicode-3.0",
+    "Unicode-DFS-2016",
+    "CDLA-Permissive-2.0",
+]
+
+# Our own crates are not published and carry the proprietary LICENSE.md.
+[licenses.private]
+ignore = true
+
+# Copyleft (GPL, AGPL, LGPL, MPL, EPL, SSPL, BUSL) is not allowed. An exception needs a
+# written decision of the owner in PROJECT_RULES.md and a [[licenses.exceptions]] entry.

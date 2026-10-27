@@ -1,0 +1,7 @@
+target/
+*.key
+*.identity
+*.db
+*.db-journal
+identity*.txt
+.env
