@@ -273,7 +273,7 @@ fn is_cap_word(word: &str) -> bool {
 fn is_initials(word: &str) -> bool {
     let chars: Vec<char> = word.chars().collect();
     !chars.is_empty()
-        && chars.len() % 2 == 0
+        && chars.len().is_multiple_of(2)
         && chars
             .chunks(2)
             .all(|pair| pair[0].is_uppercase() && pair[1] == '.')
