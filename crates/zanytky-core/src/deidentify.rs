@@ -6,7 +6,7 @@
 //! system does not know are reported as candidates so the investigator can
 //! decide what they are (step 2a of the parse package).
 
-use std::collections::BTreeMap;
+use std::collections::{BTreeMap, HashMap};
 
 use crate::normalize::{Kind, APOSTROPHES, DASHES};
 use crate::pseudonym::{token, TokenError};
@@ -338,10 +338,26 @@ pub fn deidentify(
     key: &[u8],
     dictionary: &[DictEntry],
 ) -> Result<Deidentified, TokenError> {
+    deidentify_with_links(text, key, dictionary, &HashMap::new())
+}
+
+/// Like [`deidentify`], and a code (tax number, phone, e-mail) whose pseudonym
+/// is linked to a person is replaced by that person's pseudonym.
+pub fn deidentify_with_links(
+    text: &str,
+    key: &[u8],
+    dictionary: &[DictEntry],
+    links: &HashMap<String, String>,
+) -> Result<Deidentified, TokenError> {
     let chars: Vec<char> = text.chars().collect();
     let mut spans = dictionary_spans(&chars, dictionary, key)?;
     spans.extend(email_spans(&chars, key)?);
     spans.extend(number_spans(&chars, key)?);
+    for span in spans.iter_mut().filter(|s| s.kind != Kind::Name) {
+        if let Some(person) = links.get(&span.token) {
+            span.token = person.clone();
+        }
+    }
     spans.sort_by_key(|s| (s.start, std::cmp::Reverse(s.end)));
 
     let mut out = String::new();

@@ -2,9 +2,11 @@
 //!
 //! The original text and the table of replacements never go into the package.
 
+use std::collections::HashMap;
+
 use serde_json::json;
 
-use crate::deidentify::{deidentify, Candidate, DictEntry, Replacement};
+use crate::deidentify::{deidentify_with_links, Candidate, DictEntry, Replacement};
 use crate::model::{Reliability, SourceKind};
 use crate::pseudonym::TokenError;
 
@@ -89,21 +91,43 @@ pub fn build_package(
     key: &[u8],
     dictionary: &[DictEntry],
 ) -> Result<Package, TokenError> {
-    let body = deidentify(text, key, dictionary)?;
+    build_package_with_links(
+        id,
+        meta,
+        text,
+        context_note,
+        key,
+        dictionary,
+        &HashMap::new(),
+    )
+}
+
+/// Like [`build_package`], with the investigator's links of codes to persons.
+pub fn build_package_with_links(
+    id: &str,
+    meta: &SourceMeta,
+    text: &str,
+    context_note: Option<&str>,
+    key: &[u8],
+    dictionary: &[DictEntry],
+    links: &HashMap<String, String>,
+) -> Result<Package, TokenError> {
+    let deidentify = |text: &str| deidentify_with_links(text, key, dictionary, links);
+    let body = deidentify(text)?;
     let mut deidentified = body.text;
     let mut replacements = body.replacements;
     let mut candidates = body.candidates;
     if let Some(note) = context_note.filter(|n| !n.trim().is_empty()) {
-        let context = deidentify(note, key, dictionary)?;
+        let context = deidentify(note)?;
         deidentified.push_str("\n\n## Контекст від розслідувача\n\n");
         deidentified.push_str(&context.text);
         deidentified.push('\n');
         replacements.extend(context.replacements);
         candidates.extend(context.candidates);
     }
-    let title = deidentify(&meta.title, key, dictionary)?.text;
+    let title = deidentify(&meta.title)?.text;
     let received_from = match &meta.received_from {
-        Some(text) => Some(deidentify(text, key, dictionary)?.text),
+        Some(text) => Some(deidentify(text)?.text),
         None => None,
     };
     let meta_json = serde_json::to_string_pretty(&json!({
