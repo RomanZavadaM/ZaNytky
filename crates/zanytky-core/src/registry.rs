@@ -437,9 +437,10 @@ mod tests {
             .unwrap();
         let dictionary = registry.dictionary(&identity).unwrap();
         let links = registry.links().unwrap();
-        let text = "Іваненко П. (ІПН 1234567890, тел. +38 050 123 45 67) та Іваненко Петро Олексійович.";
-        let result = crate::deidentify::deidentify_with_links(text, &key(), &dictionary, &links)
-            .unwrap();
+        let text =
+            "Іваненко П. (ІПН 1234567890, тел. +38 050 123 45 67) та Іваненко Петро Олексійович.";
+        let result =
+            crate::deidentify::deidentify_with_links(text, &key(), &dictionary, &links).unwrap();
         assert_eq!(
             result.text,
             format!("{person} (ІПН {person}, тел. {person}) та {person}.")
@@ -469,7 +470,9 @@ mod tests {
         {
             let registry = Registry::open(&path, &key(), vec![recipient]).unwrap();
             let person = registry.register(Kind::Name, "Іваненко Петро").unwrap();
-            registry.link(Kind::Name, "Іванов Прізвисько", &person).unwrap();
+            registry
+                .link(Kind::Name, "Іванов Прізвисько", &person)
+                .unwrap();
             registry.link(Kind::Ipn, "1234567890", &person).unwrap();
         }
         let bytes = std::fs::read(&path).unwrap();
