@@ -14,6 +14,7 @@ Core library `crates/zanytky-core`:
 Every new direct dependency is added here, with its license and purpose, in the same pull request that introduces it, after the license check (`deny.toml` for Rust crates).
 
 - rusqlite - MIT - SQLite registry of pseudonyms; bundles SQLite (public domain)
+- serde, serde_json - MIT OR Apache-2.0 - parse package metadata and the AI result (`result.json`)
 - tempfile - MIT OR Apache-2.0 - development dependency, tests only
 
 ## License review
