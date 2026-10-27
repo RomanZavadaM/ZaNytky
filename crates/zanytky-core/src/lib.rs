@@ -2,8 +2,10 @@
 
 pub mod normalize;
 pub mod pseudonym;
+pub mod registry;
 pub mod seal;
 
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use pseudonym::{new_key, token, TokenError, MIN_KEY_BYTES};
+pub use registry::{Registry, RegistryError};
 pub use seal::{parse_identity, parse_recipient, seal, unseal, SealError, Sealed};
