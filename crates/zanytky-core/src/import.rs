@@ -248,15 +248,24 @@ mod tests {
         assert_eq!(edges.len(), 1);
         assert_eq!(edges[0].owner, person);
         assert_eq!(edges[0].value.as_deref(), Some("40%"));
-        assert_eq!(model.status(edges[0].statement_id).unwrap(), Status::Unverified);
-        assert_eq!(model.grade(edges[0].statement_id).unwrap().to_string(), "C3");
+        assert_eq!(
+            model.status(edges[0].statement_id).unwrap(),
+            Status::Unverified
+        );
+        assert_eq!(
+            model.grade(edges[0].statement_id).unwrap().to_string(),
+            "C3"
+        );
     }
 
     #[test]
     fn the_source_chain_is_kept_and_counts_one_origin() {
         let model = Model::open_in_memory("tester").unwrap();
         import_result(&model, &file("pkg-1")).unwrap();
-        let s0 = model.find_source_by_url("https://example.org/reg").unwrap().unwrap();
+        let s0 = model
+            .find_source_by_url("https://example.org/reg")
+            .unwrap()
+            .unwrap();
         // the media source was received from the registry source
         assert_eq!(model.provenance(s0 + 1).unwrap(), vec![s0 + 1, s0]);
     }
@@ -266,7 +275,10 @@ mod tests {
         let model = Model::open_in_memory("tester").unwrap();
         import_result(&model, &file("pkg-1")).unwrap();
         let again = import_result(&model, &file("pkg-1"));
-        assert_eq!(again, Err(ImportError::AlreadyImported("pkg-1".to_string())));
+        assert_eq!(
+            again,
+            Err(ImportError::AlreadyImported("pkg-1".to_string()))
+        );
     }
 
     #[test]

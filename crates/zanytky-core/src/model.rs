@@ -903,7 +903,10 @@ mod tests {
             Err(ModelError::Invalid("stop"))
         });
         assert!(result.is_err());
-        assert_eq!(m.find_entity(EntityKind::Org, None, Some("x")).unwrap(), None);
+        assert_eq!(
+            m.find_entity(EntityKind::Org, None, Some("x")).unwrap(),
+            None
+        );
         assert_eq!(m.log_len().unwrap(), 0);
     }
 
@@ -919,7 +922,8 @@ mod tests {
             })
             .unwrap();
         assert_eq!(
-            m.find_entity(EntityKind::Org, None, Some("12345678")).unwrap(),
+            m.find_entity(EntityKind::Org, None, Some("12345678"))
+                .unwrap(),
             Some(id)
         );
         let s = m
@@ -932,7 +936,10 @@ mod tests {
                 parent_id: None,
             })
             .unwrap();
-        assert_eq!(m.find_source_by_url("https://example.org/a").unwrap(), Some(s));
+        assert_eq!(
+            m.find_source_by_url("https://example.org/a").unwrap(),
+            Some(s)
+        );
         assert_eq!(m.find_source_by_url("https://example.org/b").unwrap(), None);
     }
 
