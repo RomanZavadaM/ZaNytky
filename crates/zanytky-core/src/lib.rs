@@ -1,5 +1,6 @@
 //! ZaNytky core: canonical form of values and keyed one-to-one pseudonyms.
 
+pub mod deidentify;
 pub mod export;
 pub mod model;
 pub mod normalize;
@@ -8,6 +9,7 @@ pub mod registry;
 pub mod seal;
 pub mod wrap;
 
+pub use deidentify::{deidentify, Candidate, Deidentified, DictEntry, Replacement};
 pub use export::{markdown_table, markdown_table_protected};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};

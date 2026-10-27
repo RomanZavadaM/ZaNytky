@@ -17,6 +17,7 @@ pub enum Kind {
     Ipn,
     Edrpou,
     Phone,
+    Email,
     Text,
 }
 
@@ -27,6 +28,7 @@ impl Kind {
             Kind::Ipn => "ipn",
             Kind::Edrpou => "edrpou",
             Kind::Phone => "phone",
+            Kind::Email => "email",
             Kind::Text => "text",
         }
     }
@@ -38,6 +40,7 @@ impl Kind {
             "ipn" => Some(Kind::Ipn),
             "edrpou" => Some(Kind::Edrpou),
             "phone" => Some(Kind::Phone),
+            "email" => Some(Kind::Email),
             "text" => Some(Kind::Text),
             _ => None,
         }
@@ -50,6 +53,7 @@ impl Kind {
             Kind::Ipn => 'I',
             Kind::Edrpou => 'E',
             Kind::Phone => 'T',
+            Kind::Email => 'M',
             Kind::Text => 'X',
         }
     }
@@ -73,10 +77,10 @@ impl fmt::Display for NormalizeError {
 
 impl std::error::Error for NormalizeError {}
 
-const APOSTROPHES: [char; 6] = [
+pub(crate) const APOSTROPHES: [char; 6] = [
     '\u{2019}', '\u{02bc}', '\u{2018}', '`', '\u{00b4}', '\u{2032}',
 ];
-const DASHES: [char; 6] = [
+pub(crate) const DASHES: [char; 6] = [
     '\u{2010}', '\u{2011}', '\u{2012}', '\u{2013}', '\u{2014}', '\u{2212}',
 ];
 
@@ -126,6 +130,16 @@ pub fn normalize(kind: Kind, value: &str) -> Result<String, NormalizeError> {
                 return Err(NormalizeError::BadFormat(kind));
             }
             d
+        }
+        Kind::Email => {
+            let lowered = value.trim().to_lowercase();
+            let valid = lowered.contains('@')
+                && !lowered.contains(char::is_whitespace)
+                && lowered.rsplit('@').next().is_some_and(|d| d.contains('.'));
+            if !valid {
+                return Err(NormalizeError::BadFormat(kind));
+            }
+            lowered
         }
         Kind::Phone => {
             let mut d = digits(value);
@@ -196,6 +210,18 @@ mod tests {
         assert_eq!(
             normalize(Kind::Phone, "+1 202 555 0100"),
             Err(NormalizeError::BadFormat(Kind::Phone))
+        );
+    }
+
+    #[test]
+    fn email_is_lowercased_and_checked() {
+        assert_eq!(
+            normalize(Kind::Email, " Ivan@Example.ORG ").unwrap(),
+            "ivan@example.org"
+        );
+        assert_eq!(
+            normalize(Kind::Email, "not an email"),
+            Err(NormalizeError::BadFormat(Kind::Email))
         );
     }
 
