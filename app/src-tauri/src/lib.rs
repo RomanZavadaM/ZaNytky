@@ -7,7 +7,7 @@ use std::fs;
 use std::path::{Path, PathBuf};
 
 use serde::{Deserialize, Serialize};
-use zanytky_core::model::{Model, Reliability, SourceKind};
+use zanytky_core::model::{EntityKind, Model, Reliability, SourceKind, Status};
 use zanytky_core::normalize::Kind;
 use zanytky_core::pseudonym::{new_key, MIN_KEY_BYTES};
 use zanytky_core::registry::{Registry, Resolution};
@@ -400,6 +400,66 @@ fn make_report(input: ReportInput) -> Res<String> {
     Ok(target.display().to_string())
 }
 
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct StatementOut {
+    id: i64,
+    kind: String,
+    parties: Vec<String>,
+    value: String,
+    grade: String,
+    status: String,
+    note: String,
+}
+
+fn party_label(model: &Model, id: i64, role: &str) -> Res<String> {
+    let entity = model.entity(id).map_err(|e| e.to_string())?;
+    let name = match entity.kind {
+        // persons are shown only by pseudonym here; revealing needs the report
+        EntityKind::Person => entity.token.unwrap_or_default(),
+        _ => entity.label.unwrap_or_default(),
+    };
+    Ok(format!("{name} ({role})"))
+}
+
+#[tauri::command]
+fn list_statements(input: HomeInput) -> Res<Vec<StatementOut>> {
+    let model = open_model(&home_path(&input.home)?)?;
+    let mut out = Vec::new();
+    for statement in model.statements().map_err(|e| e.to_string())? {
+        let mut parties = Vec::new();
+        for (entity, role) in &statement.parties {
+            parties.push(party_label(&model, *entity, role)?);
+        }
+        out.push(StatementOut {
+            id: statement.id,
+            kind: statement.kind.as_str().to_string(),
+            parties,
+            value: statement.value.clone().unwrap_or_default(),
+            grade: model.grade(statement.id).map_err(|e| e.to_string())?.to_string(),
+            status: statement.status.as_str().to_string(),
+            note: statement.note.clone().unwrap_or_default(),
+        });
+    }
+    Ok(out)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct StatusInput {
+    home: String,
+    id: i64,
+    /// "confirmed", "refuted" or "unverified"
+    status: String,
+}
+
+#[tauri::command]
+fn set_statement_status(input: StatusInput) -> Res<()> {
+    let model = open_model(&home_path(&input.home)?)?;
+    let status = Status::parse(&input.status).ok_or("unknown status")?;
+    model.set_status(input.id, status).map_err(|e| e.to_string())
+}
+
 pub fn run() {
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
@@ -413,6 +473,8 @@ pub fn run() {
             check_result,
             import_result_cmd,
             make_report,
+            list_statements,
+            set_statement_status,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ZaNytky");
