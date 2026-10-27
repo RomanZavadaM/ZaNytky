@@ -105,13 +105,19 @@ fn validate_sources(sources: &[ResultSource]) -> Result<(), ResultError> {
     let mut refs = HashSet::new();
     for source in sources {
         if !refs.insert(source.reference.as_str()) {
-            return Err(invalid(format!("duplicate source ref {}", source.reference)));
+            return Err(invalid(format!(
+                "duplicate source ref {}",
+                source.reference
+            )));
         }
         if SourceKind::parse(&source.kind).is_none() {
             return Err(invalid(format!("unknown source kind {}", source.kind)));
         }
         if Reliability::parse(&source.reliability).is_none() {
-            return Err(invalid(format!("unknown reliability {}", source.reliability)));
+            return Err(invalid(format!(
+                "unknown reliability {}",
+                source.reliability
+            )));
         }
         if source.title.trim().is_empty() {
             return Err(invalid(format!("source {} has no title", source.reference)));
@@ -127,7 +133,9 @@ fn validate_sources(sources: &[ResultSource]) -> Result<(), ResultError> {
         .collect();
     for (child, parent) in &parents {
         if !refs.contains(parent) {
-            return Err(invalid(format!("{child} is received from unknown {parent}")));
+            return Err(invalid(format!(
+                "{child} is received from unknown {parent}"
+            )));
         }
         let mut current = *parent;
         let mut steps = 0;
@@ -146,20 +154,34 @@ fn validate_entities(entities: &[ResultEntity]) -> Result<(), ResultError> {
     let mut refs = HashSet::new();
     for entity in entities {
         if !refs.insert(entity.reference.as_str()) {
-            return Err(invalid(format!("duplicate entity ref {}", entity.reference)));
+            return Err(invalid(format!(
+                "duplicate entity ref {}",
+                entity.reference
+            )));
         }
         let kind = EntityKind::parse(&entity.kind)
             .ok_or_else(|| invalid(format!("unknown entity kind {}", entity.kind)))?;
         if kind == EntityKind::Person {
             if entity.label.is_some() {
-                return Err(invalid(format!("person {} must not have a label", entity.reference)));
+                return Err(invalid(format!(
+                    "person {} must not have a label",
+                    entity.reference
+                )));
             }
             match &entity.token {
                 Some(token) if valid_token(token) => {}
-                _ => return Err(invalid(format!("person {} needs a valid token", entity.reference))),
+                _ => {
+                    return Err(invalid(format!(
+                        "person {} needs a valid token",
+                        entity.reference
+                    )))
+                }
             }
         } else if entity.label.as_deref().is_none_or(|l| l.trim().is_empty()) {
-            return Err(invalid(format!("entity {} needs a label", entity.reference)));
+            return Err(invalid(format!(
+                "entity {} needs a label",
+                entity.reference
+            )));
         }
     }
     Ok(())
@@ -171,7 +193,10 @@ fn validate_statements(file: &ResultFile) -> Result<(), ResultError> {
     for (index, statement) in file.statements.iter().enumerate() {
         let at = index + 1;
         if StatementType::parse(&statement.kind).is_none() {
-            return Err(invalid(format!("statement {at}: unknown kind {}", statement.kind)));
+            return Err(invalid(format!(
+                "statement {at}: unknown kind {}",
+                statement.kind
+            )));
         }
         if !(1..=6).contains(&statement.credibility) {
             return Err(invalid(format!("statement {at}: credibility must be 1..6")));
@@ -180,11 +205,16 @@ fn validate_statements(file: &ResultFile) -> Result<(), ResultError> {
             return Err(invalid(format!("statement {at}: a quote is required")));
         }
         if statement.parties.is_empty() || statement.sources.is_empty() {
-            return Err(invalid(format!("statement {at}: parties and sources are required")));
+            return Err(invalid(format!(
+                "statement {at}: parties and sources are required"
+            )));
         }
         for party in &statement.parties {
             if !entity_refs.contains(party.entity.as_str()) {
-                return Err(invalid(format!("statement {at}: unknown entity {}", party.entity)));
+                return Err(invalid(format!(
+                    "statement {at}: unknown entity {}",
+                    party.entity
+                )));
             }
             if party.role.trim().is_empty() {
                 return Err(invalid(format!("statement {at}: a party has no role")));
@@ -328,27 +358,51 @@ mod tests {
             parse_result("{", "pkg-1"),
             Err(ResultError::Json(_))
         ));
-        assert!(rejected(&mutate("\"credibility\": 3,", "\"credibility\": 3, \"extra\": 1,")));
+        assert!(rejected(&mutate(
+            "\"credibility\": 3,",
+            "\"credibility\": 3, \"extra\": 1,"
+        )));
     }
 
     #[test]
     fn a_person_needs_a_token_and_no_label() {
-        assert!(rejected(&mutate("\"label\": null, \"token\": \"", "\"label\": \"Ім'я\", \"token\": \"")));
+        assert!(rejected(&mutate(
+            "\"label\": null, \"token\": \"",
+            "\"label\": \"Ім'я\", \"token\": \""
+        )));
         assert!(rejected(&mutate(TOKEN, "not-a-token")));
     }
 
     #[test]
     fn an_organisation_needs_a_label() {
-        assert!(rejected(&mutate("\"label\": \"ТОВ Приклад\"", "\"label\": null")));
+        assert!(rejected(&mutate(
+            "\"label\": \"ТОВ Приклад\"",
+            "\"label\": null"
+        )));
     }
 
     #[test]
     fn kinds_and_grades_are_checked() {
-        assert!(rejected(&mutate("\"kind\": \"owns\"", "\"kind\": \"loves\"")));
-        assert!(rejected(&mutate("\"kind\": \"media\"", "\"kind\": \"gossip\"")));
-        assert!(rejected(&mutate("\"reliability\": \"C\"", "\"reliability\": \"Z\"")));
-        assert!(rejected(&mutate("\"credibility\": 3", "\"credibility\": 7")));
-        assert!(rejected(&mutate("\"credibility\": 3", "\"credibility\": 0")));
+        assert!(rejected(&mutate(
+            "\"kind\": \"owns\"",
+            "\"kind\": \"loves\""
+        )));
+        assert!(rejected(&mutate(
+            "\"kind\": \"media\"",
+            "\"kind\": \"gossip\""
+        )));
+        assert!(rejected(&mutate(
+            "\"reliability\": \"C\"",
+            "\"reliability\": \"Z\""
+        )));
+        assert!(rejected(&mutate(
+            "\"credibility\": 3",
+            "\"credibility\": 7"
+        )));
+        assert!(rejected(&mutate(
+            "\"credibility\": 3",
+            "\"credibility\": 0"
+        )));
     }
 
     #[test]
@@ -358,9 +412,18 @@ mod tests {
 
     #[test]
     fn references_must_resolve() {
-        assert!(rejected(&mutate("\"entity\": \"e2\"", "\"entity\": \"e9\"")));
-        assert!(rejected(&mutate("\"sources\": [\"s1\"]", "\"sources\": [\"s9\"]")));
-        assert!(rejected(&mutate("\"sources\": [\"s1\"]", "\"sources\": []")));
+        assert!(rejected(&mutate(
+            "\"entity\": \"e2\"",
+            "\"entity\": \"e9\""
+        )));
+        assert!(rejected(&mutate(
+            "\"sources\": [\"s1\"]",
+            "\"sources\": [\"s9\"]"
+        )));
+        assert!(rejected(&mutate(
+            "\"sources\": [\"s1\"]",
+            "\"sources\": []"
+        )));
     }
 
     #[test]
@@ -370,8 +433,14 @@ mod tests {
 
     #[test]
     fn source_chains_must_exist_and_not_loop() {
-        assert!(rejected(&mutate("\"received_from\": null", "\"received_from\": \"s9\"")));
-        assert!(rejected(&mutate("\"received_from\": null", "\"received_from\": \"s1\"")));
+        assert!(rejected(&mutate(
+            "\"received_from\": null",
+            "\"received_from\": \"s9\""
+        )));
+        assert!(rejected(&mutate(
+            "\"received_from\": null",
+            "\"received_from\": \"s1\""
+        )));
     }
 
     #[test]
