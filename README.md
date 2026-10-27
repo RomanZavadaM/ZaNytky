@@ -1,42 +1,53 @@
 # ZaNytky («За нитку»)
 
+**🇺🇦 Українська** · [🇬🇧 English](docs/readme/README.en.md) · [🇫🇷 Français](docs/readme/README.fr.md) · [🇩🇪 Deutsch](docs/readme/README.de.md) · [🇪🇸 Español](docs/readme/README.es.md) · [🇰🇷 한국어](docs/readme/README.ko.md) · [🇯🇵 日本語](docs/readme/README.ja.md)
+
 Застосунок для впорядкування зв'язків між суб'єктами з відкритих джерел із псевдонімізацією персональних даних за ключем.
 
-Статус: **ранній етап розробки**, є командний рядок `zanytky`. Мова реалізації - Rust. Українська - основна мова інтерфейсу й документації.
+Статус: **ранній етап розробки** (пререлиз). Мова реалізації - Rust (ядро) і React (вікно). Українська - основна мова інтерфейсу й документації.
 
-ZaNytky - **proprietary software**: публічність репозиторію не надає open-source ліцензії (див. [LICENSE.md](LICENSE.md), [COPYRIGHT.md](COPYRIGHT.md), [THIRD_PARTY_NOTICES.md](THIRD_PARTY_NOTICES.md)).
-
-Дані користувача в репозиторії не зберігаються.
+ZaNytky - **proprietary software**: публічність репозиторію не надає open-source ліцензії (див. LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Дані користувача в репозиторії не зберігаються.
 
 ## Що вміє
 
 - Однозначні псевдоніми значень (імена, ІПН, телефони, пошти) за системним ключем: те саме значення завжди дає той самий код.
-- Оригінали зберігаються лише запечатаними на публічний ключ розслідувача ([age](https://age-encryption.org)); розкрити може лише власник приватного ключа.
-- Знеособлення тексту перед розбором і пакет для ШІ (текст, інструкція, метадані).
+- Оригінали зберігаються лише запечатаними на публічний ключ розслідувача (age); розкрити може лише власник приватного ключа.
+- Знеособлення тексту перед розбором ШІ й пакет для ШІ (текст, інструкція, метадані); рішення розслідувача про невпізнані згадки.
 - Перевірка відповіді ШІ, вичитка людиною, імпорт у базу (SQLite) як «неперевірене».
 - Модель: суб'єкти, джерела з ланцюжком до першоджерела, твердження з оцінкою надійності й достовірності, дерево власності.
 - Звіт розслідувача у Markdown, Word і PDF, захищений парольною фразою.
 
-## Швидкий початок
+## Завантаження
 
-Потрібен [Rust](https://rustup.rs) (або готовий `zanytky.exe` з розділу Actions → «Windows build»).
+Готові файли для Windows (портативний zip без встановлення, інсталятори .msi/.exe) - на сторінці [релізів](https://github.com/RomanZavadaM/ZaNytky/releases/latest). Збірки не підписані: Windows може показати попередження про невідомого видавця.
+
+## Швидкий початок (застосунок)
+
+1. Розпакуйте портативний архів і запустіть `ZaNytky.exe` (потрібен Microsoft Edge WebView2, є в Windows 10/11).
+2. Вкладка «Налаштування»: оберіть порожню папку даних і натисніть «Підготувати папку»; створіть ключ розслідувача й збережіть його файл у безпечному місці.
+3. Вкладка «Розбір документа»: вставте текст, натисніть «Знеособити й скласти пакет», скопіюйте текст та інструкцію й передайте їх ШІ.
+4. Вкладка «Результат ШІ»: вставте відповідь (result.json), перевірте, прочитайте вичитку й імпортуйте.
+5. Вкладки «База» і «Звіт»: переглядайте твердження, підтверджуйте чи спростовуйте, створюйте звіт.
+
+## Командний рядок
+
+Те саме доступно командами; `zanytky help` показує всі.
 
 ```bash
-cargo build --release -p zanytky-cli
-# далі: target/release/zanytky (на Windows - zanytky.exe)
-
-zanytky init --home ./home                       # системний ключ і порожній список ключів
-zanytky identity-new ./investigator.txt          # пара ключів розслідувача; публічний ключ -> home/recipients.txt
+zanytky init --home ./home
+zanytky identity-new ./investigator.txt
 zanytky register name "Іваненко Петро" --home ./home
-zanytky prepare doc.md --home ./home --out ./pkg --id pkg-1 --title "Назва" --identity ./investigator.txt
-# пакет з ./pkg віддається ШІ; відповідь зберігається як result.json
+zanytky prepare doc.md --home ./home --out ./pkg --id pkg-1 --title "Title" --identity ./investigator.txt
 zanytky check  result.json --package pkg-1
 zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 ```
 
-`zanytky help` показує всі команди. Системний ключ (`home/system.key`), приватний ключ розслідувача і парольну фразу зберігайте окремо й ніколи не додавайте в репозиторій.
+## Безпека
 
-## Перевірки
+Системний ключ (`system.key` у папці даних), приватний ключ розслідувача і парольну фразу зберігайте окремо й ніколи не додавайте в репозиторій. Застосунок нічого не надсилає в мережу.
 
-`cargo fmt --all --check`, `cargo clippy --workspace --all-targets -- -D warnings`, `cargo test --workspace`; ліцензії залежностей перевіряє `cargo deny` за [deny.toml](deny.toml). Перелік ліцензій виводиться в кожному запуску CI.
+## Документація
+
+- [Керівництво користувача](docs/user-guide/USER_GUIDE.uk.md)
+- [LICENSE](LICENSE.md)
