@@ -1,5 +1,5 @@
 [workspace]
-members = ["crates/zanytky-core"]
+members = ["crates/zanytky-core", "crates/zanytky-cli"]
 resolver = "2"
 
 [workspace.package]
