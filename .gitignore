@@ -5,3 +5,7 @@ target/
 *.db-journal
 identity*.txt
 .env
+node_modules/
+app/dist/
+app/src-tauri/target/
+app/src-tauri/gen/

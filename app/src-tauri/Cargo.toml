@@ -1,0 +1,25 @@
+[package]
+name = "zanytky-app"
+description = "ZaNytky desktop application"
+version = "0.0.1"
+edition = "2021"
+license-file = "../../LICENSE.md"
+publish = false
+
+[lib]
+# The `_lib` suffix avoids a name clash with the binary on Windows.
+name = "zanytky_app_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2", features = [] }
+
+[dependencies]
+zanytky-core = { path = "../../crates/zanytky-core" }
+serde = { version = "1", features = ["derive"] }
+tauri = { version = "2" }
+tauri-plugin-dialog = "2"
+
+# The application is built separately from the core workspace (it needs the
+# system web view libraries), so it is its own workspace.
+[workspace]

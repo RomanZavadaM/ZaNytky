@@ -1,0 +1,419 @@
+//! ZaNytky desktop application: thin Tauri commands over `zanytky-core`.
+//!
+//! Secrets stay in files the user chooses: the system key in the data folder,
+//! the investigator's private key wherever the investigator saves it.
+
+use std::fs;
+use std::path::{Path, PathBuf};
+
+use serde::{Deserialize, Serialize};
+use zanytky_core::model::{Model, Reliability, SourceKind};
+use zanytky_core::normalize::Kind;
+use zanytky_core::pseudonym::{new_key, MIN_KEY_BYTES};
+use zanytky_core::registry::{Registry, Resolution};
+use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Identity, Recipient};
+use zanytky_core::wrap::wrap;
+use zanytky_core::{
+    build_package_with_links, build_report, import_result, parse_result, pdf, review_markdown,
+    to_docx, to_markdown, SourceMeta,
+};
+
+type Res<T> = Result<T, String>;
+
+fn io_error(path: &Path, error: std::io::Error) -> String {
+    format!("{}: {error}", path.display())
+}
+
+fn read_text(path: &Path) -> Res<String> {
+    fs::read_to_string(path).map_err(|e| io_error(path, e))
+}
+
+fn write_bytes(path: &Path, bytes: &[u8]) -> Res<()> {
+    if let Some(parent) = path.parent() {
+        if !parent.as_os_str().is_empty() {
+            fs::create_dir_all(parent).map_err(|e| io_error(parent, e))?;
+        }
+    }
+    fs::write(path, bytes).map_err(|e| io_error(path, e))
+}
+
+fn hex(bytes: &[u8]) -> String {
+    bytes.iter().map(|b| format!("{b:02x}")).collect()
+}
+
+fn unhex(text: &str) -> Res<Vec<u8>> {
+    let text = text.trim();
+    if !text.is_ascii() || !text.len().is_multiple_of(2) {
+        return Err("system key is damaged".to_string());
+    }
+    (0..text.len())
+        .step_by(2)
+        .map(|i| u8::from_str_radix(&text[i..i + 2], 16).map_err(|_| "system key is damaged".to_string()))
+        .collect()
+}
+
+fn home_path(home: &str) -> Res<PathBuf> {
+    if home.trim().is_empty() {
+        return Err("data folder is not chosen".to_string());
+    }
+    Ok(PathBuf::from(home))
+}
+
+fn load_key(home: &Path) -> Res<Vec<u8>> {
+    let key = unhex(&read_text(&home.join("system.key"))?)?;
+    if key.len() < MIN_KEY_BYTES {
+        return Err("system key is too short".to_string());
+    }
+    Ok(key)
+}
+
+fn load_recipients(home: &Path) -> Res<Vec<Recipient>> {
+    let text = read_text(&home.join("recipients.txt"))?;
+    let mut out = Vec::new();
+    for line in text.lines().map(str::trim) {
+        if line.is_empty() || line.starts_with('#') {
+            continue;
+        }
+        out.push(parse_recipient(line).map_err(|e| e.to_string())?);
+    }
+    if out.is_empty() {
+        return Err("no investigator public keys in recipients.txt".to_string());
+    }
+    Ok(out)
+}
+
+fn open_registry(home: &Path) -> Res<Registry> {
+    Registry::open(&home.join("registry.db"), &load_key(home)?, load_recipients(home)?)
+        .map_err(|e| e.to_string())
+}
+
+fn open_model(home: &Path) -> Res<Model> {
+    Model::open(&home.join("model.db"), "app").map_err(|e| e.to_string())
+}
+
+fn read_identity(path: &str) -> Res<Identity> {
+    let text = read_text(Path::new(path))?;
+    let line = text
+        .lines()
+        .map(str::trim)
+        .find(|l| l.starts_with("AGE-SECRET-KEY-"))
+        .ok_or_else(|| "no private key in the file".to_string())?;
+    parse_identity(line).map_err(|e| e.to_string())
+}
+
+fn clean(value: Option<String>) -> Option<String> {
+    value.map(|v| v.trim().to_string()).filter(|v| !v.is_empty())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct HomeInput {
+    home: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct HomeStatus {
+    initialised: bool,
+    recipients: usize,
+}
+
+#[tauri::command]
+fn home_status(input: HomeInput) -> Res<HomeStatus> {
+    let home = home_path(&input.home)?;
+    let initialised = home.join("system.key").exists();
+    let recipients = match fs::read_to_string(home.join("recipients.txt")) {
+        Ok(text) => text
+            .lines()
+            .map(str::trim)
+            .filter(|l| !l.is_empty() && !l.starts_with('#'))
+            .count(),
+        Err(_) => 0,
+    };
+    Ok(HomeStatus {
+        initialised,
+        recipients,
+    })
+}
+
+#[tauri::command]
+fn init_home(input: HomeInput) -> Res<String> {
+    let home = home_path(&input.home)?;
+    fs::create_dir_all(&home).map_err(|e| io_error(&home, e))?;
+    let key_path = home.join("system.key");
+    if !key_path.exists() {
+        let key = new_key().map_err(|e| e.to_string())?;
+        write_bytes(&key_path, hex(&key).as_bytes())?;
+    }
+    let recipients = home.join("recipients.txt");
+    if !recipients.exists() {
+        write_bytes(&recipients, b"# investigator public keys (age1...), one per line\n")?;
+    }
+    Ok(home.display().to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct IdentityInput {
+    home: String,
+    path: String,
+}
+
+/// Create the investigator's key pair: the private key goes to `path`, the
+/// public key is added to the recipients of the data folder.
+#[tauri::command]
+fn new_identity(input: IdentityInput) -> Res<String> {
+    let home = home_path(&input.home)?;
+    if !home.join("system.key").exists() {
+        return Err("initialise the data folder first".to_string());
+    }
+    let path = PathBuf::from(&input.path);
+    if path.exists() {
+        return Err("the file already exists, it is not overwritten".to_string());
+    }
+    let (secret, public) = generate_identity();
+    write_bytes(
+        &path,
+        format!("# investigator private key - keep it in a safe place\n{secret}\n").as_bytes(),
+    )?;
+    let recipients = home.join("recipients.txt");
+    let mut text = read_text(&recipients)?;
+    if !text.ends_with('\n') {
+        text.push('\n');
+    }
+    text.push_str(&format!("{public}\n"));
+    write_bytes(&recipients, text.as_bytes())?;
+    Ok(public)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PathInput {
+    path: String,
+}
+
+#[tauri::command]
+fn read_text_file(input: PathInput) -> Res<String> {
+    read_text(Path::new(&input.path))
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PrepareInput {
+    home: String,
+    text: String,
+    id: String,
+    title: String,
+    kind: String,
+    url: Option<String>,
+    date: Option<String>,
+    context: Option<String>,
+    identity_path: Option<String>,
+}
+
+#[derive(Serialize)]
+struct CandidateOut {
+    text: String,
+    count: u32,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct PrepareOutput {
+    deidentified: String,
+    prompt: String,
+    meta_json: String,
+    replacements: u32,
+    candidates: Vec<CandidateOut>,
+}
+
+#[tauri::command]
+fn prepare_package(input: PrepareInput) -> Res<PrepareOutput> {
+    let home = home_path(&input.home)?;
+    if input.id.trim().is_empty() {
+        return Err("package id is required".to_string());
+    }
+    let registry = open_registry(&home)?;
+    let key = load_key(&home)?;
+    let dictionary = match clean(input.identity_path) {
+        Some(path) => registry
+            .dictionary(&read_identity(&path)?)
+            .map_err(|e| e.to_string())?,
+        None => Vec::new(),
+    };
+    let links = registry.links().map_err(|e| e.to_string())?;
+    let meta = SourceMeta {
+        kind: SourceKind::parse(&input.kind).ok_or("unknown source kind")?,
+        title: input.title,
+        url: clean(input.url),
+        published_at: clean(input.date),
+        reliability: Reliability::C,
+        received_from: None,
+    };
+    let context = clean(input.context);
+    let package = build_package_with_links(
+        input.id.trim(),
+        &meta,
+        &input.text,
+        context.as_deref(),
+        &key,
+        &dictionary,
+        &links,
+    )
+    .map_err(|e| e.to_string())?;
+    Ok(PrepareOutput {
+        deidentified: package.deidentified,
+        prompt: package.prompt,
+        meta_json: package.meta_json,
+        replacements: package.replacements.iter().map(|r| r.count).sum(),
+        candidates: package
+            .candidates
+            .into_iter()
+            .map(|c| CandidateOut {
+                text: c.text,
+                count: c.count,
+            })
+            .collect(),
+    })
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ResolveInput {
+    home: String,
+    mention: String,
+    /// "same", "new" or "not_person"
+    action: String,
+    person: Option<String>,
+    name: Option<String>,
+    ipn: Option<String>,
+    phone: Option<String>,
+    email: Option<String>,
+}
+
+#[tauri::command]
+fn resolve_mention(input: ResolveInput) -> Res<Option<String>> {
+    let registry = open_registry(&home_path(&input.home)?)?;
+    let resolution = match input.action.as_str() {
+        "not_person" => Resolution::NotAPerson,
+        "same" => Resolution::SamePerson(
+            clean(input.person).ok_or("the person's pseudonym is required")?,
+        ),
+        "new" => {
+            let mut codes = Vec::new();
+            for (kind, value) in [
+                (Kind::Ipn, input.ipn),
+                (Kind::Phone, input.phone),
+                (Kind::Email, input.email),
+            ] {
+                if let Some(value) = clean(value) {
+                    codes.push((kind, value));
+                }
+            }
+            Resolution::NewPerson {
+                name: clean(input.name).ok_or("the full name is required")?,
+                codes,
+            }
+        }
+        _ => return Err("unknown action".to_string()),
+    };
+    registry
+        .resolve_mention(&input.mention, &resolution)
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ResultInput {
+    home: String,
+    json: String,
+    package: String,
+}
+
+#[tauri::command]
+fn check_result(input: ResultInput) -> Res<String> {
+    let file = parse_result(&input.json, input.package.trim()).map_err(|e| e.to_string())?;
+    Ok(review_markdown(&file))
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ImportOut {
+    sources: usize,
+    entities_new: usize,
+    entities_existing: usize,
+    statements: usize,
+}
+
+#[tauri::command]
+fn import_result_cmd(input: ResultInput) -> Res<ImportOut> {
+    let home = home_path(&input.home)?;
+    let file = parse_result(&input.json, input.package.trim()).map_err(|e| e.to_string())?;
+    let summary = import_result(&open_model(&home)?, &file).map_err(|e| e.to_string())?;
+    Ok(ImportOut {
+        sources: summary.sources,
+        entities_new: summary.entities_new,
+        entities_existing: summary.entities_existing,
+        statements: summary.statements,
+    })
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ReportInput {
+    home: String,
+    identity_path: String,
+    title: String,
+    /// "md", "docx" or "pdf"
+    format: String,
+    passphrase: Option<String>,
+    /// Allow a report without a passphrase (open personal data).
+    plain: bool,
+    out_path: String,
+}
+
+#[tauri::command]
+fn make_report(input: ReportInput) -> Res<String> {
+    let home = home_path(&input.home)?;
+    let registry = open_registry(&home)?;
+    let model = open_model(&home)?;
+    let identity = read_identity(&input.identity_path)?;
+    let report = build_report(&input.title, &model, &registry, &identity).map_err(|e| e.to_string())?;
+    let bytes = match input.format.as_str() {
+        "md" => to_markdown(&report).into_bytes(),
+        "docx" => to_docx(&report).map_err(|e| e.to_string())?,
+        "pdf" => pdf::to_pdf(&report).map_err(|e| e.to_string())?,
+        _ => return Err("unknown format".to_string()),
+    };
+    let mut target = PathBuf::from(&input.out_path);
+    let bytes = match clean(input.passphrase) {
+        Some(passphrase) => {
+            let mut name = target.as_os_str().to_owned();
+            name.push(".age");
+            target = PathBuf::from(name);
+            wrap(&bytes, &passphrase).map_err(|e| e.to_string())?
+        }
+        None if input.plain => bytes,
+        None => return Err("a passphrase is required (or confirm a report without protection)".to_string()),
+    };
+    write_bytes(&target, &bytes)?;
+    Ok(target.display().to_string())
+}
+
+pub fn run() {
+    tauri::Builder::default()
+        .plugin(tauri_plugin_dialog::init())
+        .invoke_handler(tauri::generate_handler![
+            home_status,
+            init_home,
+            new_identity,
+            read_text_file,
+            prepare_package,
+            resolve_mention,
+            check_result,
+            import_result_cmd,
+            make_report,
+        ])
+        .run(tauri::generate_context!())
+        .expect("error while running ZaNytky");
+}

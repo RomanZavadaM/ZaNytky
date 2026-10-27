@@ -1,0 +1,93 @@
+import { invoke } from "@tauri-apps/api/core";
+import { open, save } from "@tauri-apps/plugin-dialog";
+
+export interface HomeStatus {
+  initialised: boolean;
+  recipients: number;
+}
+
+export interface Candidate {
+  text: string;
+  count: number;
+}
+
+export interface PrepareOutput {
+  deidentified: string;
+  prompt: string;
+  metaJson: string;
+  replacements: number;
+  candidates: Candidate[];
+}
+
+export interface ImportOut {
+  sources: number;
+  entitiesNew: number;
+  entitiesExisting: number;
+  statements: number;
+}
+
+export interface PrepareInput {
+  home: string;
+  text: string;
+  id: string;
+  title: string;
+  kind: string;
+  url?: string;
+  date?: string;
+  context?: string;
+  identityPath?: string;
+}
+
+export interface ResolveInput {
+  home: string;
+  mention: string;
+  action: "same" | "new" | "not_person";
+  person?: string;
+  name?: string;
+  ipn?: string;
+  phone?: string;
+  email?: string;
+}
+
+export interface ReportInput {
+  home: string;
+  identityPath: string;
+  title: string;
+  format: "md" | "docx" | "pdf";
+  passphrase?: string;
+  plain: boolean;
+  outPath: string;
+}
+
+export const api = {
+  homeStatus: (home: string) => invoke<HomeStatus>("home_status", { input: { home } }),
+  initHome: (home: string) => invoke<string>("init_home", { input: { home } }),
+  newIdentity: (home: string, path: string) =>
+    invoke<string>("new_identity", { input: { home, path } }),
+  readTextFile: (path: string) => invoke<string>("read_text_file", { input: { path } }),
+  prepare: (input: PrepareInput) => invoke<PrepareOutput>("prepare_package", { input }),
+  resolve: (input: ResolveInput) => invoke<string | null>("resolve_mention", { input }),
+  check: (home: string, json: string, pkg: string) =>
+    invoke<string>("check_result", { input: { home, json, package: pkg } }),
+  importResult: (home: string, json: string, pkg: string) =>
+    invoke<ImportOut>("import_result_cmd", { input: { home, json, package: pkg } }),
+  report: (input: ReportInput) => invoke<string>("make_report", { input }),
+};
+
+export async function pickFolder(): Promise<string | null> {
+  const chosen = await open({ directory: true, multiple: false });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+export async function pickFile(extensions: string[]): Promise<string | null> {
+  const chosen = await open({ multiple: false, filters: [{ name: "files", extensions }] });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+export async function pickSavePath(defaultPath: string): Promise<string | null> {
+  return save({ defaultPath });
+}
+
+export function errorText(error: unknown): string {
+  return typeof error === "string" ? error : error instanceof Error ? error.message : String(error);
+}

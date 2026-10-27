@@ -1,5 +1,7 @@
 [workspace]
 members = ["crates/zanytky-core", "crates/zanytky-cli"]
+# The desktop application needs the system web view libraries and is built separately.
+exclude = ["app/src-tauri"]
 resolver = "2"
 
 [workspace.package]
