@@ -6,6 +6,7 @@ pub mod import;
 pub mod model;
 pub mod normalize;
 pub mod package;
+pub mod pdf;
 pub mod pseudonym;
 pub mod registry;
 pub mod report;
@@ -21,6 +22,7 @@ pub use import::{import_result, ImportError, ImportSummary};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use package::{build_package, build_package_with_links, Package, SourceMeta};
+pub use pdf::{pdf_protected, to_pdf};
 pub use pseudonym::{new_key, token, TokenError, MIN_KEY_BYTES};
 pub use registry::{Registry, RegistryError, Resolution};
 pub use report::{
