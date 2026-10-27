@@ -120,7 +120,10 @@ fn unhex(text: &str) -> Result<Vec<u8>, String> {
     }
     (0..text.len())
         .step_by(2)
-        .map(|i| u8::from_str_radix(&text[i..i + 2], 16).map_err(|_| "системний ключ пошкоджено".to_string()))
+        .map(|i| {
+            u8::from_str_radix(&text[i..i + 2], 16)
+                .map_err(|_| "системний ключ пошкоджено".to_string())
+        })
         .collect()
 }
 
@@ -216,7 +219,8 @@ fn cmd_identity_new(args: &Args, out: Out) -> Result<(), String> {
     let (secret, public) = generate_identity();
     write_file(
         &path,
-        format!("# приватний ключ розслідувача - зберігайте у безпечному місці\n{secret}\n").as_bytes(),
+        format!("# приватний ключ розслідувача - зберігайте у безпечному місці\n{secret}\n")
+            .as_bytes(),
     )?;
     writeln!(out, "Публічний ключ (додайте в recipients.txt): {public}").map_err(|e| e.to_string())
 }
@@ -247,7 +251,11 @@ fn cmd_resolve(args: &Args, out: Out) -> Result<(), String> {
         Resolution::SamePerson(person.to_string())
     } else if let Some(name) = args.flag("new") {
         let mut codes = Vec::new();
-        for (flag, kind) in [("ipn", Kind::Ipn), ("phone", Kind::Phone), ("email", Kind::Email)] {
+        for (flag, kind) in [
+            ("ipn", Kind::Ipn),
+            ("phone", Kind::Phone),
+            ("email", Kind::Email),
+        ] {
             if let Some(value) = args.flag(flag) {
                 codes.push((kind, value.to_string()));
             }
@@ -308,7 +316,10 @@ fn cmd_prepare(args: &Args, out: Out) -> Result<(), String> {
     .map_err(|e| e.to_string())?;
 
     let dir = PathBuf::from(args.need("out")?);
-    write_file(&dir.join("deidentified.md"), package.deidentified.as_bytes())?;
+    write_file(
+        &dir.join("deidentified.md"),
+        package.deidentified.as_bytes(),
+    )?;
     write_file(&dir.join("prompt.md"), package.prompt.as_bytes())?;
     write_file(&dir.join("package.json"), package.meta_json.as_bytes())?;
     let mut mentions = String::from("# Згадки, які система не впізнала\n\n");
@@ -340,7 +351,8 @@ fn cmd_prepare(args: &Args, out: Out) -> Result<(), String> {
 
 fn cmd_check(args: &Args, out: Out) -> Result<(), String> {
     let path = PathBuf::from(args.pos(0, "result.json")?);
-    let file = parse_result(&read_text(&path)?, args.need("package")?).map_err(|e| e.to_string())?;
+    let file =
+        parse_result(&read_text(&path)?, args.need("package")?).map_err(|e| e.to_string())?;
     let review = path.with_extension("review.md");
     write_file(&review, review_markdown(&file).as_bytes())?;
     writeln!(
@@ -357,7 +369,8 @@ fn cmd_check(args: &Args, out: Out) -> Result<(), String> {
 fn cmd_import(args: &Args, out: Out) -> Result<(), String> {
     let home = home_dir(args)?;
     let path = PathBuf::from(args.pos(0, "result.json")?);
-    let file = parse_result(&read_text(&path)?, args.need("package")?).map_err(|e| e.to_string())?;
+    let file =
+        parse_result(&read_text(&path)?, args.need("package")?).map_err(|e| e.to_string())?;
     let summary = import_result(&open_model(&home)?, &file).map_err(|e| e.to_string())?;
     writeln!(
         out,

@@ -42,7 +42,13 @@ fn registering_needs_an_investigator_key() {
     let dir = tempfile::tempdir().unwrap();
     let home = home_arg(dir.path());
     cli(&["init", "--home", home.as_str()]).unwrap();
-    let result = cli(&["register", "name", "Іваненко Петро", "--home", home.as_str()]);
+    let result = cli(&[
+        "register",
+        "name",
+        "Іваненко Петро",
+        "--home",
+        home.as_str(),
+    ]);
     assert!(result.unwrap_err().contains("recipients.txt"));
 }
 
@@ -50,24 +56,53 @@ fn registering_needs_an_investigator_key() {
 fn register_and_find_give_the_same_token() {
     let dir = tempfile::tempdir().unwrap();
     let (home, _) = setup(dir.path());
-    let token = cli(&["register", "name", "Іваненко Петро", "--home", home.as_str()]).unwrap();
-    let found = cli(&["find", "name", "  іваненко   ПЕТРО ", "--home", home.as_str()]).unwrap();
+    let token = cli(&[
+        "register",
+        "name",
+        "Іваненко Петро",
+        "--home",
+        home.as_str(),
+    ])
+    .unwrap();
+    let found = cli(&[
+        "find",
+        "name",
+        "  іваненко   ПЕТРО ",
+        "--home",
+        home.as_str(),
+    ])
+    .unwrap();
     assert_eq!(token.trim(), found.trim());
-    assert_eq!(cli(&["find", "name", "Невідомий", "--home", home.as_str()]).unwrap().trim(), "немає");
+    assert_eq!(
+        cli(&["find", "name", "Невідомий", "--home", home.as_str()])
+            .unwrap()
+            .trim(),
+        "немає"
+    );
 }
 
 #[test]
 fn the_whole_flow_from_text_to_report() {
     let dir = tempfile::tempdir().unwrap();
     let (home, identity) = setup(dir.path());
-    let token = cli(&["register", "name", "Іваненко Петро", "--home", home.as_str()])
-        .unwrap()
-        .trim()
-        .to_string();
+    let token = cli(&[
+        "register",
+        "name",
+        "Іваненко Петро",
+        "--home",
+        home.as_str(),
+    ])
+    .unwrap()
+    .trim()
+    .to_string();
 
     // 1. prepare the package for the AI
     let input = dir.path().join("doc.md");
-    fs::write(&input, "Іваненко Петро володіє 40% ТОВ Приклад (ІПН 1234567890).").unwrap();
+    fs::write(
+        &input,
+        "Іваненко Петро володіє 40% ТОВ Приклад (ІПН 1234567890).",
+    )
+    .unwrap();
     let pkg = dir.path().join("pkg");
     let message = cli(&[
         "prepare",
@@ -114,14 +149,38 @@ fn the_whole_flow_from_text_to_report() {
     let checked = cli(&["check", result.to_str().unwrap(), "--package", "pkg-1"]).unwrap();
     assert!(checked.contains("тверджень 1"));
     assert!(dir.path().join("result.review.md").exists());
-    let imported = cli(&["import", result.to_str().unwrap(), "--package", "pkg-1", "--home", home.as_str()]).unwrap();
+    let imported = cli(&[
+        "import",
+        result.to_str().unwrap(),
+        "--package",
+        "pkg-1",
+        "--home",
+        home.as_str(),
+    ])
+    .unwrap();
     assert!(imported.contains("тверджень 1"));
-    assert!(cli(&["import", result.to_str().unwrap(), "--package", "pkg-1", "--home", home.as_str()]).is_err());
+    assert!(cli(&[
+        "import",
+        result.to_str().unwrap(),
+        "--package",
+        "pkg-1",
+        "--home",
+        home.as_str()
+    ])
+    .is_err());
 
     // 3. the report reveals the person, and needs a passphrase or an explicit --plain
     let report = dir.path().join("report.md");
     let args = |extra: &[&str]| {
-        let mut v = vec!["report", "--home", home.as_str(), "--identity", identity.as_str(), "--out", report.to_str().unwrap()];
+        let mut v = vec![
+            "report",
+            "--home",
+            home.as_str(),
+            "--identity",
+            identity.as_str(),
+            "--out",
+            report.to_str().unwrap(),
+        ];
         v.extend_from_slice(extra);
         cli(&v)
     };
@@ -132,7 +191,13 @@ fn the_whole_flow_from_text_to_report() {
 
     let pass = dir.path().join("pass.txt");
     fs::write(&pass, "довга парольна фраза\n").unwrap();
-    args(&["--passphrase-file", pass.to_str().unwrap(), "--format", "docx"]).unwrap();
+    args(&[
+        "--passphrase-file",
+        pass.to_str().unwrap(),
+        "--format",
+        "docx",
+    ])
+    .unwrap();
     let protected = dir.path().join("report.md.age");
     assert!(protected.exists());
     assert!(!fs::read(&protected).unwrap().starts_with(b"PK"));
