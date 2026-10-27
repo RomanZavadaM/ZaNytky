@@ -15,6 +15,7 @@ Every new direct dependency is added here, with its license and purpose, in the 
 
 - rusqlite - MIT - SQLite registry of pseudonyms; bundles SQLite (public domain)
 - serde, serde_json - MIT OR Apache-2.0 - parse package metadata and the AI result (`result.json`)
+- docx-rs - MIT - writing Word (.docx) reports; no default features (no image support)
 - tempfile - MIT OR Apache-2.0 - development dependency, tests only
 
 ## License review

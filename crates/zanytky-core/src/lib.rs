@@ -8,6 +8,7 @@ pub mod normalize;
 pub mod package;
 pub mod pseudonym;
 pub mod registry;
+pub mod report;
 pub mod result;
 pub mod seal;
 pub mod wrap;
@@ -22,5 +23,9 @@ pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use package::{build_package, build_package_with_links, Package, SourceMeta};
 pub use pseudonym::{new_key, token, TokenError, MIN_KEY_BYTES};
 pub use registry::{Registry, RegistryError, Resolution};
+pub use report::{
+    build_report, docx_protected, markdown_protected, to_docx, to_markdown, Block, Report,
+    ReportError,
+};
 pub use result::{parse_result, review_markdown, ResultError, ResultFile};
 pub use seal::{parse_identity, parse_recipient, seal, unseal, SealError, Sealed};

@@ -251,6 +251,44 @@ pub struct OwnershipEdge {
     pub depth: u32,
 }
 
+/// A stored entity.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct EntityRow {
+    pub id: i64,
+    pub kind: EntityKind,
+    pub token: Option<String>,
+    pub label: Option<String>,
+    pub public_code: Option<String>,
+}
+
+/// A stored source.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceRow {
+    pub id: i64,
+    pub kind: SourceKind,
+    pub title: String,
+    pub url: Option<String>,
+    pub reliability: Reliability,
+    pub parent_id: Option<i64>,
+}
+
+/// A stored statement with its parties and sources.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct StatementRow {
+    pub id: i64,
+    pub kind: StatementType,
+    pub value: Option<String>,
+    pub valid_from: Option<String>,
+    pub valid_to: Option<String>,
+    pub as_of: Option<String>,
+    pub status: Status,
+    pub credibility: u8,
+    pub note: Option<String>,
+    /// (entity id, role)
+    pub parties: Vec<(i64, String)>,
+    pub sources: Vec<i64>,
+}
+
 pub struct Model {
     conn: Connection,
     actor: String,
@@ -654,6 +692,123 @@ impl Model {
             frontier = next;
         }
         Ok(edges)
+    }
+
+    /// One entity by id.
+    pub fn entity(&self, id: i64) -> Result<EntityRow, ModelError> {
+        let row = self
+            .conn
+            .query_row(
+                "SELECT kind, token, label, public_code FROM entity WHERE id = ?1",
+                params![id],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                        r.get::<_, Option<String>>(2)?,
+                        r.get::<_, Option<String>>(3)?,
+                    ))
+                },
+            )
+            .optional()?
+            .ok_or(ModelError::NotFound)?;
+        Ok(EntityRow {
+            id,
+            kind: EntityKind::parse(&row.0)
+                .ok_or(ModelError::Invalid("unknown entity kind in the database"))?,
+            token: row.1,
+            label: row.2,
+            public_code: row.3,
+        })
+    }
+
+    /// One source by id.
+    pub fn source(&self, id: i64) -> Result<SourceRow, ModelError> {
+        let row = self
+            .conn
+            .query_row(
+                "SELECT kind, title, url, reliability, parent_id FROM source WHERE id = ?1",
+                params![id],
+                |r| {
+                    Ok((
+                        r.get::<_, String>(0)?,
+                        r.get::<_, String>(1)?,
+                        r.get::<_, Option<String>>(2)?,
+                        r.get::<_, String>(3)?,
+                        r.get::<_, Option<i64>>(4)?,
+                    ))
+                },
+            )
+            .optional()?
+            .ok_or(ModelError::NotFound)?;
+        Ok(SourceRow {
+            id,
+            kind: SourceKind::parse(&row.0)
+                .ok_or(ModelError::Invalid("unknown source kind in the database"))?,
+            title: row.1,
+            url: row.2,
+            reliability: Reliability::parse(&row.3)
+                .ok_or(ModelError::Invalid("unknown reliability in the database"))?,
+            parent_id: row.4,
+        })
+    }
+
+    /// Every statement, oldest first, with parties and sources.
+    pub fn statements(&self) -> Result<Vec<StatementRow>, ModelError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, kind, value, valid_from, valid_to, as_of, status, credibility, note \
+             FROM statement ORDER BY id",
+        )?;
+        let rows = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, Option<String>>(2)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, Option<String>>(4)?,
+                r.get::<_, Option<String>>(5)?,
+                r.get::<_, String>(6)?,
+                r.get::<_, i64>(7)?,
+                r.get::<_, Option<String>>(8)?,
+            ))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (id, kind, value, valid_from, valid_to, as_of, status, credibility, note) = row?;
+            let mut parties_stmt = self.conn.prepare(
+                "SELECT entity_id, role FROM statement_party WHERE statement_id = ?1 \
+                 ORDER BY role, entity_id",
+            )?;
+            let parties = parties_stmt
+                .query_map(params![id], |r| {
+                    Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            let mut sources_stmt = self.conn.prepare(
+                "SELECT source_id FROM statement_source WHERE statement_id = ?1 ORDER BY source_id",
+            )?;
+            let sources = sources_stmt
+                .query_map(params![id], |r| r.get::<_, i64>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            out.push(StatementRow {
+                id,
+                kind: StatementType::parse(&kind).ok_or(ModelError::Invalid(
+                    "unknown statement kind in the database",
+                ))?,
+                value,
+                valid_from,
+                valid_to,
+                as_of,
+                status: Status::parse(&status)
+                    .ok_or(ModelError::Invalid("unknown status in the database"))?,
+                credibility: u8::try_from(credibility)
+                    .map_err(|_| ModelError::Invalid("bad credibility in the database"))?,
+                note,
+                parties,
+                sources,
+            });
+        }
+        Ok(out)
     }
 
     /// Number of entries in the change log.
