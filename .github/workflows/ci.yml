@@ -30,3 +30,7 @@ jobs:
       - uses: EmbarkStudios/cargo-deny-action@v2
         with:
           command: check licenses
+      - uses: EmbarkStudios/cargo-deny-action@v2
+        with:
+          command: list
+          arguments: --format human
