@@ -147,6 +147,15 @@ impl Registry {
         Ok(unseal(&sealed, identity)?)
     }
 
+    /// Every registered token, sorted.
+    pub fn tokens(&self) -> Result<Vec<String>, RegistryError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT token FROM pseudonym ORDER BY token")?;
+        let rows = stmt.query_map([], |row| row.get::<_, String>(0))?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
+    }
+
     /// Number of registered values.
     pub fn count(&self) -> Result<u64, RegistryError> {
         let count: i64 = self
