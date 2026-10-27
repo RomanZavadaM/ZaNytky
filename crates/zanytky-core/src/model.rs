@@ -194,7 +194,10 @@ impl fmt::Display for ModelError {
             ModelError::Invalid(message) => write!(f, "invalid: {message}"),
             ModelError::NotFound => write!(f, "not found"),
             ModelError::ConfirmNeedsDocument => {
-                write!(f, "cannot confirm: no source that is not a rumor or testimony")
+                write!(
+                    f,
+                    "cannot confirm: no source that is not a rumor or testimony"
+                )
             }
         }
     }
@@ -256,7 +259,8 @@ pub struct Model {
 impl Model {
     fn with_connection(conn: Connection, actor: &str) -> Result<Self, ModelError> {
         conn.execute_batch(SCHEMA)?;
-        let versions: i64 = conn.query_row("SELECT COUNT(*) FROM schema_version", [], |r| r.get(0))?;
+        let versions: i64 =
+            conn.query_row("SELECT COUNT(*) FROM schema_version", [], |r| r.get(0))?;
         if versions == 0 {
             conn.execute(
                 "INSERT INTO schema_version (version) VALUES (?1)",
@@ -523,7 +527,11 @@ impl Model {
 
     /// Owners above `start`, level by level; refuted statements are skipped and
     /// cycles stop the walk.
-    pub fn ownership_up(&self, start: i64, max_depth: u32) -> Result<Vec<OwnershipEdge>, ModelError> {
+    pub fn ownership_up(
+        &self,
+        start: i64,
+        max_depth: u32,
+    ) -> Result<Vec<OwnershipEdge>, ModelError> {
         let mut edges = Vec::new();
         let mut seen = HashSet::from([start]);
         let mut frontier = vec![start];
@@ -538,7 +546,11 @@ impl Model {
                      ORDER BY st.id",
                 )?;
                 let rows = stmt.query_map(params![owned], |r| {
-                    Ok((r.get::<_, i64>(0)?, r.get::<_, Option<String>>(1)?, r.get::<_, i64>(2)?))
+                    Ok((
+                        r.get::<_, i64>(0)?,
+                        r.get::<_, Option<String>>(1)?,
+                        r.get::<_, i64>(2)?,
+                    ))
                 })?;
                 for row in rows {
                     let (statement_id, value, owner) = row?;
