@@ -31,6 +31,18 @@ impl Kind {
         }
     }
 
+    /// The kind named by `as_str`, if any.
+    pub fn parse(text: &str) -> Option<Kind> {
+        match text {
+            "name" => Some(Kind::Name),
+            "ipn" => Some(Kind::Ipn),
+            "edrpou" => Some(Kind::Edrpou),
+            "phone" => Some(Kind::Phone),
+            "text" => Some(Kind::Text),
+            _ => None,
+        }
+    }
+
     /// One-letter prefix of the token.
     pub fn prefix(self) -> char {
         match self {

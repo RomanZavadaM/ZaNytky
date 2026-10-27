@@ -11,3 +11,4 @@ hmac = "0.12"
 sha2 = "0.10"
 unicode-normalization = "0.1"
 getrandom = "0.2"
+age = { version = "0.12", default-features = false }
