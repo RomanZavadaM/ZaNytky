@@ -42,3 +42,13 @@ Esta guía describe la ventana de la aplicación. La versión ucraniana es el te
 
 - Windows avisa de un editor desconocido: la compilación no está firmada; elija «Más información» y «Ejecutar de todas formas».
 - Ventana vacía o error al iniciar: se necesita Microsoft Edge WebView2 (presente en Windows 10/11).
+
+## Escenario de prueba (datos ficticios)
+
+1. Pestaña «Configuración»: elija una carpeta vacía, pulse «Preparar la carpeta», cree una clave de investigador.
+2. Pestaña «Preparar documento»: pegue el texto de `docs/examples/sample-document.md`, título «Documento de prueba», id `pkg-1`, pulse «Anonimizar y preparar el paquete».
+3. En la lista de menciones no reconocidas elija «Persona nueva» para «Петро Іваненко», introduzca el nombre completo, el número fiscal 1234567890 y el teléfono +38 050 123 45 67, pulse «Aplicar». Vuelva a crear el paquete: ahora el nombre, el número fiscal y el teléfono se sustituyen por un solo seudónimo.
+4. Copie la instrucción y el texto anonimizado en un chat de IA y pida que responda solo con JSON. Guarde la respuesta.
+5. Pestaña «Resultado de la IA»: pegue la respuesta, pulse «Comprobar», lea la revisión y pulse «Importar a la base de datos».
+6. Pestaña «Base»: consulte las afirmaciones; pruebe «Confirmar» (para una afirmación cuya fuente es un rumor, la aplicación lo rechaza).
+7. Pestaña «Informe»: cree un informe Word con frase secreta; ábralo con age y compruebe que contiene el nombre real.

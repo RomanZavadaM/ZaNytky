@@ -42,3 +42,13 @@ Ce guide décrit la fenêtre de l'application. La version ukrainienne fait foi.
 
 - Windows signale un éditeur inconnu : la build n'est pas signée ; choisissez « Informations complémentaires » puis « Exécuter quand même ».
 - Fenêtre vide ou erreur au démarrage : Microsoft Edge WebView2 est requis (présent dans Windows 10/11).
+
+## Scénario d'essai (données fictives)
+
+1. Onglet « Configuration » : choisissez un dossier vide, cliquez sur « Préparer le dossier », créez une clé d'enquêteur.
+2. Onglet « Préparer le document » : collez le texte de `docs/examples/sample-document.md`, titre « Document d'essai », identifiant `pkg-1`, cliquez sur « Anonymiser et préparer le paquet ».
+3. Dans la liste des mentions non reconnues, choisissez « Nouvelle personne » pour « Петро Іваненко », saisissez le nom complet, le numéro fiscal 1234567890 et le téléphone +38 050 123 45 67, cliquez sur « Appliquer ». Refaites le paquet : le nom, le numéro fiscal et le téléphone sont maintenant remplacés par un seul pseudonyme.
+4. Copiez l'instruction et le texte anonymisé dans un chat d'IA et demandez de répondre uniquement en JSON. Enregistrez la réponse.
+5. Onglet « Résultat de l'IA » : collez la réponse, cliquez sur « Vérifier », lisez la relecture puis « Importer dans la base ».
+6. Onglet « Base » : parcourez les déclarations ; essayez « Confirmer » (pour une déclaration issue d'une rumeur, l'application refuse).
+7. Onglet « Rapport » : créez un rapport Word avec une phrase secrète ; ouvrez-le avec age et vérifiez qu'il contient le vrai nom.
