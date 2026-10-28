@@ -248,6 +248,7 @@ function PrepareTab(shared: Shared) {
             {t.makePackage}
           </button>
         </div>
+        {!home && <p className="warn">{t.needHome}</p>}
       </div>
       {out && (
         <>
@@ -306,6 +307,7 @@ function ResultTab({ t, home, note, run }: Shared) {
           {t.pasteResult}
           <textarea rows={12} value={json} onChange={(e) => setJson(e.target.value)} />
         </label>
+        {!home && <p className="warn">{t.needHome}</p>}
         <div className="row">
           <button onClick={check} disabled={!json.trim()}>
             {t.check}
@@ -440,6 +442,8 @@ function ReportTab({ t, home, identity, note, run }: Shared) {
             {t.makeReport}
           </button>
         </div>
+        {!home && <p className="warn">{t.needHome}</p>}
+        {home && !identity && <p className="warn">{t.needIdentity}</p>}
       </div>
     </section>
   );
