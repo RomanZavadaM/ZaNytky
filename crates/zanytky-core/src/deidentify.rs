@@ -279,6 +279,30 @@ fn is_initials(word: &str) -> bool {
             .all(|pair| pair[0].is_uppercase() && pair[1] == '.')
 }
 
+/// Titles and roles that often start a sentence or a phrase before a name.
+const TITLE_WORDS: [&str; 20] = [
+    "заступник",
+    "директор",
+    "голова",
+    "начальник",
+    "керівник",
+    "міністр",
+    "депутат",
+    "мер",
+    "прокурор",
+    "суддя",
+    "пан",
+    "пані",
+    "громадянин",
+    "громадянка",
+    "власник",
+    "засновник",
+    "бенефіціар",
+    "підприємець",
+    "радник",
+    "секретар",
+];
+
 #[derive(Default)]
 struct Run {
     words: Vec<String>,
@@ -311,6 +335,10 @@ fn find_candidates(text: &str) -> Vec<Candidate> {
             brk = true;
         }
         if is_cap_word(word) {
+            if run.words.is_empty() && TITLE_WORDS.contains(&word.to_lowercase().as_str()) {
+                // a job title at the start of a phrase is not part of the name
+                continue;
+            }
             run.words.push(word.to_string());
             run.caps += 1;
         } else if is_initials(word) {
@@ -462,6 +490,13 @@ mod tests {
         let texts: Vec<&str> = result.candidates.iter().map(|c| c.text.as_str()).collect();
         assert!(texts.contains(&"Олексій Коваль"));
         assert!(texts.contains(&"Мельник І. П."));
+    }
+
+    #[test]
+    fn a_job_title_before_a_name_is_not_part_of_the_candidate() {
+        let result = run("Заступник Олексій Коваль підписав акт.", &[]);
+        let texts: Vec<&str> = result.candidates.iter().map(|c| c.text.as_str()).collect();
+        assert_eq!(texts, vec!["Олексій Коваль"]);
     }
 
     #[test]
