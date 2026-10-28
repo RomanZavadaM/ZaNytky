@@ -11,6 +11,7 @@ export const LANGS: { code: Lang; label: string }[] = [
 ];
 
 const uk = {
+  notAKeyFile: "Це не файл приватного ключа розслідувача (немає рядка AGE-SECRET-KEY…). Не обирайте system.key; створіть ключ кнопкою «Створити новий ключ…».",
   needHome: "Спершу оберіть і підготуйте папку даних на вкладці «Налаштування».",
   needIdentity: "Спершу оберіть файл приватного ключа розслідувача на вкладці «Налаштування».",
   tabSetup: "Налаштування",
@@ -96,6 +97,7 @@ const uk = {
 type Pack = Record<keyof typeof uk, string>;
 
 const en: Pack = {
+  notAKeyFile: "This is not the investigator's private key file (no AGE-SECRET-KEY… line). Do not choose system.key; create a key with the \"Create a new key…\" button.",
   needHome: "First choose and prepare the data folder on the \"Setup\" tab.",
   needIdentity: "First choose the investigator's private key file on the \"Setup\" tab.",
   tabSetup: "Setup",
@@ -179,6 +181,7 @@ const en: Pack = {
 };
 
 const fr: Pack = {
+  notAKeyFile: "Ce n'est pas un fichier de clé privée d'enquêteur (pas de ligne AGE-SECRET-KEY…). Ne choisissez pas system.key ; créez une clé avec le bouton « Créer une nouvelle clé… ».",
   needHome: "Choisissez et préparez d'abord le dossier de données dans l'onglet « Configuration ».",
   needIdentity: "Choisissez d'abord le fichier de clé privée de l'enquêteur dans l'onglet « Configuration ».",
   tabSetup: "Configuration",
@@ -262,6 +265,7 @@ const fr: Pack = {
 };
 
 const de: Pack = {
+  notAKeyFile: "Das ist keine Datei mit dem privaten Schlüssel des Ermittlers (keine Zeile AGE-SECRET-KEY…). Wählen Sie nicht system.key; erzeugen Sie einen Schlüssel mit „Neuen Schlüssel erzeugen…“.",
   needHome: "Wählen und bereiten Sie zuerst den Datenordner im Reiter „Einrichtung“ vor.",
   needIdentity: "Wählen Sie zuerst die Datei mit dem privaten Schlüssel des Ermittlers im Reiter „Einrichtung“.",
   tabSetup: "Einrichtung",
@@ -345,6 +349,7 @@ const de: Pack = {
 };
 
 const es: Pack = {
+  notAKeyFile: "Este no es un archivo de clave privada de investigador (no hay una línea AGE-SECRET-KEY…). No elija system.key; cree una clave con el botón «Crear una clave nueva…».",
   needHome: "Primero elija y prepare la carpeta de datos en la pestaña «Configuración».",
   needIdentity: "Primero elija el archivo de la clave privada del investigador en la pestaña «Configuración».",
   tabSetup: "Configuración",
@@ -428,6 +433,7 @@ const es: Pack = {
 };
 
 const ko: Pack = {
+  notAKeyFile: "조사관 개인 키 파일이 아닙니다(AGE-SECRET-KEY… 줄이 없음). system.key를 선택하지 말고 \"새 키 만들기…\" 버튼으로 키를 만드세요.",
   needHome: "먼저 \"설정\" 탭에서 데이터 폴더를 선택하고 준비하세요.",
   needIdentity: "먼저 \"설정\" 탭에서 조사관 개인 키 파일을 선택하세요.",
   tabSetup: "설정",
@@ -511,6 +517,7 @@ const ko: Pack = {
 };
 
 const ja: Pack = {
+  notAKeyFile: "調査員の秘密鍵ファイルではありません（AGE-SECRET-KEY… の行がありません）。system.key は選ばず、「新しい鍵を作成…」ボタンで鍵を作成してください。",
   needHome: "まず「設定」タブでデータフォルダーを選択して準備してください。",
   needIdentity: "まず「設定」タブで調査員の秘密鍵ファイルを選択してください。",
   tabSetup: "設定",
