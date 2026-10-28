@@ -57,6 +57,12 @@ function SetupTab({ t, home, identity, note, run, setHome, setIdentity }: Shared
     }
   };
 
+  useEffect(() => {
+    void refresh(home);
+    // the state of the saved folder is checked once at start
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const chooseHome = async () => {
     const folder = await pickFolder();
     if (folder) {
@@ -82,7 +88,13 @@ function SetupTab({ t, home, identity, note, run, setHome, setIdentity }: Shared
 
   const chooseIdentity = async () => {
     const path = await pickFile(["txt", "key", "age"]);
-    if (path) setIdentity(path);
+    if (!path) return;
+    try {
+      await api.checkIdentity(path);
+      setIdentity(path);
+    } catch {
+      note(t.notAKeyFile, true);
+    }
   };
 
   return (

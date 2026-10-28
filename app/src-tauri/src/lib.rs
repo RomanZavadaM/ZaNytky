@@ -192,6 +192,12 @@ struct PathInput {
     path: String,
 }
 
+/// Check that a file holds an investigator's private key.
+#[tauri::command]
+fn check_identity(input: PathInput) -> Res<()> {
+    read_identity(&input.path).map(|_| ())
+}
+
 #[tauri::command]
 fn read_text_file(input: PathInput) -> Res<String> {
     read_text(Path::new(&input.path))
@@ -468,6 +474,7 @@ pub fn run() {
             init_home,
             new_identity,
             read_text_file,
+            check_identity,
             prepare_package,
             resolve_mention,
             check_result,

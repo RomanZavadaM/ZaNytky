@@ -77,6 +77,7 @@ export const api = {
   initHome: (home: string) => invoke<string>("init_home", { input: { home } }),
   newIdentity: (home: string, path: string) =>
     invoke<string>("new_identity", { input: { home, path } }),
+  checkIdentity: (path: string) => invoke<void>("check_identity", { input: { path } }),
   readTextFile: (path: string) => invoke<string>("read_text_file", { input: { path } }),
   prepare: (input: PrepareInput) => invoke<PrepareOutput>("prepare_package", { input }),
   resolve: (input: ResolveInput) => invoke<string | null>("resolve_mention", { input }),
