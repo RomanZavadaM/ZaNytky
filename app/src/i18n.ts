@@ -11,6 +11,8 @@ export const LANGS: { code: Lang; label: string }[] = [
 ];
 
 const uk = {
+  needHome: "Спершу оберіть і підготуйте папку даних на вкладці «Налаштування».",
+  needIdentity: "Спершу оберіть файл приватного ключа розслідувача на вкладці «Налаштування».",
   tabSetup: "Налаштування",
   tabPrepare: "Розбір документа",
   tabResult: "Результат ШІ",
@@ -94,6 +96,8 @@ const uk = {
 type Pack = Record<keyof typeof uk, string>;
 
 const en: Pack = {
+  needHome: "First choose and prepare the data folder on the \"Setup\" tab.",
+  needIdentity: "First choose the investigator's private key file on the \"Setup\" tab.",
   tabSetup: "Setup",
   tabPrepare: "Prepare document",
   tabResult: "AI result",
@@ -175,6 +179,8 @@ const en: Pack = {
 };
 
 const fr: Pack = {
+  needHome: "Choisissez et préparez d'abord le dossier de données dans l'onglet « Configuration ».",
+  needIdentity: "Choisissez d'abord le fichier de clé privée de l'enquêteur dans l'onglet « Configuration ».",
   tabSetup: "Configuration",
   tabPrepare: "Préparer le document",
   tabResult: "Résultat de l'IA",
@@ -256,6 +262,8 @@ const fr: Pack = {
 };
 
 const de: Pack = {
+  needHome: "Wählen und bereiten Sie zuerst den Datenordner im Reiter „Einrichtung“ vor.",
+  needIdentity: "Wählen Sie zuerst die Datei mit dem privaten Schlüssel des Ermittlers im Reiter „Einrichtung“.",
   tabSetup: "Einrichtung",
   tabPrepare: "Dokument vorbereiten",
   tabResult: "KI-Ergebnis",
@@ -337,6 +345,8 @@ const de: Pack = {
 };
 
 const es: Pack = {
+  needHome: "Primero elija y prepare la carpeta de datos en la pestaña «Configuración».",
+  needIdentity: "Primero elija el archivo de la clave privada del investigador en la pestaña «Configuración».",
   tabSetup: "Configuración",
   tabPrepare: "Preparar documento",
   tabResult: "Resultado de la IA",
@@ -418,6 +428,8 @@ const es: Pack = {
 };
 
 const ko: Pack = {
+  needHome: "먼저 \"설정\" 탭에서 데이터 폴더를 선택하고 준비하세요.",
+  needIdentity: "먼저 \"설정\" 탭에서 조사관 개인 키 파일을 선택하세요.",
   tabSetup: "설정",
   tabPrepare: "문서 준비",
   tabResult: "AI 결과",
@@ -499,6 +511,8 @@ const ko: Pack = {
 };
 
 const ja: Pack = {
+  needHome: "まず「設定」タブでデータフォルダーを選択して準備してください。",
+  needIdentity: "まず「設定」タブで調査員の秘密鍵ファイルを選択してください。",
   tabSetup: "設定",
   tabPrepare: "文書の準備",
   tabResult: "AI の結果",
