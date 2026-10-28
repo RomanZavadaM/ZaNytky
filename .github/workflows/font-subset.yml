@@ -1,0 +1,30 @@
+name: Font subset
+
+# Manual run only: makes a smaller subset of the embedded Noto Sans (Latin,
+# Cyrillic, common punctuation) with fonttools (MIT, build tool only, not
+# shipped) and keeps it as an artifact.
+on:
+  workflow_dispatch:
+
+jobs:
+  subset:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install fonttools
+      - name: Subset
+        run: |
+          pyftsubset crates/zanytky-core/assets/NotoSans-Regular.ttf \
+            --unicodes="U+0020-007E,U+00A0-00FF,U+0400-04FF,U+0490-0491,U+2010-2015,U+2018-201E,U+2020-2022,U+2026,U+2030,U+2116,U+20AC,U+20B4" \
+            --layout-features='*' --glyph-names --notdef-outline \
+            --output-file=NotoSans-Regular-subset.ttf
+          ls -l crates/zanytky-core/assets/NotoSans-Regular.ttf NotoSans-Regular-subset.ttf
+          sha256sum NotoSans-Regular-subset.ttf
+      - uses: actions/upload-artifact@v4
+        with:
+          name: noto-sans-subset
+          path: NotoSans-Regular-subset.ttf
+          retention-days: 7
