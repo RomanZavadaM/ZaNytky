@@ -1,5 +1,6 @@
 //! The report as a PDF (ADR-0005). The embedded Noto Sans font (SIL OFL 1.1,
-//! see `assets/OFL.txt`) provides the Ukrainian letters.
+//! see `assets/OFL.txt`; a Latin and Cyrillic subset to keep files small)
+//! provides the Ukrainian letters.
 
 use genpdf::elements::{FrameCellDecorator, Paragraph, TableLayout};
 use genpdf::fonts::{FontData, FontFamily};
@@ -9,7 +10,7 @@ use genpdf::{Document, Element, SimplePageDecorator, Size};
 use crate::report::{Block, Report, ReportError};
 use crate::wrap::wrap;
 
-const FONT: &[u8] = include_bytes!("../assets/NotoSans-Regular.ttf");
+const FONT: &[u8] = include_bytes!("../assets/NotoSans-Regular-subset.ttf");
 
 fn pdf_error<E: std::fmt::Display>(error: E) -> ReportError {
     ReportError::Docx(format!("pdf: {error}"))
@@ -104,6 +105,8 @@ mod tests {
         let pdf = to_pdf(&report()).unwrap();
         assert!(pdf.starts_with(b"%PDF-"));
         assert!(pdf.len() > 5000);
+        // the font is a subset: a small report must stay well below the full font times four
+        assert!(pdf.len() < 1_500_000, "pdf is {} bytes", pdf.len());
     }
 
     #[test]
