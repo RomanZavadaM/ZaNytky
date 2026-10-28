@@ -42,3 +42,13 @@ Dieses Handbuch beschreibt das Anwendungsfenster. Maßgeblich ist die ukrainisch
 
 - Windows warnt vor einem unbekannten Herausgeber: Der Build ist nicht signiert; wählen Sie „Weitere Informationen“ und „Trotzdem ausführen“.
 - Leeres Fenster oder Startfehler: Microsoft Edge WebView2 wird benötigt (in Windows 10/11 vorhanden).
+
+## Probedurchlauf (fiktive Daten)
+
+1. Reiter „Einrichtung“: leeren Ordner wählen, „Ordner vorbereiten“ drücken, Ermittlerschlüssel erzeugen.
+2. Reiter „Dokument vorbereiten“: Text aus `docs/examples/sample-document.md` einfügen, Titel „Probedokument“, Paket-ID `pkg-1`, „Anonymisieren und Paket erstellen“ drücken.
+3. In der Liste der nicht erkannten Erwähnungen für „Петро Іваненко“ „Neue Person“ wählen, vollständigen Namen, Steuernummer 1234567890 und Telefon +38 050 123 45 67 eingeben, „Anwenden“ drücken. Paket erneut erstellen: Name, Steuernummer und Telefon sind nun durch ein Pseudonym ersetzt.
+4. Anweisung und anonymisierten Text in einen KI-Chat kopieren und um eine reine JSON-Antwort bitten. Antwort speichern.
+5. Reiter „KI-Ergebnis“: Antwort einfügen, „Prüfen“ drücken, Durchsicht lesen und „In die Datenbank importieren“ drücken.
+6. Reiter „Datenbank“: Aussagen ansehen; „Bestätigen“ ausprobieren (bei einer Aussage aus einer Gerüchtequelle lehnt die Anwendung ab).
+7. Reiter „Bericht“: Word-Bericht mit Passphrase erstellen; mit age öffnen und prüfen, dass er den echten Namen enthält.

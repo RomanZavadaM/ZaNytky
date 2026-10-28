@@ -42,3 +42,13 @@ This guide describes the application window. The Ukrainian version is the refere
 
 - Windows warns about an unknown publisher: the build is unsigned; choose "More info" and "Run anyway".
 - Empty window or a start error: Microsoft Edge WebView2 is required (present in Windows 10/11).
+
+## Trial scenario (fictional data)
+
+1. "Setup" tab: choose an empty folder, press "Prepare the folder", create an investigator key.
+2. "Prepare document" tab: paste the text from `docs/examples/sample-document.md`, title "Trial document", package id `pkg-1`, press "De-identify and build the package".
+3. In the list of unrecognised mentions choose "New person" for "Петро Іваненко", enter the full name, tax number 1234567890 and phone +38 050 123 45 67, press "Apply". Build the package again: now the name, tax number and phone are replaced by one pseudonym.
+4. Copy the instruction and the de-identified text into an AI chat and ask it to answer with JSON only. Save the answer.
+5. "AI result" tab: paste the answer, press "Check", read the review and press "Import into the database".
+6. "Database" tab: browse the statements; try "Confirm" (for a statement sourced from a rumor the application refuses).
+7. "Report" tab: create a Word report with a passphrase; open it with age and check that it contains the real name.
