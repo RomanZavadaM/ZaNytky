@@ -35,6 +35,7 @@ jobs:
           Copy-Item app\src-tauri\target\release\zanytky-app.exe "$dir\ZaNytky.exe"
           Copy-Item LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md $dir
           Copy-Item crates\zanytky-core\assets\OFL.txt "$dir\OFL-NotoSans.txt"
+          Copy-Item docs\examples\sample-document.md "$dir\sample-document.md"
           Set-Content -Path "$dir\README.txt" -Encoding UTF8 -Value @(
             "ZaNytky - портативна версія (без встановлення).",
             "Запустіть ZaNytky.exe. Потрібен Microsoft Edge WebView2 (є в Windows 10/11).",
