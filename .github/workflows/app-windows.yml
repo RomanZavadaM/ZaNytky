@@ -23,6 +23,8 @@ jobs:
         with:
           workspaces: app/src-tauri
       - run: npm install --no-audit --no-fund
+      # own icon set (replaces the placeholder icons) generated from icon-source.png
+      - run: npx tauri icon icon-source.png
       - run: npm run tauri build
       - name: Portable zip
         shell: pwsh
