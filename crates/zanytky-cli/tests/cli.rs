@@ -252,7 +252,15 @@ fn unknown_commands_and_missing_arguments_are_errors() {
 }
 
 fn backup(home: &str, file: &str, pass: &str) -> Result<String, String> {
-    cli(&["backup", "--home", home, "--out", file, "--passphrase-file", pass])
+    cli(&[
+        "backup",
+        "--home",
+        home,
+        "--out",
+        file,
+        "--passphrase-file",
+        pass,
+    ])
 }
 
 fn restore(file: &str, to: &str, pass: &str) -> Result<String, String> {
@@ -269,7 +277,14 @@ fn write_pass(dir: &Path, name: &str, text: &str) -> String {
 fn backup_and_restore_round_trip() {
     let dir = tempfile::tempdir().unwrap();
     let (home, _) = setup(dir.path());
-    let token = cli(&["register", "name", "Іваненко Петро", "--home", home.as_str()]).unwrap();
+    let token = cli(&[
+        "register",
+        "name",
+        "Іваненко Петро",
+        "--home",
+        home.as_str(),
+    ])
+    .unwrap();
     let pass = write_pass(dir.path(), "pass.txt", "довга парольна фраза
 ");
     let file = dir.path().join("copy.znbak").display().to_string();
@@ -280,7 +295,14 @@ fn backup_and_restore_round_trip() {
 
     let restored = dir.path().join("restored").display().to_string();
     restore(&file, &restored, &pass).unwrap();
-    let found = cli(&["find", "name", "Іваненко Петро", "--home", restored.as_str()]).unwrap();
+    let found = cli(&[
+        "find",
+        "name",
+        "Іваненко Петро",
+        "--home",
+        restored.as_str(),
+    ])
+    .unwrap();
     assert_eq!(found.trim(), token.trim());
 
     // restoring into a folder that already holds files is refused
