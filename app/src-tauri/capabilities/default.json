@@ -1,7 +1,16 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "Permissions of the main window",
-  "windows": ["main"],
-  "permissions": ["core:default", "dialog:default"]
+  "description": "Permissions of the main window and the detached section windows",
+  "windows": ["main", "section-*"],
+  "permissions": [
+    "core:default",
+    "dialog:default",
+    "core:webview:allow-create-webview-window",
+    "core:window:allow-set-focus",
+    "core:window:allow-unminimize",
+    "core:window:allow-show",
+    "core:window:allow-destroy",
+    "core:window:allow-close"
+  ]
 }

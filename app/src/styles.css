@@ -90,6 +90,7 @@ button:disabled {
 }
 
 button.tab.active,
+span.tab.active,
 button.primary {
   background: var(--accent);
   color: var(--accent-text);
@@ -200,4 +201,10 @@ table.grid td {
 table.grid td.note {
   white-space: pre-wrap;
   max-width: 280px;
+}
+
+span.tab {
+  padding: 6px 10px;
+  border: 1px solid var(--accent);
+  border-radius: 4px;
 }
