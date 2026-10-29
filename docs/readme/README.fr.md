@@ -45,6 +45,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 ```
 
+## Principes
+
+- Chaque affirmation a une source et une chaîne jusqu'à la source primaire ; une rumeur ne devient pas un fait, et les échos d'une même rumeur comptent comme une seule source primaire.
+- Aucune étiquette évaluative sur les personnes : le programme montre l'origine et une note de fiabilité, pas des verdicts.
+- Sources ouvertes uniquement ; les données personnelles sont remplacées par des pseudonymes ; l'IA ne reçoit qu'un texte anonymisé.
+
+## Limites de la version actuelle (0.0.3)
+
+- Il s'agit d'une préversion : les installateurs ne sont pas signés.
+- « Analyse de document » n'accepte pour l'instant que le texte et le Markdown (pas encore d'import .docx/.pdf).
+- Le rapport Word n'a pas été vérifié dans Microsoft Word, ni le PDF dans une visionneuse ; la détection des noms inconnus est simple (mots en majuscule) et donne de faux candidats.
+- Gardez le dossier de données hors du dossier du code et n'inscrivez pas de données personnelles (par exemple une adresse e-mail) dans l'identifiant du paquet : il est transmis à l'IA sans anonymisation.
+
 ## Sécurité
 
 Conservez séparément la clé système (`system.key` dans le dossier de données), la clé privée de l'enquêteur et la phrase secrète, et ne les ajoutez jamais à un dépôt. L'application n'envoie rien sur le réseau.
