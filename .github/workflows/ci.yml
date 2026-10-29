@@ -59,3 +59,36 @@ jobs:
         with:
           command: list
           arguments: --format human
+
+  version-check:
+    name: Version consistency
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - run: python3 scripts/bump_version.py --check
+
+  app-rust:
+    name: App (Rust shell, Windows)
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          components: clippy
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: app/src-tauri
+      # the Tauri shell embeds the built frontend at compile time
+      - name: Build frontend
+        working-directory: app
+        run: |
+          npm install --no-audit --no-fund
+          npm run build
+      - name: Check and lint the desktop shell
+        working-directory: app/src-tauri
+        run: |
+          cargo check --all-targets
+          cargo clippy --all-targets -- -D warnings
