@@ -10,8 +10,15 @@ import {
   type StatementRow,
 } from "./api";
 import { fill, LANGS, PACKS, type Lang, type Strings } from "./i18n";
+import { getCurrentWindow } from "@tauri-apps/api/window";
+import { notifyDataChanged, onDataChanged, openSectionWindow, windowSection } from "./windowApi";
 
 type Tab = "setup" | "prepare" | "result" | "database" | "report";
+
+/** True when any text box in this window still holds unsaved text. */
+function hasUnsavedText(): boolean {
+  return Array.from(document.querySelectorAll("textarea")).some((box) => box.value.trim() !== "");
+}
 
 function useStored(key: string, initial: string): [string, (value: string) => void] {
   const [value, setValue] = useState(() => {
@@ -21,6 +28,14 @@ function useStored(key: string, initial: string): [string, (value: string) => vo
       return initial;
     }
   });
+  // Other windows of the app share the same storage: pick up their changes.
+  useEffect(() => {
+    const onStorage = (event: StorageEvent) => {
+      if (event.key === key && event.newValue !== null) setValue(event.newValue);
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [key]);
   const update = (next: string) => {
     setValue(next);
     try {
@@ -305,6 +320,7 @@ function ResultTab({ t, home, note, run }: Shared) {
           t: done.statements,
         }),
       );
+      void notifyDataChanged();
     }
   };
 
@@ -349,11 +365,23 @@ function DatabaseTab({ t, home, run }: Shared) {
   };
 
   const change = async (id: number, status: "confirmed" | "refuted") => {
-    if ((await run(() => api.setStatus(home, id, status))) !== undefined) await load();
+    if ((await run(() => api.setStatus(home, id, status))) !== undefined) {
+      await load();
+      void notifyDataChanged();
+    }
   };
 
   useEffect(() => {
     void load();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [home]);
+
+  // Another window imported results or changed a status: reload the list.
+  useEffect(() => {
+    const unlisten = onDataChanged(() => void load());
+    return () => {
+      void unlisten.then((stop) => stop());
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [home]);
 
@@ -465,7 +493,8 @@ export function App() {
   const [lang, setLang] = useStored("lang", "uk");
   const [home, setHome] = useStored("home", "");
   const [identity, setIdentity] = useStored("identity", "");
-  const [tab, setTab] = useState<Tab>("setup");
+  const section = windowSection();
+  const [tab, setTab] = useState<Tab>(section ?? "setup");
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const t = PACKS[(lang in PACKS ? lang : "uk") as Lang];
@@ -493,18 +522,51 @@ export function App() {
     ["database", t.tabDatabase],
     ["report", t.tabReport],
   ];
+  const tabTitle = (id: Tab) => tabs.find(([key]) => key === id)?.[1] ?? "";
+
+  const detach = async () => {
+    try {
+      await openSectionWindow(tab, `ZaNytky - ${tabTitle(tab)}`);
+    } catch (error) {
+      note(`${t.windowOpenFailed}: ${errorText(error)}`, true);
+    }
+  };
+
+  // A detached window asks before it closes with unsaved text in it.
+  useEffect(() => {
+    if (!section) return;
+    let stop: (() => void) | undefined;
+    getCurrentWindow()
+      .onCloseRequested((event) => {
+        if (hasUnsavedText() && !window.confirm(t.confirmCloseUnsaved)) event.preventDefault();
+      })
+      .then((unlisten) => {
+        stop = unlisten;
+      })
+      .catch(() => undefined);
+    return () => stop?.();
+  }, [section, t]);
 
   return (
     <div className="app">
       <header>
         <h1>ZaNytky</h1>
-        <nav>
-          {tabs.map(([id, label]) => (
-            <button key={id} className={tab === id ? "tab active" : "tab"} onClick={() => setTab(id)}>
-              {label}
+        {section ? (
+          <nav>
+            <span className="tab active">{tabTitle(section)}</span>
+          </nav>
+        ) : (
+          <nav>
+            {tabs.map(([id, label]) => (
+              <button key={id} className={tab === id ? "tab active" : "tab"} onClick={() => setTab(id)}>
+                {label}
+              </button>
+            ))}
+            <button className="tab" title={t.openWindow} aria-label={t.openWindow} onClick={detach}>
+              &#10697;
             </button>
-          ))}
-        </nav>
+          </nav>
+        )}
         <select aria-label={t.language} value={lang} onChange={(e) => setLang(e.target.value)}>
           {LANGS.map((l) => (
             <option key={l.code} value={l.code}>
