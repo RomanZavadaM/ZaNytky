@@ -45,6 +45,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 ```
 
+## Grundsätze
+
+- Jede Aussage hat eine Quelle und eine Kette bis zur Primärquelle; ein Gerücht wird nicht zur Tatsache, und Echos desselben Gerüchts zählen als eine Primärquelle.
+- Keine wertenden Etiketten über Personen: Das Programm zeigt Herkunft und eine Zuverlässigkeitsstufe, keine Urteile.
+- Nur offene Quellen; personenbezogene Daten werden durch Pseudonyme ersetzt; die KI erhält nur anonymisierten Text.
+
+## Einschränkungen der aktuellen Version (0.0.3)
+
+- Dies ist eine Vorabversion: Die Installationsprogramme sind nicht signiert.
+- „Dokumentanalyse“ akzeptiert derzeit nur Text und Markdown (noch kein .docx/.pdf-Import).
+- Der Word-Bericht wurde nicht in Microsoft Word und das PDF nicht in einem Viewer geprüft; die Erkennung unbekannter Namen ist einfach (großgeschriebene Wörter) und liefert falsche Kandidaten.
+- Halten Sie den Datenordner außerhalb des Code-Ordners und tragen Sie keine personenbezogenen Daten (z. B. eine E-Mail-Adresse) in die Paketkennung ein: Sie wird ohne Anonymisierung an die KI weitergegeben.
+
 ## Sicherheit
 
 Bewahren Sie den Systemschlüssel (`system.key` im Datenordner), den privaten Schlüssel des Ermittlers und die Passphrase getrennt auf und fügen Sie sie nie einem Repository hinzu. Die Anwendung sendet nichts über das Netzwerk.
