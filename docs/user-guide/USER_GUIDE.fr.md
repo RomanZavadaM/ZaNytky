@@ -41,7 +41,7 @@ Ce guide décrit la fenêtre de l'application. La version ukrainienne fait foi.
 ## FAQ
 
 - Windows signale un éditeur inconnu : la build n'est pas signée ; choisissez « Informations complémentaires » puis « Exécuter quand même ».
-- Fenêtre vide ou erreur au démarrage : vérifiez que le dossier `webview2` est à côté de `ZaNytky.exe` (l'archive portable n'exige aucune installation ; les installateurs .msi/.exe utilisent le WebView2 du système).
+- Fenêtre vide ou erreur au démarrage : vérifiez que le dossier `webview2` est à côté de `ZaNytky.exe` (l'archive portable n'exige aucune installation ).
 
 ## Scénario d'essai (données fictives)
 
