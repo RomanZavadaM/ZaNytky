@@ -8,6 +8,7 @@
     "dev": "vite",
     "build": "tsc --noEmit && vite build",
     "typecheck": "tsc --noEmit",
+    "test": "vitest run",
     "licenses": "node scripts/check-licenses.mjs",
     "tauri": "tauri"
   },
@@ -23,6 +24,7 @@
     "@types/react-dom": "^19.1.0",
     "@vitejs/plugin-react": "^5.0.0",
     "typescript": "~5.9.0",
+    "vitest": "^3.2.4",
     "vite": "^7.0.0"
   }
 }
