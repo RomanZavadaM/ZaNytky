@@ -41,7 +41,7 @@ Dieses Handbuch beschreibt das Anwendungsfenster. Maßgeblich ist die ukrainisch
 ## Häufige Fragen
 
 - Windows warnt vor einem unbekannten Herausgeber: Der Build ist nicht signiert; wählen Sie „Weitere Informationen“ und „Trotzdem ausführen“.
-- Leeres Fenster oder Startfehler: prüfen Sie, ob der Ordner `webview2` neben `ZaNytky.exe` liegt (das portable Archiv braucht keine Installation; die .msi/.exe-Installer nutzen das System-WebView2).
+- Leeres Fenster oder Startfehler: prüfen Sie, ob der Ordner `webview2` neben `ZaNytky.exe` liegt (das portable Archiv braucht keine Installation).
 
 ## Probedurchlauf (fiktive Daten)
 

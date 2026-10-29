@@ -1,0 +1,7 @@
+{
+  "bundle": {
+    "resources": {
+      "webview2-runtime": "webview2"
+    }
+  }
+}

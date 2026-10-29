@@ -25,7 +25,45 @@ jobs:
       - run: npm install --no-audit --no-fund
       # own icon set (replaces the placeholder icons) generated from icon-source.png
       - run: npx tauri icon icon-source.png
-      - run: npm run tauri build
+      # web view runtime goes into the installers too (resource folder `webview2` next to the program)
+      - name: Web view runtime for the installers
+        shell: pwsh
+        working-directory: .
+        run: |
+          $runtime = Get-ChildItem "C:\Program Files (x86)\Microsoft\EdgeWebView\Application" -Directory |
+            Where-Object { $_.Name -match '^\d+\.' } | Sort-Object { [version]$_.Name } | Select-Object -Last 1
+          if (-not $runtime) { throw "WebView2 runtime not found on the runner" }
+          Copy-Item $runtime.FullName app\src-tauri\webview2-runtime -Recurse
+      - run: npm run tauri build -- --config src-tauri/tauri.bundled-webview.conf.json
+      - name: Installer smoke test (silent install, own web view runtime)
+        shell: pwsh
+        working-directory: .
+        run: |
+          $setup = Get-ChildItem app\src-tauri\target\release\bundle\nsis\*.exe | Select-Object -First 1
+          $dir = Join-Path $env:RUNNER_TEMP 'zn-installed'
+          Start-Process $setup.FullName -ArgumentList '/S', "/D=$dir" -Wait
+          Get-ChildItem $dir | Select-Object -ExpandProperty Name
+          if (-not (Test-Path "$dir\webview2\msedgewebview2.exe")) { throw "installer did not place webview2 next to the program" }
+          $exe = Get-ChildItem $dir -Filter *.exe | Where-Object { $_.Name -notmatch 'uninstall' } | Select-Object -First 1
+          Start-Process $exe.FullName
+          Start-Sleep -Seconds 20
+          $own = (Resolve-Path "$dir\webview2").Path
+          $used = Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" |
+            Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($own, [StringComparison]::OrdinalIgnoreCase) }
+          Get-Process msedgewebview2 -ErrorAction SilentlyContinue | Stop-Process -Force
+          Get-Process | Where-Object { $_.Path -like "$dir*" } | Stop-Process -Force -ErrorAction SilentlyContinue
+          if (-not $used) { throw "installed program did not use the bundled web view runtime" }
+          Write-Host "OK: installed program uses the bundled web view runtime"
+      - name: MSI contains the web view runtime
+        shell: pwsh
+        working-directory: .
+        run: |
+          $msi = (Get-ChildItem app\src-tauri\target\release\bundle\msi\*.msi | Select-Object -First 1).FullName
+          $target = Join-Path $env:RUNNER_TEMP 'zn-msi'
+          Start-Process msiexec.exe -ArgumentList '/a', "`"$msi`"", '/qn', "TARGETDIR=`"$target`"" -Wait
+          $hit = Get-ChildItem $target -Recurse -Filter msedgewebview2.exe -ErrorAction SilentlyContinue | Select-Object -First 1
+          if (-not $hit) { throw "MSI does not contain msedgewebview2.exe" }
+          Write-Host "OK: MSI contains $($hit.FullName)"
       - name: Portable zip
         shell: pwsh
         working-directory: .
