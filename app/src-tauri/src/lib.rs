@@ -14,8 +14,8 @@ use zanytky_core::registry::{Registry, Resolution};
 use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Identity, Recipient};
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
-    backup_home, build_package_with_links, build_report, import_result, parse_result, pdf,
-    restore_home, review_markdown, to_docx, to_markdown, SourceMeta,
+    backup_home, build_package_with_links, build_report, docx_to_text, import_result, parse_result,
+    pdf, restore_home, review_markdown, to_docx, to_markdown, SourceMeta,
 };
 
 type Res<T> = Result<T, String>;
@@ -200,7 +200,17 @@ fn check_identity(input: PathInput) -> Res<()> {
 
 #[tauri::command]
 fn read_text_file(input: PathInput) -> Res<String> {
-    read_text(Path::new(&input.path))
+    let path = Path::new(&input.path);
+    let is_docx = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .is_some_and(|e| e.eq_ignore_ascii_case("docx"));
+    if is_docx {
+        let bytes = fs::read(path).map_err(|e| io_error(path, e))?;
+        docx_to_text(&bytes).map_err(|e| e.to_string())
+    } else {
+        read_text(path)
+    }
 }
 
 #[derive(Deserialize)]
