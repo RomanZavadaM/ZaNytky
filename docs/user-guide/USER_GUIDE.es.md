@@ -41,7 +41,7 @@ Esta guía describe la ventana de la aplicación. La versión ucraniana es el te
 ## Preguntas frecuentes
 
 - Windows avisa de un editor desconocido: la compilación no está firmada; elija «Más información» y «Ejecutar de todas formas».
-- Ventana vacía o error al iniciar: se necesita Microsoft Edge WebView2 (presente en Windows 10/11).
+- Ventana vacía o error al iniciar: compruebe que la carpeta `webview2` está junto a `ZaNytky.exe` (el archivo portátil no requiere instalación; los instaladores .msi/.exe usan el WebView2 del sistema).
 
 ## Escenario de prueba (datos ficticios)
 

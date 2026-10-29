@@ -41,7 +41,7 @@ This guide describes the application window. The Ukrainian version is the refere
 ## FAQ
 
 - Windows warns about an unknown publisher: the build is unsigned; choose "More info" and "Run anyway".
-- Empty window or a start error: Microsoft Edge WebView2 is required (present in Windows 10/11).
+- Empty window or a start error: make sure the `webview2` folder is next to `ZaNytky.exe` (the portable archive needs no installation; the .msi/.exe installers use the system WebView2).
 
 ## Trial scenario (fictional data)
 

@@ -27,7 +27,7 @@ Ready files for Windows (portable zip without installation, .msi/.exe installers
 
 ## Quick start (application)
 
-1. Unzip the portable archive and run `ZaNytky.exe` (needs Microsoft Edge WebView2, present in Windows 10/11).
+1. Unzip the portable archive and run `ZaNytky.exe` (nothing needs to be installed; keep the `webview2` folder next to `ZaNytky.exe`).
 2. "Setup" tab: choose an empty data folder and press "Prepare the folder"; create an investigator key and keep its file in a safe place.
 3. "Prepare document" tab: paste the text, press "De-identify and build the package for the AI", copy the text and the instruction and give them to the AI.
 4. "AI result" tab: paste the answer (result.json), check it, read the review and import.

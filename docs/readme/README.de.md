@@ -27,7 +27,7 @@ Fertige Dateien für Windows (portables Zip ohne Installation, .msi/.exe-Install
 
 ## Schnellstart (Anwendung)
 
-1. Das portable Archiv entpacken und `ZaNytky.exe` starten (benötigt Microsoft Edge WebView2, in Windows 10/11 vorhanden).
+1. Das portable Archiv entpacken und `ZaNytky.exe` starten (nichts muss installiert werden; den Ordner `webview2` nicht von `ZaNytky.exe` trennen).
 2. Reiter „Einrichtung“: leeren Datenordner wählen und „Ordner vorbereiten“ drücken; Ermittlerschlüssel erzeugen und die Datei sicher aufbewahren.
 3. Reiter „Dokument vorbereiten“: Text einfügen, „Anonymisieren und Paket für die KI erstellen“ drücken, Text und Anweisung kopieren und der KI geben.
 4. Reiter „KI-Ergebnis“: Antwort (result.json) einfügen, prüfen, die Durchsicht lesen und importieren.

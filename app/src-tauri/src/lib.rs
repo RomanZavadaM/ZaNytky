@@ -466,7 +466,24 @@ fn set_statement_status(input: StatusInput) -> Res<()> {
     model.set_status(input.id, status).map_err(|e| e.to_string())
 }
 
+/// Uses the web view runtime shipped next to the executable (folder `webview2`),
+/// so the portable build does not depend on anything installed in Windows.
+/// Without that folder the system runtime is used as before.
+#[cfg(target_os = "windows")]
+fn use_bundled_webview() {
+    if let Ok(exe) = std::env::current_exe() {
+        if let Some(dir) = exe.parent() {
+            let runtime = dir.join("webview2");
+            if runtime.join("msedgewebview2.exe").is_file() {
+                std::env::set_var("WEBVIEW2_BROWSER_EXECUTABLE_FOLDER", &runtime);
+            }
+        }
+    }
+}
+
 pub fn run() {
+    #[cfg(target_os = "windows")]
+    use_bundled_webview();
     tauri::Builder::default()
         .plugin(tauri_plugin_dialog::init())
         .invoke_handler(tauri::generate_handler![

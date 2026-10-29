@@ -35,3 +35,6 @@ The application scaffold (Tauri configuration, build setup) is taken from MD Not
 Only dependencies usable in a proprietary distribution are allowed: MIT, Apache-2.0, BSD, ISC, Zlib, CC0, Unlicense, Unicode and similar permissive licenses (see `deny.toml`). Copyleft licenses (GPL, AGPL, LGPL, MPL, EPL, SSPL, BUSL) are not used without a written owner decision. Libraries for export formats (Word, PDF) are checked especially carefully: several well-known PDF libraries are AGPL or commercial.
 
 **ZaNytky original materials:** Copyright (c) 2026 Roman Zavada (Роман Завада). All rights reserved. See [LICENSE.md](LICENSE.md).
+
+## Microsoft Edge WebView2 Runtime (портативна збірка)
+Портативний архів містить копію Microsoft Edge WebView2 Runtime (папка `webview2`), що розповсюджується за ліцензією Microsoft (Microsoft Software License Terms for WebView2 Runtime). Вона не входить до переліку дозвільних ліцензій відкритого коду і використана як системний компонент, не як залежність коду; рішення власника 29.10.2026 (варіант 1).

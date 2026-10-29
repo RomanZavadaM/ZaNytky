@@ -27,7 +27,7 @@ Les fichiers prêts pour Windows (zip portable sans installation, installateurs 
 
 ## Démarrage rapide (application)
 
-1. Décompressez l'archive portable et lancez `ZaNytky.exe` (nécessite Microsoft Edge WebView2, présent dans Windows 10/11).
+1. Décompressez l'archive portable et lancez `ZaNytky.exe` (rien à installer ; gardez le dossier `webview2` à côté de `ZaNytky.exe`).
 2. Onglet « Configuration » : choisissez un dossier de données vide et cliquez sur « Préparer le dossier » ; créez une clé d'enquêteur et gardez son fichier en lieu sûr.
 3. Onglet « Préparer le document » : collez le texte, cliquez sur « Anonymiser et préparer le paquet pour l'IA », copiez le texte et l'instruction et donnez-les à l'IA.
 4. Onglet « Résultat de l'IA » : collez la réponse (result.json), vérifiez-la, lisez la relecture et importez.

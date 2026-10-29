@@ -36,12 +36,28 @@ jobs:
           Copy-Item LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md $dir
           Copy-Item crates\zanytky-core\assets\OFL.txt "$dir\OFL-NotoSans.txt"
           Copy-Item docs\examples\sample-document.md "$dir\sample-document.md"
+          # web view runtime next to the program: nothing has to be installed in Windows
+          $runtime = Get-ChildItem "C:\Program Files (x86)\Microsoft\EdgeWebView\Application" -Directory |
+            Where-Object { $_.Name -match '^\d+\.' } | Sort-Object { [version]$_.Name } | Select-Object -Last 1
+          if (-not $runtime) { throw "WebView2 runtime not found on the runner" }
+          Write-Host "WebView2 runtime: $($runtime.Name)"
+          Copy-Item $runtime.FullName "$dir\webview2" -Recurse
+          if (-not (Test-Path "$dir\webview2\msedgewebview2.exe")) { throw "msedgewebview2.exe missing" }
           Set-Content -Path "$dir\README.txt" -Encoding UTF8 -Value @(
             "ZaNytky - портативна версія (без встановлення).",
-            "Запустіть ZaNytky.exe. Потрібен Microsoft Edge WebView2 (є в Windows 10/11).",
+            "Запустіть ZaNytky.exe. Нічого встановлювати не потрібно: середовище вікна лежить у папці webview2 поруч (не видаляйте її).",
             "Windows може показати попередження про невідомого видавця: збірка не підписана.",
             "Дані зберігаються лише в папці, яку ви оберете. Ключі й паролі зберігайте окремо."
           )
+          # smoke test: the program must start and use ITS OWN web view runtime
+          $proc = Start-Process "$dir\ZaNytky.exe" -PassThru
+          Start-Sleep -Seconds 20
+          $own = (Resolve-Path "$dir\webview2").Path
+          $used = Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" |
+            Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($own, [StringComparison]::OrdinalIgnoreCase) }
+          Get-Process msedgewebview2, ZaNytky -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $used) { throw "ZaNytky did not start with the bundled web view runtime" }
+          Write-Host "OK: bundled web view runtime in use ($(@($used).Count) processes)"
           Compress-Archive -Path $dir -DestinationPath "$dir.zip"
           (Get-FileHash "$dir.zip" -Algorithm SHA256).Hash | Out-File "$dir.zip.sha256" -Encoding ascii
           Get-Content "$dir.zip.sha256"
