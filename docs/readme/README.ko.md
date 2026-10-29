@@ -21,7 +21,9 @@ ZaNytky는 **독점 소프트웨어**입니다. 저장소가 공개되어 있다
 
 ## 다운로드
 
-Windows용 완성 파일(설치 없이 쓰는 휴대용 zip, .msi/.exe 설치 프로그램)은 [릴리스](https://github.com/RomanZavadaM/ZaNytky/releases/latest) 페이지에 있습니다. 빌드는 서명되지 않았으므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
+**다운로드: [ZaNytky v0.0.3](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.3)** (최신 사전 출시 버전)
+
+Windows용 완성 파일(설치 없이 쓰는 휴대용 zip, .msi/.exe 설치 프로그램)은 [릴리스](https://github.com/RomanZavadaM/ZaNytky/releases) 페이지에 있습니다. 빌드는 서명되지 않았으므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
 
 ## 빠른 시작(애플리케이션)
 

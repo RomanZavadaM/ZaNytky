@@ -21,7 +21,9 @@ ZaNytky is **proprietary software**: a public repository does not grant an open-
 
 ## Download
 
-Ready files for Windows (portable zip without installation, .msi/.exe installers) are on the [releases](https://github.com/RomanZavadaM/ZaNytky/releases/latest) page. Builds are unsigned: Windows may warn about an unknown publisher.
+**Download: [ZaNytky v0.0.3](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.3)** (latest pre-release)
+
+Ready files for Windows (portable zip without installation, .msi/.exe installers) are on the [releases](https://github.com/RomanZavadaM/ZaNytky/releases) page. Builds are unsigned: Windows may warn about an unknown publisher.
 
 ## Quick start (application)
 
