@@ -285,11 +285,7 @@ fn backup_and_restore_round_trip() {
         home.as_str(),
     ])
     .unwrap();
-    let pass = write_pass(
-        dir.path(),
-        "pass.txt",
-        "довга парольна фраза\n",
-    );
+    let pass = write_pass(dir.path(), "pass.txt", "довга парольна фраза\n");
     let file = dir.path().join("copy.znbak").display().to_string();
     backup(&home, &file, &pass).unwrap();
 

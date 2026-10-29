@@ -154,8 +154,8 @@ pub fn restore_home(data: &[u8], passphrase: &str, dest: &Path) -> Result<usize,
             .map_err(|_| BackupError::Format("ім'я файлу не UTF-8".into()))?;
         let relative = safe_relative(name)?;
         let data_len = read_u64(&archive, &mut pos)?;
-        let data_len = usize::try_from(data_len)
-            .map_err(|_| BackupError::Format("завеликий файл".into()))?;
+        let data_len =
+            usize::try_from(data_len).map_err(|_| BackupError::Format("завеликий файл".into()))?;
         entries.push((relative, take(&archive, &mut pos, data_len)?));
     }
     if !entries.iter().any(|(p, _)| p == Path::new(REQUIRED)) {
@@ -200,8 +200,14 @@ mod tests {
         let target = dir.path().join("restored");
         let count = restore_home(&backup, "довга парольна фраза", &target).unwrap();
         assert_eq!(count, 4);
-        assert_eq!(fs::read(target.join("model.db")).unwrap(), vec![1u8, 2, 3, 0, 255]);
-        assert_eq!(fs::read_to_string(target.join("pkg").join("note.txt")).unwrap(), "вкладений файл");
+        assert_eq!(
+            fs::read(target.join("model.db")).unwrap(),
+            vec![1u8, 2, 3, 0, 255]
+        );
+        assert_eq!(
+            fs::read_to_string(target.join("pkg").join("note.txt")).unwrap(),
+            "вкладений файл"
+        );
         assert!(!target.join("model.db-journal").exists());
     }
 
@@ -231,7 +237,10 @@ mod tests {
         let backup = backup_home(&home, "pass").unwrap();
         let err = restore_home(&backup, "pass", &home).unwrap_err();
         assert!(matches!(err, BackupError::NotEmpty(_)));
-        assert_eq!(fs::read(home.join("model.db")).unwrap(), vec![1u8, 2, 3, 0, 255]);
+        assert_eq!(
+            fs::read(home.join("model.db")).unwrap(),
+            vec![1u8, 2, 3, 0, 255]
+        );
     }
 
     #[test]
@@ -240,7 +249,10 @@ mod tests {
         let home = dir.path().join("empty-home");
         fs::create_dir_all(&home).unwrap();
         fs::write(home.join("model.db"), b"x").unwrap();
-        assert!(matches!(backup_home(&home, "pass"), Err(BackupError::Format(_))));
+        assert!(matches!(
+            backup_home(&home, "pass"),
+            Err(BackupError::Format(_))
+        ));
     }
 
     #[test]
@@ -257,7 +269,10 @@ mod tests {
             let dir = tempfile::tempdir().unwrap();
             let target = dir.path().join("out");
             assert!(
-                matches!(restore_home(&wrapped, "pass", &target), Err(BackupError::Format(_))),
+                matches!(
+                    restore_home(&wrapped, "pass", &target),
+                    Err(BackupError::Format(_))
+                ),
                 "{bad:?} must be rejected"
             );
             assert!(!target.exists(), "nothing may be written for {bad:?}");

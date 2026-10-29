@@ -441,8 +441,13 @@ fn cmd_backup(args: &Args, out: Out) -> Result<(), String> {
     }
     let bytes = backup_home(&home, &passphrase_from(args)?).map_err(|e| e.to_string())?;
     write_file(&target, &bytes)?;
-    writeln!(out, "Копію записано: {} ({} байт)", target.display(), bytes.len())
-        .map_err(|e| e.to_string())
+    writeln!(
+        out,
+        "Копію записано: {} ({} байт)",
+        target.display(),
+        bytes.len()
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn cmd_restore(args: &Args, out: Out) -> Result<(), String> {
