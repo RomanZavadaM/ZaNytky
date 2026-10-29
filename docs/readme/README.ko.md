@@ -21,7 +21,7 @@ ZaNytky는 **독점 소프트웨어**입니다. 저장소가 공개되어 있다
 
 ## 다운로드
 
-**다운로드: [ZaNytky v0.0.3](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.3)** (최신 사전 출시 버전)
+**다운로드: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.4)** (최신 사전 출시 버전)
 
 Windows용 완성 파일(설치 없이 쓰는 휴대용 zip, .msi/.exe 설치 프로그램)은 [릴리스](https://github.com/RomanZavadaM/ZaNytky/releases) 페이지에 있습니다. 빌드는 서명되지 않았으므로 Windows가 알 수 없는 게시자 경고를 표시할 수 있습니다.
 
@@ -53,7 +53,7 @@ zanytky report --home ./home --identity ./investigator.txt --out report.docx --f
 - 사람에 대한 평가성 꼬리표는 없습니다. 프로그램은 판정이 아니라 출처와 신뢰도 등급을 보여 줍니다.
 - 공개 출처만 사용하며, 개인정보는 가명으로 대체되고, AI는 비식별화된 텍스트만 받습니다.
 
-## 현재 버전(0.0.3)의 제한 사항
+## 현재 버전(0.0.4)의 제한 사항
 
 - 사전 출시 버전이며 설치 파일은 서명되어 있지 않습니다.
 - 「문서 분석」은 현재 텍스트와 Markdown만 받습니다(.docx/.pdf 가져오기는 아직 없음).
