@@ -21,7 +21,7 @@ ZaNytky is **proprietary software**: a public repository does not grant an open-
 
 ## Download
 
-**Download: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.4)** (latest pre-release)
+**Download: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.5)** (latest pre-release)
 
 Ready files for Windows (portable zip without installation, .msi/.exe installers) are on the [releases](https://github.com/RomanZavadaM/ZaNytky/releases) page. Builds are unsigned: Windows may warn about an unknown publisher.
 
@@ -55,7 +55,7 @@ zanytky restore copy.znbak --to ./restored --passphrase-file ./pass.txt
 - No evaluative labels about people: the program shows origin and a reliability grade, not verdicts.
 - Open sources only; personal data is replaced by pseudonyms; the AI receives only de-identified text.
 
-## Limitations of the current version (0.0.4)
+## Limitations of the current version (0.0.5)
 
 - This is a pre-release: the installers are not signed.
 - "Document analysis" currently accepts only text and Markdown (no .docx/.pdf import yet).
