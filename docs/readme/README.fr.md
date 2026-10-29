@@ -45,6 +45,8 @@ zanytky prepare doc.md --home ./home --out ./pkg --id pkg-1 --title "Title" --id
 zanytky check  result.json --package pkg-1
 zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
+zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
+zanytky restore copy.znbak --to ./restored --passphrase-file ./pass.txt
 ```
 
 ## Principes
