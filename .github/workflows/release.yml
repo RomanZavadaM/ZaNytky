@@ -1,0 +1,184 @@
+name: Release (pre-release)
+
+# Manual run only. Builds every package for one version and publishes a
+# GitHub pre-release with checksums (the release scheme of Taxo, without the
+# Windows 7 package). Release notes are read from docs/releases/v<version>.md.
+# Packages are not signed.
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: "Version without v, for example 0.0.4 (must match the version in tauri.conf.json)"
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+jobs:
+  windows:
+    name: Windows x64
+    runs-on: windows-latest
+    steps:
+      - uses: actions/checkout@v5
+      - name: Check version and notes
+        shell: pwsh
+        run: |
+          $conf = Get-Content app/src-tauri/tauri.conf.json -Raw | ConvertFrom-Json
+          if ($conf.version -ne "${{ inputs.version }}") { throw "tauri.conf.json version is $($conf.version)" }
+          if (-not (Test-Path "docs/releases/v${{ inputs.version }}.md")) { throw "docs/releases/v${{ inputs.version }}.md missing" }
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            app/src-tauri
+      - name: Command line tool
+        run: |
+          cargo build --release -p zanytky-cli
+          .\target\release\zanytky.exe help
+      - name: App
+        working-directory: app
+        run: |
+          npm install --no-audit --no-fund
+          npx tauri icon icon-source.png
+          npm run tauri build
+      - name: Packages
+        shell: pwsh
+        run: |
+          $v = "${{ inputs.version }}"
+          New-Item -ItemType Directory out | Out-Null
+          Copy-Item app\src-tauri\target\release\bundle\nsis\*.exe "out\ZaNytky_${v}_Setup_Windows_x64.exe"
+          Copy-Item app\src-tauri\target\release\bundle\msi\*.msi "out\ZaNytky_${v}_Windows_x64.msi"
+
+          # command line tool
+          $cli = "ZaNytky-cli-windows-x64"
+          New-Item -ItemType Directory $cli | Out-Null
+          Copy-Item target\release\zanytky.exe $cli
+          Copy-Item LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md $cli
+          Copy-Item crates\zanytky-core\assets\OFL.txt "$cli\OFL-NotoSans.txt"
+          Compress-Archive -Path $cli -DestinationPath "out\ZaNytky_${v}_CLI_Windows_x64.zip"
+
+          # portable app with its own web view runtime: nothing to install in Windows
+          $dir = "ZaNytky-app-portable-windows-x64"
+          New-Item -ItemType Directory $dir | Out-Null
+          Copy-Item app\src-tauri\target\release\zanytky-app.exe "$dir\ZaNytky.exe"
+          Copy-Item LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md $dir
+          Copy-Item crates\zanytky-core\assets\OFL.txt "$dir\OFL-NotoSans.txt"
+          Copy-Item docs\examples\sample-document.md "$dir\sample-document.md"
+          $runtime = Get-ChildItem "C:\Program Files (x86)\Microsoft\EdgeWebView\Application" -Directory |
+            Where-Object { $_.Name -match '^\d+\.' } | Sort-Object { [version]$_.Name } | Select-Object -Last 1
+          if (-not $runtime) { throw "WebView2 runtime not found on the runner" }
+          Write-Host "WebView2 runtime: $($runtime.Name)"
+          Copy-Item $runtime.FullName "$dir\webview2" -Recurse
+          if (-not (Test-Path "$dir\webview2\msedgewebview2.exe")) { throw "msedgewebview2.exe missing" }
+          Set-Content -Path "$dir\README.txt" -Encoding UTF8 -Value @(
+            "ZaNytky - портативна версія (без встановлення).",
+            "Запустіть ZaNytky.exe. Нічого встановлювати не потрібно: середовище вікна лежить у папці webview2 поруч (не видаляйте її).",
+            "Windows може показати попередження про невідомого видавця: збірка не підписана.",
+            "Дані зберігаються лише в папці, яку ви оберете. Ключі й паролі зберігайте окремо."
+          )
+          # smoke test: the program must start and use ITS OWN web view runtime
+          $proc = Start-Process "$dir\ZaNytky.exe" -PassThru
+          Start-Sleep -Seconds 20
+          $own = (Resolve-Path "$dir\webview2").Path
+          $used = Get-CimInstance Win32_Process -Filter "Name='msedgewebview2.exe'" |
+            Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($own, [StringComparison]::OrdinalIgnoreCase) }
+          Get-Process msedgewebview2, ZaNytky -ErrorAction SilentlyContinue | Stop-Process -Force
+          if (-not $used) { throw "ZaNytky did not start with the bundled web view runtime" }
+          Write-Host "OK: bundled web view runtime in use"
+          Compress-Archive -Path $dir -DestinationPath "out\ZaNytky_${v}_Windows_x64_Portable.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-windows
+          path: out/*
+          retention-days: 7
+
+  macos:
+    name: macOS ${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - runner: macos-15
+            arch: arm64
+          - runner: macos-15-intel
+            arch: x86_64
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v5
+        with:
+          node-version: 22
+      - uses: dtolnay/rust-toolchain@stable
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: |
+            .
+            app/src-tauri
+      - name: Check architecture
+        run: test "$(uname -m)" = "${{ matrix.arch }}"
+      - name: Command line tool
+        run: |
+          cargo build --release -p zanytky-cli
+          ./target/release/zanytky help
+      - name: App
+        working-directory: app
+        run: |
+          npm install --no-audit --no-fund
+          npx tauri icon icon-source.png
+          npm run tauri build -- --bundles app
+      - name: Package
+        run: |
+          v="${{ inputs.version }}"
+          dir="ZaNytky-macos-${{ matrix.arch }}"
+          mkdir -p "$dir" out
+          cp -R app/src-tauri/target/release/bundle/macos/ZaNytky.app "$dir/"
+          cp target/release/zanytky "$dir/"
+          cp LICENSE.md COPYRIGHT.md THIRD_PARTY_NOTICES.md "$dir/"
+          cp crates/zanytky-core/assets/OFL.txt "$dir/OFL-NotoSans.txt"
+          cp docs/examples/sample-document.md "$dir/"
+          cat > "$dir/README.txt" <<'EOF'
+          ZaNytky - portable macOS build (no installation). Nothing else has to be installed:
+          the window uses the web view that is part of macOS (macOS 10.15 or newer).
+          The build is NOT signed or notarized. On first start: right-click ZaNytky.app,
+          choose Open, then confirm. If macOS says the file is damaged, run in Terminal:
+          xattr -cr /path/to/ZaNytky.app
+          Data stays only in the folder you choose. Keep keys and passwords separately.
+          EOF
+          ditto -c -k --sequesterRsrc --keepParent "$dir" "out/ZaNytky_${v}_macOS_${{ matrix.arch }}_Portable.zip"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pkg-macos-${{ matrix.arch }}
+          path: out/*
+          retention-days: 7
+
+  publish:
+    name: Publish pre-release
+    needs: [windows, macos]
+    # macOS packages are optional: a failed macOS job does not block the Windows release
+    if: ${{ !cancelled() && needs.windows.result == 'success' }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v5
+      - uses: actions/download-artifact@v4
+        with:
+          pattern: pkg-*
+          path: dist
+          merge-multiple: true
+      - name: Checksums and release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          cd dist
+          sha256sum * > SHA256SUMS.txt
+          cat SHA256SUMS.txt
+          cd ..
+          gh release create "v${{ inputs.version }}" dist/* \
+            --target "${{ github.sha }}" \
+            --prerelease \
+            --title "ZaNytky ${{ inputs.version }} (пререліз)" \
+            --notes-file "docs/releases/v${{ inputs.version }}.md"

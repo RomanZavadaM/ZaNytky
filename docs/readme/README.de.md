@@ -21,7 +21,7 @@ ZaNytky ist **proprietäre Software**: ein öffentliches Repository gewährt kei
 
 ## Download
 
-**Herunterladen: [ZaNytky v0.0.3](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.3)** (aktuelle Vorabversion)
+**Herunterladen: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.4)** (aktuelle Vorabversion)
 
 Fertige Dateien für Windows (portables Zip ohne Installation, .msi/.exe-Installer) finden Sie auf der Seite der [Releases](https://github.com/RomanZavadaM/ZaNytky/releases). Die Builds sind nicht signiert: Windows kann vor einem unbekannten Herausgeber warnen.
 
@@ -53,7 +53,7 @@ zanytky report --home ./home --identity ./investigator.txt --out report.docx --f
 - Keine wertenden Etiketten über Personen: Das Programm zeigt Herkunft und eine Zuverlässigkeitsstufe, keine Urteile.
 - Nur offene Quellen; personenbezogene Daten werden durch Pseudonyme ersetzt; die KI erhält nur anonymisierten Text.
 
-## Einschränkungen der aktuellen Version (0.0.3)
+## Einschränkungen der aktuellen Version (0.0.4)
 
 - Dies ist eine Vorabversion: Die Installationsprogramme sind nicht signiert.
 - „Dokumentanalyse“ akzeptiert derzeit nur Text und Markdown (noch kein .docx/.pdf-Import).
