@@ -16,8 +16,8 @@ use zanytky_core::pseudonym::{new_key, MIN_KEY_BYTES};
 use zanytky_core::registry::{Registry, Resolution};
 use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Identity};
 use zanytky_core::{
-    build_package_with_links, build_report, import_result, parse_result, pdf, review_markdown,
-    to_docx, to_markdown, wrap::wrap, SourceMeta,
+    backup_home, build_package_with_links, build_report, import_result, parse_result, pdf,
+    restore_home, review_markdown, to_docx, to_markdown, wrap::wrap, SourceMeta,
 };
 
 type Out<'a> = &'a mut dyn Write;
@@ -38,6 +38,10 @@ zanytky - команди
   import result.json --package ПАКЕТ      записати перевірений результат у базу
   report --identity ФАЙЛ --out ФАЙЛ [--format md|docx|pdf] (--passphrase-file ФАЙЛ | --plain)
           [--title НАЗВА]                 звіт розслідувача (з розкриттям осіб)
+  backup --out ФАЙЛ --passphrase-file ФАЙЛ
+                                          зашифрована резервна копія всієї папки даних (закрийте інші програми)
+  restore ФАЙЛ --to ПАПКА --passphrase-file ФАЙЛ
+                                          відновити копію в порожню (або нову) папку; наявні файли не чіпає
 
 Скрізь потрібно --home ПАПКА (або змінна ZANYTKY_HOME).
 Види значень: name, ipn, edrpou, phone, email, text.
@@ -420,6 +424,40 @@ fn cmd_report(args: &Args, out: Out) -> Result<(), String> {
     writeln!(out, "Звіт записано: {}", target.display()).map_err(|e| e.to_string())
 }
 
+fn passphrase_from(args: &Args) -> Result<String, String> {
+    let text = read_text(Path::new(args.need("passphrase-file")?))?;
+    let passphrase = text.trim_end_matches(['\r', '\n']);
+    if passphrase.is_empty() {
+        return Err("файл парольної фрази порожній".to_string());
+    }
+    Ok(passphrase.to_string())
+}
+
+fn cmd_backup(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let target = PathBuf::from(args.need("out")?);
+    if target.exists() {
+        return Err("файл копії вже існує, він не перезаписується".to_string());
+    }
+    let bytes = backup_home(&home, &passphrase_from(args)?).map_err(|e| e.to_string())?;
+    write_file(&target, &bytes)?;
+    writeln!(
+        out,
+        "Копію записано: {} ({} байт)",
+        target.display(),
+        bytes.len()
+    )
+    .map_err(|e| e.to_string())
+}
+
+fn cmd_restore(args: &Args, out: Out) -> Result<(), String> {
+    let source = PathBuf::from(args.pos(0, "файл резервної копії")?);
+    let dest = PathBuf::from(args.need("to")?);
+    let data = fs::read(&source).map_err(|e| io_error(&source, e))?;
+    let count = restore_home(&data, &passphrase_from(args)?, &dest).map_err(|e| e.to_string())?;
+    writeln!(out, "Відновлено файлів: {count} у {}", dest.display()).map_err(|e| e.to_string())
+}
+
 /// Run one command. `args` are the arguments after the program name.
 pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
     let Some((command, rest)) = args.split_first() else {
@@ -436,6 +474,8 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "check" => cmd_check(&parsed, out),
         "import" => cmd_import(&parsed, out),
         "report" => cmd_report(&parsed, out),
+        "backup" => cmd_backup(&parsed, out),
+        "restore" => cmd_restore(&parsed, out),
         "help" | "--help" | "-h" => write!(out, "{HELP}").map_err(|e| e.to_string()),
         other => Err(format!("невідома команда: {other}. Див. zanytky help")),
     }
