@@ -19,7 +19,9 @@ ZaNytky - **proprietary software**: публічність репозиторі�
 
 ## Завантаження
 
-Готові файли для Windows (портативний zip без встановлення, інсталятори .msi/.exe) - на сторінці [релізів](https://github.com/RomanZavadaM/ZaNytky/releases/latest). Збірки не підписані: Windows може показати попередження про невідомого видавця.
+**Завантажити: [ZaNytky v0.0.3](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.3)** (останній пререліз)
+
+Готові файли для Windows (портативний zip без встановлення, інсталятори .msi/.exe) - на сторінці [релізів](https://github.com/RomanZavadaM/ZaNytky/releases). Збірки не підписані: Windows може показати попередження про невідомого видавця.
 
 ## Швидкий початок (застосунок)
 

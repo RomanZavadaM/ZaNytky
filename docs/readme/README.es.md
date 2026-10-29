@@ -21,7 +21,9 @@ ZaNytky es **software propietario**: un repositorio público no concede una lice
 
 ## Descarga
 
-Los archivos listos para Windows (zip portátil sin instalación, instaladores .msi/.exe) están en la página de [versiones](https://github.com/RomanZavadaM/ZaNytky/releases/latest). Las compilaciones no están firmadas: Windows puede avisar de un editor desconocido.
+**Descargar: [ZaNytky v0.0.3](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.3)** (última versión preliminar)
+
+Los archivos listos para Windows (zip portátil sin instalación, instaladores .msi/.exe) están en la página de [versiones](https://github.com/RomanZavadaM/ZaNytky/releases). Las compilaciones no están firmadas: Windows puede avisar de un editor desconocido.
 
 ## Inicio rápido (aplicación)
 

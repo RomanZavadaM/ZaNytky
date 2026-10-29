@@ -21,7 +21,9 @@ ZaNytky は**プロプライエタリソフトウェア**です。リポジト�
 
 ## ダウンロード
 
-Windows 用の完成ファイル（インストール不要のポータブル zip、.msi/.exe インストーラー）は[リリース](https://github.com/RomanZavadaM/ZaNytky/releases/latest)ページにあります。ビルドは署名されていないため、Windows が不明な発行元の警告を表示することがあります。
+**ダウンロード: [ZaNytky v0.0.3](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.3)** (最新のプレリリース)
+
+Windows 用の完成ファイル（インストール不要のポータブル zip、.msi/.exe インストーラー）は[リリース](https://github.com/RomanZavadaM/ZaNytky/releases)ページにあります。ビルドは署名されていないため、Windows が不明な発行元の警告を表示することがあります。
 
 ## クイックスタート（アプリケーション）
 
