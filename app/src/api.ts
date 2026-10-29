@@ -86,6 +86,10 @@ export const api = {
   importResult: (home: string, json: string, pkg: string) =>
     invoke<ImportOut>("import_result_cmd", { input: { home, json, package: pkg } }),
   report: (input: ReportInput) => invoke<string>("make_report", { input }),
+  backup: (home: string, outPath: string, passphrase: string) =>
+    invoke<string>("make_backup", { input: { home, outPath, passphrase } }),
+  restore: (filePath: string, dest: string, passphrase: string) =>
+    invoke<number>("restore_backup", { input: { filePath, dest, passphrase } }),
 };
 
 export async function pickFolder(): Promise<string | null> {

@@ -62,6 +62,7 @@ function SetupTab({ t, home, identity, note, run, setHome, setIdentity }: Shared
 }) {
   const [recipients, setRecipients] = useState<number | null>(null);
   const [initialised, setInitialised] = useState<boolean | null>(null);
+  const [backupPass, setBackupPass] = useState("");
 
   const refresh = async (folder: string) => {
     if (!folder) return;
@@ -112,6 +113,28 @@ function SetupTab({ t, home, identity, note, run, setHome, setIdentity }: Shared
     }
   };
 
+  const passOk = backupPass.length >= 8;
+
+  const makeBackup = async () => {
+    const path = await pickSavePath("zanytky-backup.znbak");
+    if (!path) return;
+    const done = await run(() => api.backup(home, path, backupPass));
+    if (done) note(fill(t.backupDone, { p: done }));
+  };
+
+  const restoreBackup = async () => {
+    const file = await pickFile(["znbak"]);
+    if (!file) return;
+    const folder = await pickFolder();
+    if (!folder) return;
+    const count = await run(() => api.restore(file, folder, backupPass));
+    if (count !== undefined) {
+      setHome(folder);
+      note(fill(t.restoreDone, { n: count }));
+      await refresh(folder);
+    }
+  };
+
   return (
     <section>
       <p className="muted">{t.privacyNote}</p>
@@ -136,6 +159,23 @@ function SetupTab({ t, home, identity, note, run, setHome, setIdentity }: Shared
         <button onClick={createIdentity} disabled={!initialised}>
           {t.createIdentity}
         </button>
+      </div>
+      <h3>{t.backupTitle}</h3>
+      <p className="muted">{t.backupNote}</p>
+      <div className="form">
+        <label>
+          {t.backupPassphrase}
+          <input type="password" value={backupPass} onChange={(e) => setBackupPass(e.target.value)} />
+        </label>
+        <div className="row">
+          <button onClick={makeBackup} disabled={!initialised || !passOk}>
+            {t.backupMake}
+          </button>
+          <button onClick={restoreBackup} disabled={!passOk}>
+            {t.backupRestore}
+          </button>
+        </div>
+        {!passOk && <p className="warn">{t.backupNeedPass}</p>}
       </div>
     </section>
   );
