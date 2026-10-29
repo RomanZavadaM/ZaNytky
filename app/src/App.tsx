@@ -251,7 +251,7 @@ function PrepareTab(shared: Shared) {
   const [copied, setCopied] = useState("");
 
   const openFile = async () => {
-    const path = await pickFile(["md", "txt", "markdown"]);
+    const path = await pickFile(["md", "txt", "markdown", "docx"]);
     if (!path) return;
     const content = await run(() => api.readTextFile(path));
     if (content !== undefined) setText(content);

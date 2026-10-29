@@ -16,6 +16,8 @@ Every new direct dependency is added here, with its license and purpose, in the 
 - rusqlite - MIT - SQLite registry of pseudonyms; bundles SQLite (public domain)
 - serde, serde_json - MIT OR Apache-2.0 - parse package metadata and the AI result (`result.json`)
 - docx-rs - MIT - writing Word (.docx) reports; no default features (no image support)
+- zip - MIT - reading the ZIP container of a Word (.docx) file to extract its text; only the `deflate` feature
+- roxmltree - MIT OR Apache-2.0 - reading the XML of a Word (.docx) file (no DTD, no network)
 - genpdf - MIT OR Apache-2.0 - PDF reports; no default features (no image support)
 - Noto Sans (Regular) - SIL Open Font License 1.1, Copyright 2022 The Noto Project Authors - font embedded in PDF reports. The application embeds a Latin and Cyrillic subset (`crates/zanytky-core/assets/NotoSans-Regular-subset.ttf`, made with fonttools by the `Font subset` workflow; SHA-256 74507180ebaf8d60918fb5aad62ec8e0705e938ff7a2a62e34cc1c985409a33e); the full font is kept for reference (`NotoSans-Regular.ttf`), license text in `assets/OFL.txt`; source: github.com/notofonts/notofonts.github.io, SHA-256 478c558ea716033cd60c03438f628dfa75694dcf6b5f6d505a2f05fd2b4f3823)
 - tauri, tauri-build, tauri-plugin-dialog - MIT OR Apache-2.0 - desktop application shell (`app/src-tauri`)
