@@ -426,8 +426,7 @@ fn cmd_report(args: &Args, out: Out) -> Result<(), String> {
 
 fn passphrase_from(args: &Args) -> Result<String, String> {
     let text = read_text(Path::new(args.need("passphrase-file")?))?;
-    let passphrase = text.trim_end_matches(['', '
-']);
+    let passphrase = text.trim_end_matches(['\r', '\n']);
     if passphrase.is_empty() {
         return Err("файл парольної фрази порожній".to_string());
     }

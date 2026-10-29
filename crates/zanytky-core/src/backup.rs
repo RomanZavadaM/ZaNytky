@@ -35,7 +35,11 @@ impl fmt::Display for BackupError {
             }
             BackupError::Format(m) => write!(f, "некоректна резервна копія: {m}"),
             BackupError::NotEmpty(p) => {
-                write!(f, "папка не порожня, відновлення скасовано: {}", p.display())
+                write!(
+                    f,
+                    "папка не порожня, відновлення скасовано: {}",
+                    p.display()
+                )
             }
         }
     }
@@ -123,7 +127,11 @@ fn safe_relative(name: &str) -> Result<PathBuf, BackupError> {
         let component = Path::new(part).components().collect::<Vec<_>>();
         match component.as_slice() {
             [Component::Normal(p)] => out.push(p),
-            _ => return Err(BackupError::Format(format!("небезпечний шлях у копії: {name}"))),
+            _ => {
+                return Err(BackupError::Format(format!(
+                    "небезпечний шлях у копії: {name}"
+                )))
+            }
         }
     }
     Ok(out)
