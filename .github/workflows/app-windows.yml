@@ -39,8 +39,7 @@ jobs:
         shell: pwsh
         working-directory: .
         run: |
-          $setup = Get-ChildItem app\src-tauri	argeteleaseundle
-sis\*.exe | Select-Object -First 1
+          $setup = Get-ChildItem app\src-tauri\target\release\bundle\nsis\*.exe | Select-Object -First 1
           $dir = Join-Path $env:RUNNER_TEMP 'zn-installed'
           Start-Process $setup.FullName -ArgumentList '/S', "/D=$dir" -Wait
           Get-ChildItem $dir | Select-Object -ExpandProperty Name
@@ -59,7 +58,7 @@ sis\*.exe | Select-Object -First 1
         shell: pwsh
         working-directory: .
         run: |
-          $msi = (Get-ChildItem app\src-tauri	argeteleaseundle\msi\*.msi | Select-Object -First 1).FullName
+          $msi = (Get-ChildItem app\src-tauri\target\release\bundle\msi\*.msi | Select-Object -First 1).FullName
           $target = Join-Path $env:RUNNER_TEMP 'zn-msi'
           Start-Process msiexec.exe -ArgumentList '/a', "`"$msi`"", '/qn', "TARGETDIR=`"$target`"" -Wait
           $hit = Get-ChildItem $target -Recurse -Filter msedgewebview2.exe -ErrorAction SilentlyContinue | Select-Object -First 1
