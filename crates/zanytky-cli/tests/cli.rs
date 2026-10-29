@@ -250,3 +250,52 @@ fn unknown_commands_and_missing_arguments_are_errors() {
     let home = home_arg(dir.path());
     assert!(cli(&["register", "name", "x", "--home", home.as_str()]).is_err());
 }
+
+fn backup(home: &str, file: &str, pass: &str) -> Result<String, String> {
+    cli(&["backup", "--home", home, "--out", file, "--passphrase-file", pass])
+}
+
+fn restore(file: &str, to: &str, pass: &str) -> Result<String, String> {
+    cli(&["restore", file, "--to", to, "--passphrase-file", pass])
+}
+
+fn write_pass(dir: &Path, name: &str, text: &str) -> String {
+    let path = dir.join(name);
+    fs::write(&path, text).unwrap();
+    path.display().to_string()
+}
+
+#[test]
+fn backup_and_restore_round_trip() {
+    let dir = tempfile::tempdir().unwrap();
+    let (home, _) = setup(dir.path());
+    let token = cli(&["register", "name", "Іваненко Петро", "--home", home.as_str()]).unwrap();
+    let pass = write_pass(dir.path(), "pass.txt", "довга парольна фраза
+");
+    let file = dir.path().join("copy.znbak").display().to_string();
+    backup(&home, &file, &pass).unwrap();
+
+    // an existing backup file is never overwritten
+    assert!(backup(&home, &file, &pass).is_err());
+
+    let restored = dir.path().join("restored").display().to_string();
+    restore(&file, &restored, &pass).unwrap();
+    let found = cli(&["find", "name", "Іваненко Петро", "--home", restored.as_str()]).unwrap();
+    assert_eq!(found.trim(), token.trim());
+
+    // restoring into a folder that already holds files is refused
+    assert!(restore(&file, &restored, &pass).is_err());
+}
+
+#[test]
+fn restore_with_a_wrong_passphrase_fails() {
+    let dir = tempfile::tempdir().unwrap();
+    let (home, _) = setup(dir.path());
+    let good = write_pass(dir.path(), "good.txt", "one");
+    let bad = write_pass(dir.path(), "bad.txt", "two");
+    let file = dir.path().join("copy.znbak").display().to_string();
+    backup(&home, &file, &good).unwrap();
+    let target = dir.path().join("out").display().to_string();
+    assert!(restore(&file, &target, &bad).is_err());
+    assert!(!Path::new(target.as_str()).exists());
+}
