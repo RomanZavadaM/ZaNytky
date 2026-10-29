@@ -14,8 +14,8 @@ use zanytky_core::registry::{Registry, Resolution};
 use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Identity, Recipient};
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
-    build_package_with_links, build_report, import_result, parse_result, pdf, review_markdown,
-    to_docx, to_markdown, SourceMeta,
+    backup_home, build_package_with_links, build_report, import_result, parse_result, pdf,
+    restore_home, review_markdown, to_docx, to_markdown, SourceMeta,
 };
 
 type Res<T> = Result<T, String>;
@@ -406,6 +406,48 @@ fn make_report(input: ReportInput) -> Res<String> {
     Ok(target.display().to_string())
 }
 
+const MIN_BACKUP_PASSPHRASE: usize = 8;
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct BackupInput {
+    home: String,
+    out_path: String,
+    passphrase: String,
+}
+
+/// Encrypted copy of the whole data folder; an existing file is never overwritten.
+#[tauri::command]
+fn make_backup(input: BackupInput) -> Res<String> {
+    let home = home_path(&input.home)?;
+    if input.passphrase.chars().count() < MIN_BACKUP_PASSPHRASE {
+        return Err(format!("passphrase must have at least {MIN_BACKUP_PASSPHRASE} characters"));
+    }
+    let target = PathBuf::from(&input.out_path);
+    if target.exists() {
+        return Err("the backup file already exists, it is not overwritten".to_string());
+    }
+    let bytes = backup_home(&home, &input.passphrase).map_err(|e| e.to_string())?;
+    write_bytes(&target, &bytes)?;
+    Ok(target.display().to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RestoreInput {
+    file_path: String,
+    dest: String,
+    passphrase: String,
+}
+
+/// Restores a copy into an empty or new folder; returns the number of files.
+#[tauri::command]
+fn restore_backup(input: RestoreInput) -> Res<usize> {
+    let source = PathBuf::from(&input.file_path);
+    let data = fs::read(&source).map_err(|e| io_error(&source, e))?;
+    restore_home(&data, &input.passphrase, Path::new(&input.dest)).map_err(|e| e.to_string())
+}
+
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 struct StatementOut {
@@ -498,6 +540,8 @@ pub fn run() {
             import_result_cmd,
             make_report,
             list_statements,
+            make_backup,
+            restore_backup,
             set_statement_status,
         ])
         .run(tauri::generate_context!())
