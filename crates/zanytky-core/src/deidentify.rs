@@ -270,6 +270,46 @@ fn is_cap_word(word: &str) -> bool {
         })
 }
 
+/// Abbreviations and short function words that are written in capitals but are not names.
+#[rustfmt::skip]
+const ABBREVIATIONS: &[&str] = &[
+    "ТОВ", "ПАТ", "ПРАТ", "ТДВ", "ДП", "КП", "КНП", "ФОП", "ПП", "ОСББ", "ДПС", "ДМС", "СБУ", "НАБУ",
+    "САП", "ВАКС", "ЗСУ", "МВС", "ДСНС", "ОВА", "ОДА", "ЄДРПОУ", "ЄДР", "ІПН", "ПДВ", "ДСТУ", "ТЕЦ",
+    "НБУ", "НКРЕ", "ПРО", "ЩОДО", "ДЛЯ", "ПІД", "НАД", "ПРИ", "АБО", "ПЕРЕД", "ПІСЛЯ", "МІЖ", "ВІД",
+];
+
+/// Endings that are typical of Ukrainian surnames and rarely belong to other words,
+/// with the common case forms (nominative, genitive, dative, instrumental).
+#[rustfmt::skip]
+const SURNAME_ENDINGS: &[&str] = &[
+    "енко", "енка", "енку", "енком", "енкові", "чук", "чука", "чуку", "чуком", "чукові", "юк", "юка",
+    "юку", "юком", "юкові",
+];
+
+fn is_cyrillic_upper(c: char) -> bool {
+    matches!(
+        c,
+        '\u{410}'..='\u{42f}' | '\u{401}' | '\u{404}' | '\u{406}' | '\u{407}' | '\u{490}'
+    )
+}
+
+/// A word written entirely in Cyrillic capitals (registers and court decisions
+/// often print surnames this way), at least three letters, not an abbreviation.
+fn is_upper_word(word: &str) -> bool {
+    let separator =
+        |c: char| APOSTROPHES.contains(&c) || DASHES.contains(&c) || c == '\'' || c == '-';
+    let letters = word.chars().filter(|c| !separator(*c)).count();
+    letters >= 3
+        && word.chars().all(|c| is_cyrillic_upper(c) || separator(c))
+        && !ABBREVIATIONS.contains(&word)
+}
+
+/// A single word that looks like a surname by its ending (in any listed case form).
+fn is_surname_form(word: &str) -> bool {
+    let lower = word.to_lowercase();
+    lower.chars().count() >= 5 && SURNAME_ENDINGS.iter().any(|ending| lower.ends_with(ending))
+}
+
 fn is_initials(word: &str) -> bool {
     let chars: Vec<char> = word.chars().collect();
     !chars.is_empty()
@@ -308,12 +348,19 @@ struct Run {
     words: Vec<String>,
     caps: u32,
     inits: u32,
+    /// The run contains a word written in capitals.
+    upper: bool,
 }
 
 impl Run {
     fn flush(&mut self, counts: &mut BTreeMap<String, u32>) {
         if self.caps >= 2 || (self.caps >= 1 && self.inits >= 1) {
-            *counts.entry(self.words.join(" ")).or_insert(0) += 1;
+            // a long run in capitals is a heading, not a name
+            if !(self.upper && self.words.len() > 4) {
+                *counts.entry(self.words.join(" ")).or_insert(0) += 1;
+            }
+        } else if self.words.len() == 1 && self.caps == 1 && is_surname_form(&self.words[0]) {
+            *counts.entry(self.words[0].clone()).or_insert(0) += 1;
         }
         *self = Run::default();
     }
@@ -334,13 +381,16 @@ fn find_candidates(text: &str) -> Vec<Candidate> {
             word = &word[..word.len() - 1];
             brk = true;
         }
-        if is_cap_word(word) {
+        let title_case = is_cap_word(word);
+        let upper_case = !title_case && is_upper_word(word);
+        if title_case || upper_case {
             if run.words.is_empty() && TITLE_WORDS.contains(&word.to_lowercase().as_str()) {
                 // a job title at the start of a phrase is not part of the name
                 continue;
             }
             run.words.push(word.to_string());
             run.caps += 1;
+            run.upper |= upper_case;
         } else if is_initials(word) {
             run.words.push(word.to_string());
             run.inits += 1;
@@ -497,6 +547,50 @@ mod tests {
         let result = run("Заступник Олексій Коваль підписав акт.", &[]);
         let texts: Vec<&str> = result.candidates.iter().map(|c| c.text.as_str()).collect();
         assert_eq!(texts, vec!["Олексій Коваль"]);
+    }
+
+    #[test]
+    fn names_in_capitals_are_candidates() {
+        let result = run("позов подав ІВАНЕНКО ПЕТРО ІВАНОВИЧ.", &[]);
+        let texts: Vec<&str> = result.candidates.iter().map(|c| c.text.as_str()).collect();
+        assert_eq!(texts, vec!["ІВАНЕНКО ПЕТРО ІВАНОВИЧ"]);
+    }
+
+    #[test]
+    fn capital_abbreviations_are_not_candidates() {
+        let result = run("оплатив ТОВ ЄДРПОУ 12345678 у ДПС.", &[]);
+        assert!(result.candidates.is_empty());
+    }
+
+    #[test]
+    fn a_long_heading_in_capitals_is_not_a_candidate() {
+        let result = run(
+            "ЗАТВЕРДЖЕННЯ ПОРЯДКУ ВИКОНАННЯ ЗАХОДІВ ПРОГРАМИ ЗБЕРЕЖЕННЯ",
+            &[],
+        );
+        assert!(result.candidates.is_empty());
+    }
+
+    #[test]
+    fn declined_surnames_are_reported_as_single_candidates() {
+        let result = run("Звернулися до Іваненка та до Мельничука.", &[]);
+        let texts: Vec<&str> = result.candidates.iter().map(|c| c.text.as_str()).collect();
+        assert!(texts.contains(&"Іваненка"));
+        assert!(texts.contains(&"Мельничука"));
+    }
+
+    #[test]
+    fn ordinary_capitalised_words_are_not_single_candidates() {
+        let result = run("жив у місті Київ і Львівській області.", &[]);
+        assert!(result.candidates.is_empty());
+    }
+
+    #[test]
+    fn an_alias_for_a_declined_form_removes_the_candidate() {
+        let dict = [DictEntry::alias("Іваненка", "N-ALIAS")];
+        let result = run("Звернулися до Іваненка.", &dict);
+        assert_eq!(result.text, "Звернулися до N-ALIAS.");
+        assert!(result.candidates.is_empty());
     }
 
     #[test]
