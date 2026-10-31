@@ -2,6 +2,7 @@
 
 pub mod backup;
 pub mod deidentify;
+pub mod demo;
 pub mod docx_text;
 pub mod export;
 pub mod import;
@@ -17,6 +18,7 @@ pub mod seal;
 pub mod wrap;
 
 pub use backup::{backup_home, restore_home, BackupError};
+pub use demo::{create_demo, DemoInfo};
 pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };
