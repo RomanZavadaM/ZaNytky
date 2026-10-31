@@ -8,7 +8,7 @@ use std::collections::{HashMap, HashSet, VecDeque};
 use serde::Serialize;
 
 use crate::card::label_of;
-use crate::model::{Model, ModelError, Status, StatementRow};
+use crate::model::{Model, ModelError, StatementRow, Status};
 
 /// How many chains are returned at most.
 const MAX_PATHS: usize = 5;
@@ -240,7 +240,15 @@ mod tests {
         let (_dir, model, list) = demo();
         let first_person = list[0].0;
         let third_person = list[2].0;
-        let result = find_paths(&model, first_person, third_person, 6, false, &HashMap::new()).unwrap();
+        let result = find_paths(
+            &model,
+            first_person,
+            third_person,
+            6,
+            false,
+            &HashMap::new(),
+        )
+        .unwrap();
         assert_eq!(result.paths.len(), 1);
         assert_eq!(result.paths[0].length, 2);
         assert_eq!(result.paths[0].hops[0].to, "ТОВ «Приклад»");

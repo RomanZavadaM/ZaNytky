@@ -449,7 +449,7 @@ fn list_entities(input: CardInput) -> Res<Vec<EntityListRow>> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
-struct PathInput {
+struct LinkPathInput {
     home: String,
     from: i64,
     to: i64,
@@ -460,7 +460,7 @@ struct PathInput {
 
 /// The shortest chains between two entities through shared statements.
 #[tauri::command]
-fn find_entity_paths(input: PathInput) -> Res<PathResult> {
+fn find_entity_paths(input: LinkPathInput) -> Res<PathResult> {
     let home = home_path(&input.home)?;
     let names = names_for(&home, &input.identity_path)?;
     let depth = input.max_depth.unwrap_or(6).clamp(1, 10);

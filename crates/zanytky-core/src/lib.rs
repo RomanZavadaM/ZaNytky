@@ -8,9 +8,9 @@ pub mod docx_text;
 pub mod export;
 pub mod import;
 pub mod model;
-pub mod path;
 pub mod normalize;
 pub mod package;
+pub mod path;
 pub mod pdf;
 pub mod pseudonym;
 pub mod registry;
@@ -21,7 +21,6 @@ pub mod wrap;
 
 pub use backup::{backup_home, restore_home, BackupError};
 pub use card::{entity_card, entity_list, EntityCard, EntityListRow};
-pub use path::{find_paths, EntityPath, PathResult};
 pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };
@@ -32,6 +31,7 @@ pub use import::{import_result, review_with_links, ImportError, ImportSummary, L
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use package::{build_package, build_package_with_links, Package, SourceMeta};
+pub use path::{find_paths, EntityPath, PathResult};
 pub use pdf::{pdf_protected, to_pdf};
 pub use pseudonym::{new_key, token, TokenError, MIN_KEY_BYTES};
 pub use registry::{Registry, RegistryError, Resolution};
