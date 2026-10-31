@@ -825,6 +825,19 @@ impl Model {
     }
 
     /// One entity by id.
+    /// Every entity, oldest first.
+    pub fn entities(&self) -> Result<Vec<EntityRow>, ModelError> {
+        let mut statement = self.conn.prepare("SELECT id FROM entity ORDER BY id")?;
+        let ids = statement
+            .query_map([], |r| r.get::<_, i64>(0))?
+            .collect::<Result<Vec<i64>, _>>()?;
+        let mut rows = Vec::new();
+        for id in ids {
+            rows.push(self.entity(id)?);
+        }
+        Ok(rows)
+    }
+
     pub fn entity(&self, id: i64) -> Result<EntityRow, ModelError> {
         let row = self
             .conn

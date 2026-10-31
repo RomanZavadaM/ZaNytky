@@ -14,8 +14,9 @@ use zanytky_core::registry::{Registry, Resolution};
 use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Identity, Recipient};
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
-    backup_home, build_package_with_links, build_report, create_demo, docx_to_text, import_result,
-    parse_result, pdf, restore_home, review_with_links, to_docx, to_markdown, SourceMeta,
+    backup_home, build_package_with_links, build_report, create_demo, docx_to_text, entity_card,
+    entity_list, import_result, parse_result, pdf, restore_home, review_with_links, to_docx,
+    to_markdown, EntityCard, EntityListRow, SourceMeta,
 };
 
 type Res<T> = Result<T, String>;
@@ -419,6 +420,43 @@ fn make_report(input: ReportInput) -> Res<String> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct CardInput {
+    home: String,
+    id: Option<i64>,
+    /// With the investigator's key the names of persons are shown (on screen only).
+    identity_path: Option<String>,
+}
+
+fn names_for(home: &Path, identity_path: &Option<String>) -> Res<std::collections::HashMap<String, String>> {
+    let Some(path) = identity_path.as_deref().filter(|p| !p.trim().is_empty()) else {
+        return Ok(std::collections::HashMap::new());
+    };
+    let identity = read_identity(path)?;
+    let registry = open_registry(home)?;
+    let dictionary = registry.dictionary(&identity).map_err(|e| e.to_string())?;
+    Ok(dictionary
+        .into_iter()
+        .filter_map(|entry| entry.token.map(|token| (token, entry.text)))
+        .collect())
+}
+
+#[tauri::command]
+fn list_entities(input: CardInput) -> Res<Vec<EntityListRow>> {
+    let home = home_path(&input.home)?;
+    let names = names_for(&home, &input.identity_path)?;
+    entity_list(&open_model(&home)?, &names).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_entity_card(input: CardInput) -> Res<EntityCard> {
+    let home = home_path(&input.home)?;
+    let names = names_for(&home, &input.identity_path)?;
+    let id = input.id.ok_or_else(|| "an entity id is required".to_string())?;
+    entity_card(&open_model(&home)?, id, &names).map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DemoInput {
     folder: String,
 }
@@ -578,6 +616,8 @@ pub fn run() {
             list_statements,
             make_backup,
             make_demo,
+            list_entities,
+            get_entity_card,
             restore_backup,
             set_statement_status,
         ])

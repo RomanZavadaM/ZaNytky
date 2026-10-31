@@ -10,10 +10,11 @@ import {
   type StatementRow,
 } from "./api";
 import { fill, LANGS, PACKS, type Lang, type Strings } from "./i18n";
+import { EntitiesTab } from "./EntitiesTab";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { notifyDataChanged, onDataChanged, openSectionWindow, windowSection } from "./windowApi";
 
-type Tab = "setup" | "prepare" | "result" | "database" | "report";
+type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "report";
 
 /** True when any text box in this window still holds unsaved text. */
 function hasUnsavedText(): boolean {
@@ -577,6 +578,7 @@ export function App() {
     ["prepare", t.tabPrepare],
     ["result", t.tabResult],
     ["database", t.tabDatabase],
+    ["entities", t.tabEntities],
     ["report", t.tabReport],
   ];
   const tabTitle = (id: Tab) => tabs.find(([key]) => key === id)?.[1] ?? "";
@@ -639,6 +641,15 @@ export function App() {
         {tab === "prepare" && <PrepareTab {...shared} />}
         {tab === "result" && <ResultTab {...shared} />}
         {tab === "database" && <DatabaseTab {...shared} />}
+        {tab === "entities" && (
+          <EntitiesTab
+            t={t}
+            lang={(lang in PACKS ? lang : "uk") as Lang}
+            home={home}
+            identity={identity}
+            run={run}
+          />
+        )}
         {tab === "report" && <ReportTab {...shared} />}
       </main>
     </div>
