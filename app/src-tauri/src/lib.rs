@@ -15,8 +15,8 @@ use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Ide
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
     backup_home, build_package_with_links, build_report, create_demo, docx_to_text, entity_card,
-    entity_list, import_result, parse_result, pdf, restore_home, review_with_links, to_docx,
-    to_markdown, EntityCard, EntityListRow, SourceMeta,
+    entity_list, find_paths, import_result, parse_result, pdf, restore_home, review_with_links,
+    to_docx, to_markdown, EntityCard, EntityListRow, PathResult, SourceMeta,
 };
 
 type Res<T> = Result<T, String>;
@@ -447,6 +447,34 @@ fn list_entities(input: CardInput) -> Res<Vec<EntityListRow>> {
     entity_list(&open_model(&home)?, &names).map_err(|e| e.to_string())
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct PathInput {
+    home: String,
+    from: i64,
+    to: i64,
+    max_depth: Option<u32>,
+    include_refuted: Option<bool>,
+    identity_path: Option<String>,
+}
+
+/// The shortest chains between two entities through shared statements.
+#[tauri::command]
+fn find_entity_paths(input: PathInput) -> Res<PathResult> {
+    let home = home_path(&input.home)?;
+    let names = names_for(&home, &input.identity_path)?;
+    let depth = input.max_depth.unwrap_or(6).clamp(1, 10);
+    find_paths(
+        &open_model(&home)?,
+        input.from,
+        input.to,
+        depth,
+        input.include_refuted.unwrap_or(false),
+        &names,
+    )
+    .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_entity_card(input: CardInput) -> Res<EntityCard> {
     let home = home_path(&input.home)?;
@@ -618,6 +646,7 @@ pub fn run() {
             make_demo,
             list_entities,
             get_entity_card,
+            find_entity_paths,
             restore_backup,
             set_statement_status,
         ])

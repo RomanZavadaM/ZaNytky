@@ -102,7 +102,7 @@ fn display(row: &EntityRow, names: &HashMap<String, String>) -> String {
     format!("№{}", row.id)
 }
 
-fn label_of(
+pub(crate) fn label_of(
     model: &Model,
     names: &HashMap<String, String>,
     cache: &mut HashMap<i64, String>,

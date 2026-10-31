@@ -8,6 +8,7 @@ pub mod docx_text;
 pub mod export;
 pub mod import;
 pub mod model;
+pub mod path;
 pub mod normalize;
 pub mod package;
 pub mod pdf;
@@ -20,6 +21,7 @@ pub mod wrap;
 
 pub use backup::{backup_home, restore_home, BackupError};
 pub use card::{entity_card, entity_list, EntityCard, EntityListRow};
+pub use path::{find_paths, EntityPath, PathResult};
 pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };
