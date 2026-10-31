@@ -2,7 +2,7 @@
 //!
 //! Known values are replaced by their pseudonyms: names and aliases from the
 //! investigator's dictionary, national tax numbers (10 digits), phone numbers,
-//! e-mail addresses, bank account numbers (IBAN), vehicle plates and street
+//! e-mail addresses, bank account numbers (IBAN), payment card numbers, vehicle plates and street
 //! addresses with a house number. Codes of organisations are public and stay. Names the
 //! system does not know are reported as candidates so the investigator can
 //! decide what they are (step 2a of the parse package).
@@ -344,6 +344,48 @@ fn iban_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
                 end,
                 token: token(Kind::Iban, &text, key)?,
                 kind: Kind::Iban,
+            });
+        }
+    }
+    Ok(spans)
+}
+
+/// Payment card number: 13-19 digits, grouped by four (or not grouped), valid Luhn check.
+fn card_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
+    let mut spans = Vec::new();
+    for start in 0..chars.len() {
+        if !chars[start].is_ascii_digit() || !boundary_before(chars, start) {
+            continue;
+        }
+        let mut digits = 0;
+        let mut end = start;
+        let mut aligned = true;
+        let mut i = start;
+        while i < chars.len() && digits < 19 {
+            let c = chars[i];
+            if c.is_ascii_digit() {
+                digits += 1;
+                end = i + 1;
+            } else if matches!(c, ' ' | '-') {
+                if digits % 4 != 0 {
+                    aligned = false;
+                    break;
+                }
+            } else {
+                break;
+            }
+            i += 1;
+        }
+        if !aligned || !(13..=19).contains(&digits) || !boundary_after(chars, end) {
+            continue;
+        }
+        let text: String = chars[start..end].iter().collect();
+        if normalize(Kind::Card, &text).is_ok() {
+            spans.push(Span {
+                start,
+                end,
+                token: token(Kind::Card, &text, key)?,
+                kind: Kind::Card,
             });
         }
     }
@@ -694,6 +736,7 @@ pub fn deidentify_with_links(
     spans.extend(email_spans(&chars, key)?);
     spans.extend(number_spans(&chars, key)?);
     spans.extend(iban_spans(&chars, key)?);
+    spans.extend(card_spans(&chars, key)?);
     spans.extend(plate_spans(&chars, key)?);
     spans.extend(address_spans(&chars, key)?);
     for span in spans.iter_mut().filter(|s| s.kind != Kind::Name) {
@@ -879,6 +922,39 @@ mod tests {
         let result = run(text, &[]);
         assert!(result.text.contains("UA213223130000026007233566000"));
         assert!(result.replacements.iter().all(|r| r.kind != Kind::Iban));
+    }
+
+    #[test]
+    fn a_payment_card_number_is_replaced_in_any_grouping() {
+        let tok = token(Kind::Card, "4111111111111111", &key()).unwrap();
+        let result = run(
+            "Картка 4111 1111 1111 1111 і 4111111111111111 та 4111-1111-1111-1111.",
+            &[],
+        );
+        assert_eq!(result.text, format!("Картка {tok} і {tok} та {tok}."));
+        assert_eq!(result.replacements.len(), 1);
+        assert_eq!(result.replacements[0].count, 3);
+        assert_eq!(result.replacements[0].kind, Kind::Card);
+    }
+
+    #[test]
+    fn a_number_that_fails_the_luhn_check_stays() {
+        let text = "Картка 4111 1111 1111 1112 не існує.";
+        let result = run(text, &[]);
+        assert_eq!(result.text, text);
+    }
+
+    #[test]
+    fn tax_numbers_and_phones_are_not_cards() {
+        let result = run("ІПН 1234567890, тел. 0501234567.", &[]);
+        assert!(result.replacements.iter().all(|r| r.kind != Kind::Card));
+    }
+
+    #[test]
+    fn two_long_numbers_side_by_side_are_not_a_card() {
+        let text = "коди 12345678 87654321 у таблиці";
+        let result = run(text, &[]);
+        assert_eq!(result.text, text);
     }
 
     #[test]

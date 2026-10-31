@@ -94,8 +94,10 @@ fn invalid(message: impl Into<String>) -> ResultError {
 /// Shape of a pseudonym: one prefix letter, a hyphen, 26 base32 characters.
 fn valid_token(token: &str) -> bool {
     let (prefix, body) = token.split_once('-').unwrap_or(("", ""));
-    matches!(prefix, "N" | "I" | "E" | "T" | "X" | "M" | "B" | "V" | "A")
-        && body.len() == 26
+    matches!(
+        prefix,
+        "N" | "I" | "E" | "T" | "X" | "M" | "B" | "V" | "A" | "K"
+    ) && body.len() == 26
         && body
             .chars()
             .all(|c| c.is_ascii_uppercase() || ('2'..='7').contains(&c))
