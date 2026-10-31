@@ -136,7 +136,8 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
                             (s) =>
                               ` ${kindLabel(lang, s.kind)}${s.value ? ` ${s.value}` : ""} [${s.grade}, ${statusLabel(s.status)}]`,
                           )
-                          .join(";")}{" "}
+                          .join(";")}
+                        {hop.signs.map((s) => ` ⚠ ${fill(t.pathShared, { kind: kindLabel(lang, s.kind) })}`).join(";")}{" "}
                         →
                       </span>{" "}
                       {chip(hop.toId, hop.to)}

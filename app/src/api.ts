@@ -157,6 +157,7 @@ export interface PathHopData {
   toId: number;
   to: string;
   statements: PathStatementData[];
+  signs: { kind: string; value: string }[];
 }
 
 export interface EntityPathData {
