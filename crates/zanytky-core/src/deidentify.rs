@@ -342,7 +342,10 @@ fn plate_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
 
 fn strip_word(word: &str) -> &str {
     word.trim_matches(|c: char| {
-        matches!(c, ',' | ';' | '.' | ':' | '(' | ')' | '"' | '\u{ab}' | '\u{bb}')
+        matches!(
+            c,
+            ',' | ';' | '.' | ':' | '(' | ')' | '"' | '\u{ab}' | '\u{bb}'
+        )
     })
 }
 
@@ -414,7 +417,8 @@ fn address_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
             w += 1;
             continue;
         }
-        if j < bounds.len() && matches!(lower(j).as_str(), "буд" | "будинок" | "\u{2116}") {
+        if j < bounds.len() && matches!(lower(j).as_str(), "буд" | "будинок" | "\u{2116}")
+        {
             j += 1;
         }
         if j >= bounds.len() || !house_number(&texts[j]) {
@@ -831,7 +835,10 @@ mod tests {
         let text = "Проживає за адресою: м. Львів, вул. Шевченка, 15, кв. 7. Працює вдома.";
         let tok = token(Kind::Address, "м. Львів, вул. Шевченка, 15, кв. 7", &key()).unwrap();
         let result = run(text, &[]);
-        assert_eq!(result.text, format!("Проживає за адресою: {tok}. Працює вдома."));
+        assert_eq!(
+            result.text,
+            format!("Проживає за адресою: {tok}. Працює вдома.")
+        );
     }
 
     #[test]
