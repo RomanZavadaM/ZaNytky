@@ -69,7 +69,75 @@ export interface StatementRow {
   note: string;
 }
 
+export interface EntityListRow {
+  id: number;
+  kind: string;
+  label: string;
+  code: string | null;
+  statements: number;
+}
+
+export interface CardParty {
+  id: number;
+  label: string;
+  role: string;
+}
+
+export interface CardSource {
+  title: string;
+  kind: string;
+  reliability: string;
+  url: string | null;
+}
+
+export interface CardStatement {
+  id: number;
+  kind: string;
+  role: string;
+  value: string;
+  validFrom: string | null;
+  validTo: string | null;
+  asOf: string | null;
+  grade: string;
+  status: string;
+  note: string;
+  independent: number;
+  parties: CardParty[];
+  sources: CardSource[];
+}
+
+export interface CardNeighbor {
+  id: number;
+  label: string;
+  kind: string;
+  count: number;
+}
+
+export interface CardOwner {
+  depth: number;
+  owner: string;
+  ownerId: number;
+  owned: string;
+  ownedId: number;
+  value: string;
+  statement: number;
+}
+
+export interface EntityCardData {
+  id: number;
+  kind: string;
+  label: string;
+  code: string | null;
+  statements: CardStatement[];
+  neighbors: CardNeighbor[];
+  owners: CardOwner[];
+}
+
 export const api = {
+  entities: (home: string, identityPath?: string) =>
+    invoke<EntityListRow[]>("list_entities", { input: { home, identityPath } }),
+  entityCard: (home: string, id: number, identityPath?: string) =>
+    invoke<EntityCardData>("get_entity_card", { input: { home, id, identityPath } }),
   statements: (home: string) => invoke<StatementRow[]>("list_statements", { input: { home } }),
   setStatus: (home: string, id: number, status: "confirmed" | "refuted" | "unverified") =>
     invoke<void>("set_statement_status", { input: { home, id, status } }),

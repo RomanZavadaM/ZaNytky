@@ -1,6 +1,7 @@
 //! ZaNytky core: canonical form of values and keyed one-to-one pseudonyms.
 
 pub mod backup;
+pub mod card;
 pub mod deidentify;
 pub mod demo;
 pub mod docx_text;
@@ -18,6 +19,7 @@ pub mod seal;
 pub mod wrap;
 
 pub use backup::{backup_home, restore_home, BackupError};
+pub use card::{entity_card, entity_list, EntityCard, EntityListRow};
 pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };
