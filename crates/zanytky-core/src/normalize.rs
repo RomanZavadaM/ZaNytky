@@ -25,6 +25,8 @@ pub enum Kind {
     Plate,
     /// Street address (street, house, flat).
     Address,
+    /// Payment card number (13-19 digits, valid Luhn check).
+    Card,
 }
 
 impl Kind {
@@ -39,6 +41,7 @@ impl Kind {
             Kind::Iban => "iban",
             Kind::Plate => "plate",
             Kind::Address => "address",
+            Kind::Card => "card",
         }
     }
 
@@ -54,6 +57,7 @@ impl Kind {
             "iban" => Some(Kind::Iban),
             "plate" => Some(Kind::Plate),
             "address" => Some(Kind::Address),
+            "card" => Some(Kind::Card),
             _ => None,
         }
     }
@@ -70,6 +74,7 @@ impl Kind {
             Kind::Iban => 'B',
             Kind::Plate => 'V',
             Kind::Address => 'A',
+            Kind::Card => 'K',
         }
     }
 }
@@ -206,6 +211,24 @@ fn valid_ua_iban(text: &str) -> bool {
     remainder == 1
 }
 
+/// The Luhn check used by payment card numbers.
+fn luhn_valid(digits: &str) -> bool {
+    let mut sum = 0;
+    for (index, c) in digits.chars().rev().enumerate() {
+        let Some(mut value) = c.to_digit(10) else {
+            return false;
+        };
+        if index % 2 == 1 {
+            value *= 2;
+            if value > 9 {
+                value -= 9;
+            }
+        }
+        sum += value;
+    }
+    sum % 10 == 0
+}
+
 fn digits(value: &str) -> String {
     value.nfkc().filter(char::is_ascii_digit).collect()
 }
@@ -280,6 +303,13 @@ pub fn normalize(kind: Kind, value: &str) -> Result<String, NormalizeError> {
                 .collect()
         }
         Kind::Address => normalize_address(value),
+        Kind::Card => {
+            let d = digits(value);
+            if !(13..=19).contains(&d.len()) || !luhn_valid(&d) {
+                return Err(NormalizeError::BadFormat(kind));
+            }
+            d
+        }
         Kind::Phone => {
             let mut d = digits(value);
             if d.len() == 10 && d.starts_with('0') {
@@ -329,6 +359,16 @@ mod tests {
             Err(NormalizeError::BadFormat(Kind::Iban))
         );
         assert!(normalize(Kind::Iban, "UA21").is_err());
+    }
+
+    #[test]
+    fn card_numbers_need_the_luhn_check() {
+        let a = normalize(Kind::Card, "4111 1111 1111 1111").unwrap();
+        let b = normalize(Kind::Card, "4111-1111-1111-1111").unwrap();
+        assert_eq!(a, "4111111111111111");
+        assert_eq!(a, b);
+        assert!(normalize(Kind::Card, "4111 1111 1111 1112").is_err());
+        assert!(normalize(Kind::Card, "4111 1111").is_err());
     }
 
     #[test]
