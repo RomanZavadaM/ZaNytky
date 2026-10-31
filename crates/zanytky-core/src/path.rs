@@ -25,6 +25,14 @@ pub struct PathStatement {
     pub status: String,
 }
 
+/// An identifier (address, phone, plate...) that both ends of a step have.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct PathSign {
+    pub kind: String,
+    pub value: String,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PathHop {
@@ -33,6 +41,8 @@ pub struct PathHop {
     pub to_id: i64,
     pub to: String,
     pub statements: Vec<PathStatement>,
+    /// Identifiers the two ends have in common.
+    pub signs: Vec<PathSign>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -130,6 +140,27 @@ pub fn find_paths(
         }
     }
 
+    let mut signs: HashMap<(i64, i64), Vec<PathSign>> = HashMap::new();
+    for (kind, value, holders) in model.shared_identifiers()? {
+        for a in &holders {
+            for b in &holders {
+                if a >= b {
+                    continue;
+                }
+                signs.entry((*a, *b)).or_default().push(PathSign {
+                    kind: kind.clone(),
+                    value: value.clone(),
+                });
+                for (x, y) in [(a, b), (b, a)] {
+                    let list = adjacent.entry(*x).or_default();
+                    if !list.contains(y) {
+                        list.push(*y);
+                    }
+                }
+            }
+        }
+    }
+
     // breadth first search: distances and all predecessors on shortest ways
     let mut distance: HashMap<i64, u32> = HashMap::from([(from, 0)]);
     let mut previous: HashMap<i64, Vec<i64>> = HashMap::new();
@@ -188,6 +219,7 @@ pub fn find_paths(
                 to_id: b,
                 to: label_of(model, names, &mut cache, b)?,
                 statements: behind,
+                signs: signs.get(&key).cloned().unwrap_or_default(),
             });
         }
         paths.push(EntityPath {
@@ -252,6 +284,37 @@ mod tests {
         assert_eq!(result.paths.len(), 1);
         assert_eq!(result.paths[0].length, 2);
         assert_eq!(result.paths[0].hops[0].to, "ТОВ «Приклад»");
+    }
+
+    #[test]
+    fn a_shared_address_is_a_step_of_its_own() {
+        let (_dir, model, list) = demo();
+        let from = id(&list, "ТОВ «Приклад»");
+        let to = id(&list, "Міська рада");
+        let address = "A-ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        let other = model
+            .add_entity(&crate::model::NewEntity {
+                kind: crate::model::EntityKind::Org,
+                token: None,
+                label: Some("Сусідня фірма"),
+                public_code: None,
+            })
+            .unwrap();
+        model.add_identifier(from, "address", address).unwrap();
+        model.add_identifier(other, "address", address).unwrap();
+        let result = find_paths(&model, from, other, 3, false, &HashMap::new()).unwrap();
+        assert_eq!(result.paths.len(), 1);
+        let hop = &result.paths[0].hops[0];
+        assert!(hop.statements.is_empty());
+        assert_eq!(hop.signs[0].kind, "address");
+        // ordinary chains are unchanged
+        assert_eq!(
+            find_paths(&model, from, to, 6, false, &HashMap::new())
+                .unwrap()
+                .paths[0]
+                .length,
+            2
+        );
     }
 
     #[test]
