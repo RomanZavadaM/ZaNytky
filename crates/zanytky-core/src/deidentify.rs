@@ -271,6 +271,7 @@ fn is_cap_word(word: &str) -> bool {
 }
 
 /// Abbreviations and short function words that are written in capitals but are not names.
+#[rustfmt::skip]
 const ABBREVIATIONS: &[&str] = &[
     "ТОВ", "ПАТ", "ПРАТ", "ТДВ", "ДП", "КП", "КНП", "ФОП", "ПП", "ОСББ", "ДПС", "ДМС", "СБУ", "НАБУ",
     "САП", "ВАКС", "ЗСУ", "МВС", "ДСНС", "ОВА", "ОДА", "ЄДРПОУ", "ЄДР", "ІПН", "ПДВ", "ДСТУ", "ТЕЦ",
@@ -279,19 +280,24 @@ const ABBREVIATIONS: &[&str] = &[
 
 /// Endings that are typical of Ukrainian surnames and rarely belong to other words,
 /// with the common case forms (nominative, genitive, dative, instrumental).
+#[rustfmt::skip]
 const SURNAME_ENDINGS: &[&str] = &[
     "енко", "енка", "енку", "енком", "енкові", "чук", "чука", "чуку", "чуком", "чукові", "юк", "юка",
     "юку", "юком", "юкові",
 ];
 
 fn is_cyrillic_upper(c: char) -> bool {
-    matches!(c, '\u{410}'..='\u{42f}' | '\u{401}' | '\u{404}' | '\u{406}' | '\u{407}' | '\u{490}')
+    matches!(
+        c,
+        '\u{410}'..='\u{42f}' | '\u{401}' | '\u{404}' | '\u{406}' | '\u{407}' | '\u{490}'
+    )
 }
 
 /// A word written entirely in Cyrillic capitals (registers and court decisions
 /// often print surnames this way), at least three letters, not an abbreviation.
 fn is_upper_word(word: &str) -> bool {
-    let separator = |c: char| APOSTROPHES.contains(&c) || DASHES.contains(&c) || c == '\'' || c == '-';
+    let separator =
+        |c: char| APOSTROPHES.contains(&c) || DASHES.contains(&c) || c == '\'' || c == '-';
     let letters = word.chars().filter(|c| !separator(*c)).count();
     letters >= 3
         && word.chars().all(|c| is_cyrillic_upper(c) || separator(c))
