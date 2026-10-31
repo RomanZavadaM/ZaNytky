@@ -534,6 +534,17 @@ impl Model {
         self.log("merge_entities", &format!("entity:{drop}->{keep}"))
     }
 
+    /// The entities folded into this one.
+    pub fn merged_children(&self, keep: i64) -> Result<Vec<i64>, ModelError> {
+        let mut statement = self
+            .conn
+            .prepare("SELECT drop_id FROM entity_merge WHERE keep_id = ?1 ORDER BY drop_id")?;
+        let ids = statement
+            .query_map(params![keep], |r| r.get::<_, i64>(0))?
+            .collect::<Result<Vec<i64>, _>>()?;
+        Ok(ids)
+    }
+
     /// Undo `merge_entities` for the folded entity.
     pub fn unmerge_entity(&self, drop: i64) -> Result<(), ModelError> {
         let (keep, code_set): (i64, i64) = self

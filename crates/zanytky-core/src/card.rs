@@ -107,6 +107,8 @@ pub struct EntityCard {
     pub owners: Vec<CardOwner>,
     /// Identifiers shared with other entities: always shown, they are a strong sign.
     pub shared: Vec<SharedSign>,
+    /// Entities folded into this one; each can be split off again.
+    pub merged: Vec<CardNeighbor>,
 }
 
 fn display(row: &EntityRow, names: &HashMap<String, String>) -> String {
@@ -277,6 +279,15 @@ pub fn entity_card(
             });
         }
     }
+    let mut merged = Vec::new();
+    for child in model.merged_children(id)? {
+        merged.push(CardNeighbor {
+            id: child,
+            label: label_of(model, names, &mut cache, child)?,
+            kind: model.entity(child)?.kind.as_str().to_string(),
+            count: 1,
+        });
+    }
     let mut neighbors: Vec<CardNeighbor> = neighbors.into_values().collect();
     neighbors.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.label.cmp(&b.label)));
     Ok(EntityCard {
@@ -288,6 +299,7 @@ pub fn entity_card(
         neighbors,
         owners,
         shared,
+        merged,
     })
 }
 
@@ -371,6 +383,30 @@ mod tests {
         let list = entity_list(&model, &HashMap::new()).unwrap();
         assert_eq!(list.iter().find(|r| r.id == company).unwrap().shared, 1);
         assert_eq!(list.iter().filter(|r| r.shared > 0).count(), 2);
+    }
+
+    #[test]
+    fn a_merged_entity_is_listed_on_the_card_and_can_be_split_off() {
+        let (_dir, model) = demo_model();
+        let list = entity_list(&model, &HashMap::new()).unwrap();
+        let council = list.iter().find(|r| r.label == "Міська рада").unwrap().id;
+        let twin = model
+            .add_entity(&crate::model::NewEntity {
+                kind: crate::model::EntityKind::Org,
+                token: None,
+                label: Some("Рада міська"),
+                public_code: None,
+            })
+            .unwrap();
+        model.merge_entities(council, twin).unwrap();
+        let card = entity_card(&model, council, &HashMap::new()).unwrap();
+        assert_eq!(card.merged.len(), 1);
+        assert_eq!(card.merged[0].id, twin);
+        model.unmerge_entity(twin).unwrap();
+        assert!(entity_card(&model, council, &HashMap::new())
+            .unwrap()
+            .merged
+            .is_empty());
     }
 
     #[test]
