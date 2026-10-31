@@ -392,7 +392,12 @@ impl Model {
 
     /// Remember an identifier (address, phone, e-mail, plate, account, card; always a
     /// pseudonym) of an entity. The same identifier on several entities is a link.
-    pub fn add_identifier(&self, entity_id: i64, kind: &str, value: &str) -> Result<(), ModelError> {
+    pub fn add_identifier(
+        &self,
+        entity_id: i64,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), ModelError> {
         self.conn.execute(
             "INSERT OR IGNORE INTO entity_identifier (entity_id, kind, value) VALUES (?1, ?2, ?3)",
             params![entity_id, kind, value],

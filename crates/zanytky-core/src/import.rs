@@ -485,7 +485,8 @@ mod link_tests {
     fn two_organisations_at_one_address_stay_apart_but_share_the_sign() {
         let model = Model::open_in_memory("t").unwrap();
         let address = r#"{"kind": "address", "value": "A-ABCDEFGHIJKLMNOPQRSTUVWXYZ"}"#;
-        for (package, label, code) in [("p1", "Перша", "11111111"), ("p2", "Друга", "22222222")] {
+        for (package, label, code) in [("p1", "Перша", "11111111"), ("p2", "Друга", "22222222")]
+        {
             let file = parse_result(&with_address(package, label, code, address), package).unwrap();
             import_result(&model, &file).unwrap();
         }

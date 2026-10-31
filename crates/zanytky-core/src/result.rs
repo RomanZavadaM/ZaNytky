@@ -177,7 +177,8 @@ fn validate_entities(entities: &[ResultEntity]) -> Result<(), ResultError> {
         let kind = EntityKind::parse(&entity.kind)
             .ok_or_else(|| invalid(format!("unknown entity kind {}", entity.kind)))?;
         for identifier in &entity.identifiers {
-            if !IDENTIFIER_KINDS.contains(&identifier.kind.as_str()) || !valid_token(&identifier.value)
+            if !IDENTIFIER_KINDS.contains(&identifier.kind.as_str())
+                || !valid_token(&identifier.value)
             {
                 return Err(invalid(format!(
                     "entity {}: bad identifier {}",
