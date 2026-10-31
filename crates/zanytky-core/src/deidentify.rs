@@ -1,14 +1,15 @@
 //! De-identification of a text before it goes to the AI (ADR-0007).
 //!
 //! Known values are replaced by their pseudonyms: names and aliases from the
-//! investigator's dictionary, national tax numbers (10 digits), phone numbers
-//! and e-mail addresses. Codes of organisations are public and stay. Names the
+//! investigator's dictionary, national tax numbers (10 digits), phone numbers,
+//! e-mail addresses, bank account numbers (IBAN), vehicle plates and street
+//! addresses with a house number. Codes of organisations are public and stay. Names the
 //! system does not know are reported as candidates so the investigator can
 //! decide what they are (step 2a of the parse package).
 
 use std::collections::{BTreeMap, HashMap};
 
-use crate::normalize::{Kind, APOSTROPHES, DASHES};
+use crate::normalize::{address_marker, normalize, plate_letter, Kind, APOSTROPHES, DASHES};
 use crate::pseudonym::{token, TokenError};
 
 /// A name or alias the investigator knows.
@@ -253,6 +254,205 @@ fn email_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
     Ok(spans)
 }
 
+/// Ukrainian bank account number (IBAN): `UA` and 27 digits, spaces allowed, valid check.
+fn iban_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
+    let mut spans = Vec::new();
+    for start in 0..chars.len().saturating_sub(1) {
+        let first = chars[start].to_ascii_uppercase();
+        let second = chars[start + 1].to_ascii_uppercase();
+        if first != 'U' || second != 'A' || !boundary_before(chars, start) {
+            continue;
+        }
+        let mut digits = 0;
+        let mut end = start + 2;
+        let mut i = start + 2;
+        while i < chars.len() && digits < 27 {
+            let c = chars[i];
+            if c.is_ascii_digit() {
+                digits += 1;
+                end = i + 1;
+            } else if !matches!(c, ' ' | '-') {
+                break;
+            }
+            i += 1;
+        }
+        if digits != 27 || !boundary_after(chars, end) {
+            continue;
+        }
+        let text: String = chars[start..end].iter().collect();
+        if normalize(Kind::Iban, &text).is_ok() {
+            spans.push(Span {
+                start,
+                end,
+                token: token(Kind::Iban, &text, key)?,
+                kind: Kind::Iban,
+            });
+        }
+    }
+    Ok(spans)
+}
+
+/// End of a vehicle plate that starts at `start`: two letters, four digits, two letters
+/// (Cyrillic or Latin look-alikes, optional spaces between the groups).
+fn plate_end(chars: &[char], start: usize) -> Option<usize> {
+    fn letter(chars: &[char], i: usize) -> Option<char> {
+        chars.get(i).copied().and_then(plate_letter)
+    }
+    let mut i = start;
+    letter(chars, i)?;
+    letter(chars, i + 1)?;
+    i += 2;
+    if chars.get(i).is_some_and(|c| c.is_whitespace()) {
+        i += 1;
+    }
+    for _ in 0..4 {
+        if !chars.get(i).is_some_and(char::is_ascii_digit) {
+            return None;
+        }
+        i += 1;
+    }
+    if chars.get(i).is_some_and(|c| c.is_whitespace()) {
+        i += 1;
+    }
+    letter(chars, i)?;
+    letter(chars, i + 1)?;
+    Some(i + 2)
+}
+
+fn plate_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
+    let mut spans = Vec::new();
+    for start in 0..chars.len() {
+        if !boundary_before(chars, start) {
+            continue;
+        }
+        if let Some(end) = plate_end(chars, start) {
+            if boundary_after(chars, end) {
+                let text: String = chars[start..end].iter().collect();
+                spans.push(Span {
+                    start,
+                    end,
+                    token: token(Kind::Plate, &text, key)?,
+                    kind: Kind::Plate,
+                });
+            }
+        }
+    }
+    Ok(spans)
+}
+
+fn strip_word(word: &str) -> &str {
+    word.trim_matches(|c: char| {
+        matches!(c, ',' | ';' | '.' | ':' | '(' | ')' | '"' | '\u{ab}' | '\u{bb}')
+    })
+}
+
+/// A house or flat number: 15, 15А, 15/2, 15-Б.
+fn house_number(word: &str) -> bool {
+    let word = strip_word(word);
+    let digits = word.chars().take_while(char::is_ascii_digit).count();
+    if digits == 0 || digits > 4 {
+        return false;
+    }
+    let rest: Vec<char> = word.chars().skip(digits).collect();
+    match rest.as_slice() {
+        [] => true,
+        [c] => c.is_alphabetic(),
+        ['/' | '-', tail @ ..] => {
+            !tail.is_empty()
+                && (tail.iter().all(char::is_ascii_digit)
+                    || (tail.len() == 1 && tail[0].is_alphabetic()))
+        }
+        _ => false,
+    }
+}
+
+/// Positions of whitespace separated words.
+fn word_bounds(chars: &[char]) -> Vec<(usize, usize)> {
+    let mut words = Vec::new();
+    let mut i = 0;
+    while i < chars.len() {
+        if chars[i].is_whitespace() {
+            i += 1;
+            continue;
+        }
+        let start = i;
+        while i < chars.len() && !chars[i].is_whitespace() {
+            i += 1;
+        }
+        words.push((start, i));
+    }
+    words
+}
+
+/// A street address with a house number: marker (вул., проспект, ...), one to three
+/// capitalised words, the house number, optionally a flat or office and a city before.
+/// A street without a house number is not an address of a person and stays.
+fn address_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
+    let bounds = word_bounds(chars);
+    let texts: Vec<String> = bounds
+        .iter()
+        .map(|(start, end)| chars[*start..*end].iter().collect())
+        .collect();
+    let lower = |index: usize| strip_word(&texts[index]).to_lowercase();
+    let mut spans = Vec::new();
+    let mut w = 0;
+    while w < bounds.len() {
+        if address_marker(&lower(w)).is_none() {
+            w += 1;
+            continue;
+        }
+        let mut j = w + 1;
+        let mut names = 0;
+        while j < bounds.len() && names < 3 && is_cap_word(strip_word(&texts[j])) {
+            names += 1;
+            j += 1;
+            if texts[j - 1].ends_with(',') {
+                break;
+            }
+        }
+        if names == 0 {
+            w += 1;
+            continue;
+        }
+        if j < bounds.len() && matches!(lower(j).as_str(), "буд" | "будинок" | "\u{2116}") {
+            j += 1;
+        }
+        if j >= bounds.len() || !house_number(&texts[j]) {
+            w += 1;
+            continue;
+        }
+        let mut last = j;
+        j += 1;
+        if j + 1 < bounds.len()
+            && matches!(lower(j).as_str(), "кв" | "квартира" | "оф" | "офіс")
+            && house_number(&texts[j + 1])
+        {
+            last = j + 1;
+        }
+        let mut first = w;
+        if w >= 2
+            && matches!(lower(w - 2).as_str(), "м" | "місто")
+            && is_cap_word(strip_word(&texts[w - 1]))
+        {
+            first = w - 2;
+        }
+        let start = bounds[first].0;
+        let mut end = bounds[last].1;
+        while end > start && matches!(chars[end - 1], ',' | ';' | '.' | ':' | ')') {
+            end -= 1;
+        }
+        let text: String = chars[start..end].iter().collect();
+        spans.push(Span {
+            start,
+            end,
+            token: token(Kind::Address, &text, key)?,
+            kind: Kind::Address,
+        });
+        w = last + 1;
+    }
+    Ok(spans)
+}
+
 fn is_cap_word(word: &str) -> bool {
     let mut chars = word.chars();
     match chars.next() {
@@ -431,6 +631,9 @@ pub fn deidentify_with_links(
     let mut spans = dictionary_spans(&chars, dictionary, key)?;
     spans.extend(email_spans(&chars, key)?);
     spans.extend(number_spans(&chars, key)?);
+    spans.extend(iban_spans(&chars, key)?);
+    spans.extend(plate_spans(&chars, key)?);
+    spans.extend(address_spans(&chars, key)?);
     for span in spans.iter_mut().filter(|s| s.kind != Kind::Name) {
         if let Some(person) = links.get(&span.token) {
             span.token = person.clone();
@@ -591,6 +794,59 @@ mod tests {
         let result = run("Звернулися до Іваненка.", &dict);
         assert_eq!(result.text, "Звернулися до N-ALIAS.");
         assert!(result.candidates.is_empty());
+    }
+
+    const IBAN: &str = "UA213223130000026007233566001";
+
+    #[test]
+    fn a_bank_account_number_is_replaced_in_any_grouping() {
+        let tok = token(Kind::Iban, IBAN, &key()).unwrap();
+        let result = run(
+            "Рахунок UA21 3223 1300 0002 6007 2335 6600 1, або UA213223130000026007233566001.",
+            &[],
+        );
+        assert_eq!(result.text, format!("Рахунок {tok}, або {tok}."));
+        assert_eq!(result.replacements.len(), 1);
+        assert_eq!(result.replacements[0].count, 2);
+        assert_eq!(result.replacements[0].kind, Kind::Iban);
+    }
+
+    #[test]
+    fn a_number_that_is_not_a_valid_iban_stays() {
+        let text = "Рахунок UA213223130000026007233566000 не існує.";
+        let result = run(text, &[]);
+        assert!(result.text.contains("UA213223130000026007233566000"));
+        assert!(result.replacements.iter().all(|r| r.kind != Kind::Iban));
+    }
+
+    #[test]
+    fn vehicle_plates_in_all_spellings_give_one_pseudonym() {
+        let tok = token(Kind::Plate, "АА1234ВВ", &key()).unwrap();
+        let result = run("авто АА 1234 ВВ і AA1234BB, не АА 123 ВВ.", &[]);
+        assert_eq!(result.text, format!("авто {tok} і {tok}, не АА 123 ВВ."));
+    }
+
+    #[test]
+    fn an_address_with_a_house_number_is_replaced() {
+        let text = "Проживає за адресою: м. Львів, вул. Шевченка, 15, кв. 7. Працює вдома.";
+        let tok = token(Kind::Address, "м. Львів, вул. Шевченка, 15, кв. 7", &key()).unwrap();
+        let result = run(text, &[]);
+        assert_eq!(result.text, format!("Проживає за адресою: {tok}. Працює вдома."));
+    }
+
+    #[test]
+    fn address_spellings_give_one_pseudonym() {
+        let a = run("жив на вул. Шевченка, буд. 15", &[]);
+        let b = run("жив на вулиця Шевченка 15", &[]);
+        assert_eq!(a.text, b.text);
+        assert!(!a.text.contains("Шевченка"));
+    }
+
+    #[test]
+    fn a_street_without_a_house_number_stays() {
+        let text = "на вул. Шевченка сталася аварія";
+        let result = run(text, &[]);
+        assert_eq!(result.text, text);
     }
 
     #[test]

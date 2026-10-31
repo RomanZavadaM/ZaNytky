@@ -19,6 +19,12 @@ pub enum Kind {
     Phone,
     Email,
     Text,
+    /// Ukrainian bank account number (IBAN).
+    Iban,
+    /// Vehicle registration plate.
+    Plate,
+    /// Street address (street, house, flat).
+    Address,
 }
 
 impl Kind {
@@ -30,6 +36,9 @@ impl Kind {
             Kind::Phone => "phone",
             Kind::Email => "email",
             Kind::Text => "text",
+            Kind::Iban => "iban",
+            Kind::Plate => "plate",
+            Kind::Address => "address",
         }
     }
 
@@ -42,6 +51,9 @@ impl Kind {
             "phone" => Some(Kind::Phone),
             "email" => Some(Kind::Email),
             "text" => Some(Kind::Text),
+            "iban" => Some(Kind::Iban),
+            "plate" => Some(Kind::Plate),
+            "address" => Some(Kind::Address),
             _ => None,
         }
     }
@@ -55,6 +67,9 @@ impl Kind {
             Kind::Phone => 'T',
             Kind::Email => 'M',
             Kind::Text => 'X',
+            Kind::Iban => 'B',
+            Kind::Plate => 'V',
+            Kind::Address => 'A',
         }
     }
 }
@@ -105,6 +120,92 @@ fn normalize_text(value: &str) -> String {
         .to_lowercase()
 }
 
+/// Street-level markers of an address in common spellings, with their canonical form.
+pub(crate) fn address_marker(word: &str) -> Option<&'static str> {
+    Some(match word {
+        "вул" | "вулиця" | "вулиці" => "вул",
+        "просп" | "проспект" | "проспекту" => "просп",
+        "пров" | "провулок" | "провулку" => "пров",
+        "бульв" | "бульвар" | "бульвару" => "бульв",
+        "пл" | "площа" | "площі" => "пл",
+        "шосе" => "шосе",
+        "узв" | "узвіз" | "узвозу" => "узв",
+        "наб" | "набережна" | "набережній" => "наб",
+        "мкр" | "мікрорайон" | "мікрорайоні" => "мкр",
+        "тупик" | "тупику" => "тупик",
+        "алея" | "алеї" => "алея",
+        _ => return None,
+    })
+}
+
+/// Lower case, no punctuation, markers in one canonical spelling, house words dropped,
+/// so "вул. Шевченка, буд. 15" and "вулиця Шевченка 15" give the same form.
+fn normalize_address(value: &str) -> String {
+    let lowered = normalize_text(value);
+    let cleaned: String = lowered
+        .chars()
+        .map(|c| {
+            if matches!(c, ',' | '.' | ';' | '\u{2116}') {
+                ' '
+            } else {
+                c
+            }
+        })
+        .collect();
+    let mut words: Vec<&str> = Vec::new();
+    for word in cleaned.split_whitespace() {
+        let canonical = match word {
+            "місто" | "місті" => "м",
+            "квартира" | "квартири" => "кв",
+            "офіс" | "офісу" => "оф",
+            "буд" | "будинок" | "будинку" => continue,
+            other => address_marker(other).unwrap_or(other),
+        };
+        words.push(canonical);
+    }
+    words.join(" ")
+}
+
+/// A letter that is used on Ukrainian plates, as its Cyrillic form (Latin look-alikes
+/// are accepted and mapped).
+pub(crate) fn plate_letter(c: char) -> Option<char> {
+    let upper = c.to_uppercase().next().unwrap_or(c);
+    Some(match upper {
+        '\u{410}' | 'A' => '\u{410}',
+        '\u{412}' | 'B' => '\u{412}',
+        '\u{415}' | 'E' => '\u{415}',
+        '\u{406}' | 'I' => '\u{406}',
+        '\u{41a}' | 'K' => '\u{41a}',
+        '\u{41c}' | 'M' => '\u{41c}',
+        '\u{41d}' | 'H' => '\u{41d}',
+        '\u{41e}' | 'O' => '\u{41e}',
+        '\u{420}' | 'P' => '\u{420}',
+        '\u{421}' | 'C' => '\u{421}',
+        '\u{422}' | 'T' => '\u{422}',
+        '\u{425}' | 'X' => '\u{425}',
+        _ => return None,
+    })
+}
+
+/// `UA` and 27 digits with a valid ISO 7064 check (mod 97).
+fn valid_ua_iban(text: &str) -> bool {
+    if text.len() != 29 || !text.starts_with("UA") || !text[2..].chars().all(|c| c.is_ascii_digit())
+    {
+        return false;
+    }
+    let rearranged = format!("{}{}", &text[4..], &text[..4]);
+    let mut remainder: u32 = 0;
+    for c in rearranged.chars() {
+        let value = c.to_digit(36).unwrap_or(0);
+        remainder = if value >= 10 {
+            (remainder * 100 + value) % 97
+        } else {
+            (remainder * 10 + value) % 97
+        };
+    }
+    remainder == 1
+}
+
 fn digits(value: &str) -> String {
     value.nfkc().filter(char::is_ascii_digit).collect()
 }
@@ -141,6 +242,44 @@ pub fn normalize(kind: Kind, value: &str) -> Result<String, NormalizeError> {
             }
             lowered
         }
+        Kind::Iban => {
+            let compact: String = value
+                .chars()
+                .filter(|c| !c.is_whitespace() && *c != '-')
+                .collect::<String>()
+                .to_uppercase();
+            if !valid_ua_iban(&compact) {
+                return Err(NormalizeError::BadFormat(kind));
+            }
+            compact
+        }
+        Kind::Plate => {
+            let chars: Vec<char> = value
+                .chars()
+                .filter(|c| !c.is_whitespace() && *c != '-')
+                .collect();
+            let shaped = chars.len() == 8
+                && chars[..2]
+                    .iter()
+                    .chain(&chars[6..])
+                    .all(|c| plate_letter(*c).is_some())
+                && chars[2..6].iter().all(char::is_ascii_digit);
+            if !shaped {
+                return Err(NormalizeError::BadFormat(kind));
+            }
+            chars
+                .iter()
+                .enumerate()
+                .map(|(i, c)| {
+                    if (2..6).contains(&i) {
+                        *c
+                    } else {
+                        plate_letter(*c).unwrap_or(*c)
+                    }
+                })
+                .collect()
+        }
+        Kind::Address => normalize_address(value),
         Kind::Phone => {
             let mut d = digits(value);
             if d.len() == 10 && d.starts_with('0') {
@@ -177,6 +316,38 @@ mod tests {
         let c = normalize(Kind::Name, "Мар\u{02bc}яна").unwrap();
         assert_eq!(a, b);
         assert_eq!(b, c);
+    }
+
+    #[test]
+    fn iban_needs_a_valid_check_and_ignores_spaces() {
+        let a = normalize(Kind::Iban, "UA21 3223 1300 0002 6007 2335 6600 1").unwrap();
+        let b = normalize(Kind::Iban, "ua213223130000026007233566001").unwrap();
+        assert_eq!(a, "UA213223130000026007233566001");
+        assert_eq!(a, b);
+        assert_eq!(
+            normalize(Kind::Iban, "UA213223130000026007233566000"),
+            Err(NormalizeError::BadFormat(Kind::Iban))
+        );
+        assert!(normalize(Kind::Iban, "UA21").is_err());
+    }
+
+    #[test]
+    fn plate_spellings_give_one_form() {
+        let a = normalize(Kind::Plate, "АА 1234 ВВ").unwrap();
+        let b = normalize(Kind::Plate, "AA1234BB").unwrap();
+        let c = normalize(Kind::Plate, "аа-1234-вв").unwrap();
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+        assert!(normalize(Kind::Plate, "ЖЖ 1234 ВВ").is_err());
+        assert!(normalize(Kind::Plate, "АА 123 ВВ").is_err());
+    }
+
+    #[test]
+    fn address_spellings_give_one_form() {
+        let a = normalize(Kind::Address, "вул. Шевченка, буд. 15, кв. 7").unwrap();
+        let b = normalize(Kind::Address, "Вулиця  Шевченка 15 квартира 7").unwrap();
+        assert_eq!(a, "вул шевченка 15 кв 7");
+        assert_eq!(a, b);
     }
 
     #[test]
