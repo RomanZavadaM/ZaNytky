@@ -33,6 +33,19 @@ pub struct ResultEntity {
     pub token: Option<String>,
     pub label: Option<String>,
     pub public_code: Option<String>,
+    /// Pseudonyms of the entity's address, phone, e-mail, plate, account or card.
+    #[serde(default)]
+    pub identifiers: Vec<ResultIdentifier>,
+}
+
+/// Kinds of identifiers that tie entities together.
+pub const IDENTIFIER_KINDS: [&str; 6] = ["address", "phone", "email", "plate", "iban", "card"];
+
+#[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
+#[serde(deny_unknown_fields)]
+pub struct ResultIdentifier {
+    pub kind: String,
+    pub value: String,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
@@ -163,6 +176,16 @@ fn validate_entities(entities: &[ResultEntity]) -> Result<(), ResultError> {
         }
         let kind = EntityKind::parse(&entity.kind)
             .ok_or_else(|| invalid(format!("unknown entity kind {}", entity.kind)))?;
+        for identifier in &entity.identifiers {
+            if !IDENTIFIER_KINDS.contains(&identifier.kind.as_str())
+                || !valid_token(&identifier.value)
+            {
+                return Err(invalid(format!(
+                    "entity {}: bad identifier {}",
+                    entity.reference, identifier.kind
+                )));
+            }
+        }
         if kind == EntityKind::Person {
             if entity.label.is_some() {
                 return Err(invalid(format!(

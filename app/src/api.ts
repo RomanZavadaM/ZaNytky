@@ -75,6 +75,7 @@ export interface EntityListRow {
   label: string;
   code: string | null;
   statements: number;
+  shared: number;
 }
 
 export interface CardParty {
@@ -131,6 +132,13 @@ export interface EntityCardData {
   statements: CardStatement[];
   neighbors: CardNeighbor[];
   owners: CardOwner[];
+  shared: SharedSignData[];
+}
+
+export interface SharedSignData {
+  kind: string;
+  value: string;
+  others: CardNeighbor[];
 }
 
 export interface PathStatementData {

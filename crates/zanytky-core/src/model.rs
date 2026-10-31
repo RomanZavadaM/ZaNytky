@@ -62,6 +62,12 @@ CREATE TABLE IF NOT EXISTS entity_alias (
     alias TEXT NOT NULL,
     PRIMARY KEY (entity_id, alias)
 );
+CREATE TABLE IF NOT EXISTS entity_identifier (
+    entity_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (entity_id, kind, value)
+);
 CREATE TABLE IF NOT EXISTS change_log (
     id INTEGER PRIMARY KEY,
     at TEXT NOT NULL,
@@ -77,6 +83,7 @@ CREATE INDEX IF NOT EXISTS idx_statement_valid ON statement(valid_from, valid_to
 CREATE INDEX IF NOT EXISTS idx_source_root ON source(root_id);
 CREATE INDEX IF NOT EXISTS idx_statement_source ON statement_source(source_id);
 CREATE INDEX IF NOT EXISTS idx_alias ON entity_alias(alias);
+CREATE INDEX IF NOT EXISTS idx_identifier ON entity_identifier(kind, value);
 ";
 
 /// Legal-form words that do not tell two organisations apart.
@@ -381,6 +388,61 @@ impl Model {
             params![entity_id, key],
         )?;
         Ok(())
+    }
+
+    /// Remember an identifier (address, phone, e-mail, plate, account, card; always a
+    /// pseudonym) of an entity. The same identifier on several entities is a link.
+    pub fn add_identifier(
+        &self,
+        entity_id: i64,
+        kind: &str,
+        value: &str,
+    ) -> Result<(), ModelError> {
+        self.conn.execute(
+            "INSERT OR IGNORE INTO entity_identifier (entity_id, kind, value) VALUES (?1, ?2, ?3)",
+            params![entity_id, kind, value],
+        )?;
+        Ok(())
+    }
+
+    /// The identifiers of one entity as (kind, value).
+    pub fn identifiers_of(&self, entity_id: i64) -> Result<Vec<(String, String)>, ModelError> {
+        let mut statement = self.conn.prepare(
+            "SELECT kind, value FROM entity_identifier WHERE entity_id = ?1 ORDER BY kind, value",
+        )?;
+        let rows = statement
+            .query_map(params![entity_id], |r| Ok((r.get(0)?, r.get(1)?)))?
+            .collect::<Result<Vec<(String, String)>, _>>()?;
+        Ok(rows)
+    }
+
+    /// Entities that carry this identifier.
+    pub fn identifier_holders(&self, kind: &str, value: &str) -> Result<Vec<i64>, ModelError> {
+        let mut statement = self.conn.prepare(
+            "SELECT entity_id FROM entity_identifier WHERE kind = ?1 AND value = ?2 ORDER BY entity_id",
+        )?;
+        let ids = statement
+            .query_map(params![kind, value], |r| r.get::<_, i64>(0))?
+            .collect::<Result<Vec<i64>, _>>()?;
+        Ok(ids)
+    }
+
+    /// Every identifier held by two or more entities: (kind, value, holders).
+    pub fn shared_identifiers(&self) -> Result<Vec<(String, String, Vec<i64>)>, ModelError> {
+        let mut statement = self.conn.prepare(
+            "SELECT kind, value, entity_id FROM entity_identifier WHERE (kind, value) IN              (SELECT kind, value FROM entity_identifier GROUP BY kind, value HAVING COUNT(*) > 1)              ORDER BY kind, value, entity_id",
+        )?;
+        let rows: Vec<(String, String, i64)> = statement
+            .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+            .collect::<Result<_, _>>()?;
+        let mut out: Vec<(String, String, Vec<i64>)> = Vec::new();
+        for (kind, value, id) in rows {
+            match out.last_mut() {
+                Some(last) if last.0 == kind && last.1 == value => last.2.push(id),
+                _ => out.push((kind, value, vec![id])),
+            }
+        }
+        Ok(out)
     }
 
     /// Entities of this kind that carry exactly this name (or an alias of it).

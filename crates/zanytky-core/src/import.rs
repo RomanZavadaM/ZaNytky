@@ -180,6 +180,9 @@ fn import_inside(model: &Model, file: &ResultFile) -> Result<ImportSummary, Mode
                 })?
             }
         };
+        for identifier in &entity.identifiers {
+            model.add_identifier(id, &identifier.kind, &identifier.value)?;
+        }
         entity_ids.insert(entity.reference.as_str(), id);
     }
 
@@ -461,6 +464,45 @@ mod link_tests {
     fn import(model: &Model, package: &str, label: &str, code: Option<&str>) -> ImportSummary {
         let file = parse_result(&org_result(package, label, code), package).unwrap();
         import_result(model, &file).unwrap()
+    }
+
+    fn with_address(package: &str, label: &str, code: &str, identifier: &str) -> String {
+        format!(
+            r#"{{
+  "package": "{package}",
+  "sources": [{{"ref": "s1", "kind": "media", "title": "Стаття", "url": null,
+    "published_at": null, "reliability": "C", "received_from": null}}],
+  "entities": [
+    {{"ref": "e1", "kind": "org", "label": "{label}", "token": null, "public_code": "{code}",
+      "identifiers": [{identifier}]}}
+  ],
+  "statements": []
+}}"#
+        )
+    }
+
+    #[test]
+    fn two_organisations_at_one_address_stay_apart_but_share_the_sign() {
+        let model = Model::open_in_memory("t").unwrap();
+        let address = r#"{"kind": "address", "value": "A-ABCDEFGHIJKLMNOPQRSTUVWXYZ"}"#;
+        for (package, label, code) in [("p1", "Перша", "11111111"), ("p2", "Друга", "22222222")]
+        {
+            let file = parse_result(&with_address(package, label, code, address), package).unwrap();
+            import_result(&model, &file).unwrap();
+        }
+        assert_eq!(model.entities().unwrap().len(), 2);
+        let shared = model.shared_identifiers().unwrap();
+        assert_eq!(shared.len(), 1);
+        assert_eq!(shared[0].0, "address");
+        assert_eq!(shared[0].2.len(), 2);
+    }
+
+    #[test]
+    fn a_bad_identifier_is_rejected() {
+        let bad = r#"{"kind": "address", "value": "вулиця Приклад 1"}"#;
+        assert!(parse_result(&with_address("p1", "Перша", "11111111", bad), "p1").is_err());
+        let unknown = r#"{"kind": "shoe", "value": "A-ABCDEFGHIJKLMNOPQRSTUVWXYZ"}"#;
+        assert!(parse_result(&with_address("p1", "Перша", "11111111", unknown), "p1").is_err());
     }
 
     #[test]
