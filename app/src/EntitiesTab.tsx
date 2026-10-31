@@ -137,7 +137,7 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
                               ` ${kindLabel(lang, s.kind)}${s.value ? ` ${s.value}` : ""} [${s.grade}, ${statusLabel(s.status)}]`,
                           )
                           .join(";")}
-                        {hop.signs.map((s) => ` ⚠ ${fill(t.pathShared, { kind: kindLabel(lang, s.kind) })}`).join(";")}{" "}
+                        {hop.signs.map((s) => ` ⚠ ${fill(t.pathShared, { kind: kindLabel(lang, s.kind) })}${s.text ? `: ${s.text}` : ""}`).join(";")}{" "}
                         →
                       </span>{" "}
                       {chip(hop.toId, hop.to)}
@@ -205,7 +205,7 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
               <p className="muted">{t.sharedHint}</p>
               {card.shared.map((sign) => (
                 <p key={`${sign.kind}-${sign.value}`}>
-                  <strong>{kindLabel(lang, sign.kind)}</strong> <code>{sign.value}</code>:{" "}
+                  <strong>{kindLabel(lang, sign.kind)}</strong> <code>{sign.text ?? sign.value}</code>:{" "}
                   {sign.others.map((o) => chip(o.id, o.label))}
                 </p>
               ))}

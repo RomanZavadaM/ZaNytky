@@ -279,6 +279,26 @@ impl Registry {
         Ok(out)
     }
 
+    /// Original values of addresses, phones, plates and the like (everything but names),
+    /// as (token, value). Opening them needs the private identity.
+    pub fn identifier_values(
+        &self,
+        identity: &Identity,
+    ) -> Result<Vec<(String, String)>, RegistryError> {
+        let mut stmt = self
+            .conn
+            .prepare("SELECT token, sealed FROM pseudonym WHERE kind != 'name' ORDER BY token")?;
+        let rows = stmt.query_map([], |row| {
+            Ok((row.get::<_, String>(0)?, row.get::<_, Vec<u8>>(1)?))
+        })?;
+        let mut out = Vec::new();
+        for row in rows {
+            let (tok, sealed) = row?;
+            out.push((tok, unseal(&sealed, identity)?.value));
+        }
+        Ok(out)
+    }
+
     /// Every registered token, sorted.
     pub fn tokens(&self) -> Result<Vec<String>, RegistryError> {
         let mut stmt = self
@@ -309,6 +329,20 @@ mod tests {
         let identity = Identity::generate();
         let recipient = identity.to_public();
         (identity, recipient)
+    }
+
+    #[test]
+    fn identifier_values_open_addresses_but_not_names() {
+        let (identity, recipient) = investigator();
+        let registry = Registry::open_in_memory(&key(), vec![recipient]).unwrap();
+        registry.register(Kind::Name, "Іваненко Петро").unwrap();
+        let token = registry
+            .register(Kind::Address, "м. Київ, вул. Приклад, 1")
+            .unwrap();
+        let values = registry.identifier_values(&identity).unwrap();
+        assert_eq!(values.len(), 1);
+        assert_eq!(values[0].0, token);
+        assert!(values[0].1.contains("Приклад"));
     }
 
     #[test]

@@ -90,6 +90,8 @@ pub struct SharedSign {
     pub kind: String,
     /// The pseudonym of the identifier.
     pub value: String,
+    /// The original text, when the investigator's key is given.
+    pub text: Option<String>,
     pub others: Vec<CardNeighbor>,
 }
 
@@ -269,6 +271,7 @@ pub fn entity_card(
         if !others.is_empty() {
             shared.push(SharedSign {
                 kind,
+                text: names.get(&value).cloned(),
                 value,
                 others,
             });

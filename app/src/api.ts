@@ -138,6 +138,7 @@ export interface EntityCardData {
 export interface SharedSignData {
   kind: string;
   value: string;
+  text: string | null;
   others: CardNeighbor[];
 }
 
@@ -157,7 +158,7 @@ export interface PathHopData {
   toId: number;
   to: string;
   statements: PathStatementData[];
-  signs: { kind: string; value: string }[];
+  signs: { kind: string; value: string; text: string | null }[];
 }
 
 export interface EntityPathData {
