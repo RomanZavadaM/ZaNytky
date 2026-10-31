@@ -581,7 +581,7 @@ mod tests {
 
     #[test]
     fn ordinary_capitalised_words_are_not_single_candidates() {
-        let result = run("Місто Київ і Львівська область.", &[]);
+        let result = run("жив у місті Київ і Львівській області.", &[]);
         assert!(result.candidates.is_empty());
     }
 
