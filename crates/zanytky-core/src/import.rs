@@ -63,7 +63,10 @@ fn bad(message: &'static str) -> ModelError {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum LinkMatch {
     /// Already known: its id and how it was recognised (pseudonym, code or name).
-    Existing { id: i64, by: &'static str },
+    Existing {
+        id: i64,
+        by: &'static str,
+    },
     /// Several known entities carry this name; nothing is merged automatically.
     Ambiguous(Vec<i64>),
     New,
@@ -88,7 +91,12 @@ pub fn match_entity(model: &Model, entity: &ResultEntity) -> Result<LinkMatch, M
             let ids = model.entities_by_label(kind, label)?;
             match ids.len() {
                 0 => {}
-                1 => return Ok(LinkMatch::Existing { id: ids[0], by: "назвою" }),
+                1 => {
+                    return Ok(LinkMatch::Existing {
+                        id: ids[0],
+                        by: "назвою",
+                    })
+                }
                 _ => return Ok(LinkMatch::Ambiguous(ids)),
             }
         }
@@ -502,8 +510,7 @@ mod link_tests {
     fn a_similar_name_is_shown_as_a_doubt_and_imported_as_new() {
         let model = Model::open_in_memory("t").unwrap();
         import(&model, "pkg-1", "ТОВ «Приклад»", None);
-        let file =
-            parse_result(&org_result("pkg-2", "ТОВ «Приклад Плюс»", None), "pkg-2").unwrap();
+        let file = parse_result(&org_result("pkg-2", "ТОВ «Приклад Плюс»", None), "pkg-2").unwrap();
         let review = review_with_links(&file, &model).unwrap();
         assert!(review.contains("сумнівів 1"));
         assert!(review.contains("є схожі наявні"));

@@ -411,9 +411,9 @@ impl Model {
         if words.is_empty() {
             return Ok(Vec::new());
         }
-        let mut statement = self
-            .conn
-            .prepare("SELECT id, label FROM entity WHERE kind = ?1 AND label IS NOT NULL ORDER BY id")?;
+        let mut statement = self.conn.prepare(
+            "SELECT id, label FROM entity WHERE kind = ?1 AND label IS NOT NULL ORDER BY id",
+        )?;
         let rows = statement.query_map(params![kind.as_str()], |r| {
             Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
         })?;
@@ -424,7 +424,8 @@ impl Model {
             if other_key == key {
                 continue;
             }
-            let other_words: HashSet<&str> = other_key.split(' ').filter(|w| !w.is_empty()).collect();
+            let other_words: HashSet<&str> =
+                other_key.split(' ').filter(|w| !w.is_empty()).collect();
             let common = words.intersection(&other_words).count();
             let all = words.union(&other_words).count();
             if all > 0 && common * 2 >= all {
@@ -1268,7 +1269,9 @@ mod alias_tests {
         let model = Model::open_in_memory("t").unwrap();
         let id = org(&model, "ТОВ «Приклад»");
         assert_eq!(
-            model.entities_by_label(EntityKind::Org, "Приклад ТОВ").unwrap(),
+            model
+                .entities_by_label(EntityKind::Org, "Приклад ТОВ")
+                .unwrap(),
             vec![id]
         );
         assert!(model
@@ -1277,7 +1280,9 @@ mod alias_tests {
             .is_empty());
         model.add_alias(id, "ПП Приклад-Сервіс").unwrap();
         assert_eq!(
-            model.entities_by_label(EntityKind::Org, "приклад-сервіс").unwrap(),
+            model
+                .entities_by_label(EntityKind::Org, "приклад-сервіс")
+                .unwrap(),
             vec![id]
         );
     }
