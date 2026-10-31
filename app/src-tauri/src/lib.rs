@@ -15,8 +15,8 @@ use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Ide
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
     backup_home, build_package_with_links, build_report, create_demo, docx_to_text, entity_card,
-    entity_list, find_paths, import_result, parse_result, pdf, restore_home, review_with_links,
-    to_docx, to_markdown, EntityCard, EntityListRow, PathResult, SourceMeta,
+    entity_graph, entity_list, find_paths, import_result, parse_result, pdf, restore_home, review_with_links,
+    to_docx, to_markdown, EntityCard, EntityGraph, EntityListRow, PathResult, SourceMeta,
 };
 
 type Res<T> = Result<T, String>;
@@ -507,6 +507,14 @@ fn unmerge_one_entity(input: MergeInput) -> Res<()> {
         .map_err(|e| e.to_string())
 }
 
+/// The whole base as a graph for the "Graph" tab.
+#[tauri::command]
+fn get_entity_graph(input: CardInput) -> Res<EntityGraph> {
+    let home = home_path(&input.home)?;
+    let names = names_for(&home, &input.identity_path)?;
+    entity_graph(&open_model(&home)?, &names).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_entity_card(input: CardInput) -> Res<EntityCard> {
     let home = home_path(&input.home)?;
@@ -678,6 +686,7 @@ pub fn run() {
             make_demo,
             list_entities,
             get_entity_card,
+            get_entity_graph,
             merge_two_entities,
             unmerge_one_entity,
             find_entity_paths,

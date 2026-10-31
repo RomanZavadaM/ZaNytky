@@ -69,6 +69,8 @@ export interface StatementRow {
   note: string;
 }
 
+import type { KnowledgeGraph } from "./graph/types";
+
 export interface EntityListRow {
   id: number;
   kind: string;
@@ -182,6 +184,8 @@ export const api = {
     invoke<void>("merge_two_entities", { input: { home, keep, drop } }),
   unmergeEntity: (home: string, keep: number, drop: number) =>
     invoke<void>("unmerge_one_entity", { input: { home, keep, drop } }),
+  graph: (home: string, identityPath?: string) =>
+    invoke<KnowledgeGraph>("get_entity_graph", { input: { home, identityPath } }),
   statements: (home: string) => invoke<StatementRow[]>("list_statements", { input: { home } }),
   setStatus: (home: string, id: number, status: "confirmed" | "refuted" | "unverified") =>
     invoke<void>("set_statement_status", { input: { home, id, status } }),

@@ -9,6 +9,8 @@ interface Props {
   home: string;
   identity: string;
   run: <T>(work: () => Promise<T>) => Promise<T | undefined>;
+  /** Open this entity's card (e.g. after a click in the graph). */
+  focusId?: number | null;
 }
 
 function period(statement: CardStatement): string {
@@ -17,7 +19,7 @@ function period(statement: CardStatement): string {
   return statement.asOf ? `≈ ${statement.asOf}` : "";
 }
 
-export function EntitiesTab({ t, lang, home, identity, run }: Props) {
+export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
   const [rows, setRows] = useState<EntityListRow[]>([]);
   const [filter, setFilter] = useState("");
   const [reveal, setReveal] = useState(false);
@@ -54,6 +56,10 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [home, current, identityPath, tick]);
+
+  useEffect(() => {
+    if (focusId !== null && focusId !== undefined) setTrail([focusId]);
+  }, [focusId]);
 
   const findPath = async () => {
     if (!pathFrom || !pathTo) return;
