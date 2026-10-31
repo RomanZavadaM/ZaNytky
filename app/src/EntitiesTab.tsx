@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
-import { api, type CardStatement, type EntityCardData, type EntityListRow } from "./api";
-import type { Lang, Strings } from "./i18n";
+import { api, type CardStatement, type EntityCardData, type EntityListRow, type PathResultData } from "./api";
+import { fill, type Lang, type Strings } from "./i18n";
 import { kindLabel } from "./kinds";
 
 interface Props {
@@ -23,6 +23,11 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
   const [reveal, setReveal] = useState(false);
   const [trail, setTrail] = useState<number[]>([]);
   const [card, setCard] = useState<EntityCardData | null>(null);
+  const [pathFrom, setPathFrom] = useState("");
+  const [pathTo, setPathTo] = useState("");
+  const [pathDepth, setPathDepth] = useState(6);
+  const [pathRefuted, setPathRefuted] = useState(false);
+  const [pathResult, setPathResult] = useState<PathResultData | null>(null);
   const identityPath = reveal && identity ? identity : undefined;
   const current = trail.length > 0 ? trail[trail.length - 1] : null;
 
@@ -47,6 +52,14 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [home, current, identityPath]);
+
+  const findPath = async () => {
+    if (!pathFrom || !pathTo) return;
+    const found = await run(() =>
+      api.paths(home, Number(pathFrom), Number(pathTo), pathDepth, pathRefuted, identityPath),
+    );
+    if (found) setPathResult(found);
+  };
 
   const open = (id: number) => setTrail([...trail, id]);
   const back = () => setTrail(trail.slice(0, -1));
@@ -73,6 +86,66 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
       <p className="muted">{t.revealNote}</p>
       {current === null && (
         <>
+          <h3>{t.pathTitle}</h3>
+          <div className="row">
+            <select value={pathFrom} onChange={(e) => setPathFrom(e.target.value)}>
+              <option value="">{t.pathFrom}</option>
+              {rows.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.label}
+                </option>
+              ))}
+            </select>
+            <select value={pathTo} onChange={(e) => setPathTo(e.target.value)}>
+              <option value="">{t.pathTo}</option>
+              {rows.map((row) => (
+                <option key={row.id} value={row.id}>
+                  {row.label}
+                </option>
+              ))}
+            </select>
+            <select value={pathDepth} onChange={(e) => setPathDepth(Number(e.target.value))} aria-label={t.pathDepth}>
+              {[2, 3, 4, 5, 6, 8].map((n) => (
+                <option key={n} value={n}>
+                  {t.pathDepth}: {n}
+                </option>
+              ))}
+            </select>
+            <button onClick={findPath} disabled={!pathFrom || !pathTo || pathFrom === pathTo}>
+              {t.pathFind}
+            </button>
+          </div>
+          <label className="check">
+            <input type="checkbox" checked={pathRefuted} onChange={(e) => setPathRefuted(e.target.checked)} />
+            {t.pathRefuted}
+          </label>
+          {pathResult && pathResult.paths.length === 0 && <p className="muted">{t.pathNone}</p>}
+          {pathResult && pathResult.paths.length > 0 && (
+            <>
+              <p>{fill(t.pathFound, { n: pathResult.paths.length, len: pathResult.paths[0].length })}</p>
+              {pathResult.paths.map((path, index) => (
+                <div key={index} style={{ marginBottom: 12 }}>
+                  {chip(path.hops[0].fromId, path.hops[0].from)}
+                  {path.hops.map((hop) => (
+                    <span key={`${hop.fromId}-${hop.toId}`}>
+                      {" "}
+                      <span className="muted">
+                        —
+                        {hop.statements
+                          .map(
+                            (s) =>
+                              ` ${kindLabel(lang, s.kind)}${s.value ? ` ${s.value}` : ""} [${s.grade}, ${statusLabel(s.status)}]`,
+                          )
+                          .join(";")}{" "}
+                        →
+                      </span>{" "}
+                      {chip(hop.toId, hop.to)}
+                    </span>
+                  ))}
+                </div>
+              ))}
+            </>
+          )}
           <div className="row">
             <input
               value={filter}

@@ -133,7 +133,36 @@ export interface EntityCardData {
   owners: CardOwner[];
 }
 
+export interface PathStatementData {
+  id: number;
+  kind: string;
+  fromRole: string;
+  toRole: string;
+  value: string;
+  grade: string;
+  status: string;
+}
+
+export interface PathHopData {
+  fromId: number;
+  from: string;
+  toId: number;
+  to: string;
+  statements: PathStatementData[];
+}
+
+export interface EntityPathData {
+  length: number;
+  hops: PathHopData[];
+}
+
+export interface PathResultData {
+  paths: EntityPathData[];
+}
+
 export const api = {
+  paths: (home: string, from: number, to: number, maxDepth: number, includeRefuted: boolean, identityPath?: string) =>
+    invoke<PathResultData>("find_entity_paths", { input: { home, from, to, maxDepth, includeRefuted, identityPath } }),
   entities: (home: string, identityPath?: string) =>
     invoke<EntityListRow[]>("list_entities", { input: { home, identityPath } }),
   entityCard: (home: string, id: number, identityPath?: string) =>
