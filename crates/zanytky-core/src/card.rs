@@ -303,6 +303,96 @@ pub fn entity_card(
     })
 }
 
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct GraphNodeOut {
+    pub path: String,
+    pub title: String,
+    pub note_type: Option<String>,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct GraphEdgeOut {
+    pub source: String,
+    pub target: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct GraphRelationOut {
+    pub source: String,
+    pub target: String,
+    pub kind: String,
+    pub grade: Option<String>,
+    pub origin: Option<String>,
+    pub status: Option<String>,
+    pub evidence: Option<String>,
+}
+
+/// The whole base as a graph: entities are nodes, every statement links its parties
+/// pairwise, and a shared address/phone/plate... is a link of its own.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+pub struct EntityGraph {
+    pub nodes: Vec<GraphNodeOut>,
+    pub edges: Vec<GraphEdgeOut>,
+    pub relations: Vec<GraphRelationOut>,
+}
+
+pub fn entity_graph(
+    model: &Model,
+    names: &HashMap<String, String>,
+) -> Result<EntityGraph, ModelError> {
+    let mut cache: HashMap<i64, String> = HashMap::new();
+    let mut nodes = Vec::new();
+    for row in model.entities()? {
+        nodes.push(GraphNodeOut {
+            path: row.id.to_string(),
+            title: label_of(model, names, &mut cache, row.id)?,
+            note_type: Some(row.kind.as_str().to_string()),
+        });
+    }
+    let mut relations = Vec::new();
+    for statement in model.statements()? {
+        let grade = model.grade(statement.id)?.to_string();
+        let ids: Vec<i64> = statement.parties.iter().map(|(e, _)| *e).collect();
+        for (i, a) in ids.iter().enumerate() {
+            for b in &ids[i + 1..] {
+                if a == b {
+                    continue;
+                }
+                relations.push(GraphRelationOut {
+                    source: a.to_string(),
+                    target: b.to_string(),
+                    kind: statement.kind.as_str().to_string(),
+                    grade: Some(grade.clone()),
+                    origin: None,
+                    status: Some(statement.status.as_str().to_string()),
+                    evidence: statement.value.clone(),
+                });
+            }
+        }
+    }
+    for (kind, value, holders) in model.shared_identifiers()? {
+        for (i, a) in holders.iter().enumerate() {
+            for b in &holders[i + 1..] {
+                relations.push(GraphRelationOut {
+                    source: a.to_string(),
+                    target: b.to_string(),
+                    kind: format!("shared:{kind}"),
+                    grade: None,
+                    origin: None,
+                    status: None,
+                    evidence: Some(names.get(&value).cloned().unwrap_or(value.clone())),
+                });
+            }
+        }
+    }
+    Ok(EntityGraph {
+        nodes,
+        edges: Vec::new(),
+        relations,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -407,6 +497,35 @@ mod tests {
             .unwrap()
             .merged
             .is_empty());
+    }
+
+    #[test]
+    fn the_graph_has_nodes_and_a_relation_per_pair_in_a_statement() {
+        let (_dir, model) = demo_model();
+        let graph = entity_graph(&model, &HashMap::new()).unwrap();
+        assert_eq!(graph.nodes.len(), 7);
+        assert!(graph.relations.iter().any(|r| r.kind == "won"));
+        assert!(graph.relations.iter().all(|r| r.grade.is_some()));
+    }
+
+    #[test]
+    fn a_shared_address_is_a_relation_in_the_graph() {
+        let (_dir, model) = demo_model();
+        let list = entity_list(&model, &HashMap::new()).unwrap();
+        let a = list.iter().find(|r| r.label == "ТОВ «Приклад»").unwrap().id;
+        let b = list.iter().find(|r| r.label == "Міська рада").unwrap().id;
+        let address = "A-ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        model.add_identifier(a, "address", address).unwrap();
+        model.add_identifier(b, "address", address).unwrap();
+        let graph = entity_graph(&model, &HashMap::new()).unwrap();
+        assert_eq!(
+            graph
+                .relations
+                .iter()
+                .filter(|r| r.kind == "shared:address")
+                .count(),
+            1
+        );
     }
 
     #[test]

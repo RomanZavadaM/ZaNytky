@@ -1,0 +1,378 @@
+// Copied from MD Notes (app/src); ZaNytky modules stay independent of it.
+.knowledge-graph {
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  flex: 1;
+}
+
+.knowledge-graph-meta {
+  display: grid;
+  gap: 0.15rem;
+}
+
+.knowledge-graph-meta span,
+.knowledge-graph-hint {
+  color: var(--muted);
+  font-size: 0.78rem;
+}
+
+.knowledge-graph-canvas {
+  min-height: 0;
+  flex: 1;
+  width: 100%;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  overflow: hidden;
+}
+
+.knowledge-graph-canvas.has-graph {
+  min-height: 320px;
+}
+
+.knowledge-graph-hint {
+  margin: 0;
+}
+
+@media (max-width: 720px) {
+  .knowledge-graph-canvas.has-graph {
+    min-height: 280px;
+    height: 45vh;
+  }
+}
+
+.knowledge-graph-title {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.knowledge-graph-expand {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.5rem;
+}
+
+.knowledge-graph-tools {
+  display: grid;
+  gap: 0.4rem;
+}
+
+.knowledge-graph-tools input[type="search"] {
+  width: 100%;
+  min-width: 0;
+  padding: 0.35rem 0.55rem;
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  background: var(--bg);
+  color: inherit;
+}
+
+.knowledge-graph-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.knowledge-graph-legend button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.1rem 0.5rem;
+  border-radius: 999px;
+  font-size: 0.78rem;
+}
+
+.knowledge-graph-legend button.off {
+  opacity: 0.45;
+  text-decoration: line-through;
+}
+
+.knowledge-graph .dot {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+  border: 1.5px solid var(--text, #1f2937);
+}
+
+.knowledge-graph-stage {
+  position: relative;
+  min-height: 0;
+  flex: 1;
+  display: flex;
+}
+
+.knowledge-graph-stage .knowledge-graph-canvas {
+  flex: 1;
+}
+
+.knowledge-graph-card {
+  position: absolute;
+  z-index: 3;
+  max-width: 18rem;
+  display: grid;
+  gap: 0.2rem;
+  padding: 0.4rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
+  font-size: 0.82rem;
+  pointer-events: none;
+}
+
+.knowledge-graph-card span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  color: var(--muted);
+}
+
+.knowledge-graph.expanded {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  padding: 0.75rem;
+  background: var(--bg);
+}
+
+.knowledge-graph.expanded .knowledge-graph-canvas.has-graph {
+  min-height: 0;
+}
+
+/* Relation card */
+.relation-card {
+  position: absolute;
+  z-index: 4;
+  width: min(22rem, 90%);
+  display: grid;
+  gap: 0.4rem;
+  padding: 0.5rem 0.65rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  background: var(--bg);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.18);
+  font-size: 0.82rem;
+  pointer-events: none;
+}
+
+.relation-card.rumour {
+  border-top: 5px solid #c62828;
+  background-image: repeating-linear-gradient(135deg, rgba(198, 40, 40, 0.1) 0 6px, transparent 6px 12px);
+  background-size: 100% 5px;
+  background-repeat: no-repeat;
+}
+
+.relation-rumour {
+  color: #b3261e;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.relation-ends {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: baseline;
+  gap: 0.35rem;
+}
+
+.relation-card ul {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  gap: 0.4rem;
+}
+
+.relation-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.4rem;
+}
+
+.relation-chip {
+  display: inline-block;
+  min-width: 2rem;
+  padding: 0.05rem 0.4rem;
+  border-radius: 4px;
+  text-align: center;
+  font-size: 0.75rem;
+  font-weight: 700;
+}
+
+.relation-meta,
+.relation-dir {
+  display: block;
+  color: var(--muted);
+  overflow-wrap: anywhere;
+}
+
+/* Provenance trace */
+.knowledge-graph-trace-toggle.on {
+  background: var(--accent, #4f46e5);
+  color: #fff;
+}
+
+.knowledge-graph-trace {
+  display: grid;
+  gap: 0.35rem;
+  padding: 0.5rem 0.6rem;
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 0.82rem;
+  max-height: 14rem;
+  overflow: auto;
+}
+
+.knowledge-graph-trace header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.5rem;
+}
+
+.knowledge-graph-trace ul {
+  margin: 0;
+  padding-left: 1rem;
+  list-style: none;
+  border-left: 1px dashed var(--border);
+}
+
+.knowledge-graph-trace > ul {
+  padding-left: 0;
+  border-left: 0;
+}
+
+.knowledge-graph-trace li {
+  margin: 0.2rem 0;
+}
+
+.knowledge-graph-trace .trace-line {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.35rem;
+}
+
+.knowledge-graph-trace button.link {
+  border: 0;
+  background: transparent;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+  cursor: pointer;
+  color: inherit;
+}
+
+.knowledge-graph-trace small {
+  color: var(--muted);
+}
+
+.knowledge-graph-physics {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-start;
+  gap: 0.35rem;
+}
+
+.knowledge-graph-physics button {
+  font-size: 0.78rem;
+  padding: 0.1rem 0.5rem;
+}
+
+.knowledge-graph-physics button.on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--bg);
+}
+
+.knowledge-graph-physics details {
+  flex-basis: 100%;
+  font-size: 0.78rem;
+}
+
+.knowledge-graph-physics summary {
+  cursor: pointer;
+  color: var(--muted);
+}
+
+.knowledge-graph-slider {
+  display: grid;
+  grid-template-columns: 9rem 1fr;
+  align-items: center;
+  gap: 0.4rem;
+  margin: 0.15rem 0;
+  color: var(--muted);
+}
+
+.graph-tabs .graph-detach {
+  margin-left: auto;
+  font-size: 0.9rem;
+  padding: 0.05rem 0.45rem;
+}
+
+.glyph-icon {
+  vertical-align: middle;
+  margin-right: 0.25rem;
+}
+
+.knowledge-graph-states {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.2rem 0.8rem;
+  list-style: none;
+  margin: 0.2rem 0 0;
+  padding: 0;
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.knowledge-graph-states .dot {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  margin-right: 0.3rem;
+  border-radius: 50%;
+  vertical-align: middle;
+}
+
+.knowledge-graph-key {
+  font-size: 0.78rem;
+  color: var(--muted);
+}
+
+.knowledge-graph-key summary {
+  cursor: pointer;
+}
+
+.knowledge-graph-key p {
+  margin: 0.25rem 0;
+}
+
+.knowledge-graph-key-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin: 0 0.7rem 0 0;
+}
+
+.knowledge-graph-key-item .dot {
+  display: inline-block;
+  width: 0.7rem;
+  height: 0.7rem;
+  border-radius: 50%;
+}
+
+.knowledge-graph-grade-filter {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: 0.8rem;
+  color: var(--muted);
+}

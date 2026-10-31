@@ -11,10 +11,11 @@ import {
 } from "./api";
 import { fill, LANGS, PACKS, type Lang, type Strings } from "./i18n";
 import { EntitiesTab } from "./EntitiesTab";
+import { GraphTab } from "./GraphTab";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { notifyDataChanged, onDataChanged, openSectionWindow, windowSection } from "./windowApi";
 
-type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "report";
+type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "graph" | "report";
 
 /** True when any text box in this window still holds unsaved text. */
 function hasUnsavedText(): boolean {
@@ -553,6 +554,7 @@ export function App() {
   const [identity, setIdentity] = useStored("identity", "");
   const section = windowSection();
   const [tab, setTab] = useState<Tab>(section ?? "setup");
+  const [focusId, setFocusId] = useState<number | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
   const [busy, setBusy] = useState(false);
   const t = PACKS[(lang in PACKS ? lang : "uk") as Lang];
@@ -579,6 +581,7 @@ export function App() {
     ["result", t.tabResult],
     ["database", t.tabDatabase],
     ["entities", t.tabEntities],
+    ["graph", t.tabGraph],
     ["report", t.tabReport],
   ];
   const tabTitle = (id: Tab) => tabs.find(([key]) => key === id)?.[1] ?? "";
@@ -648,6 +651,20 @@ export function App() {
             home={home}
             identity={identity}
             run={run}
+            focusId={focusId}
+          />
+        )}
+        {tab === "graph" && (
+          <GraphTab
+            t={t}
+            lang={(lang in PACKS ? lang : "uk") as Lang}
+            home={home}
+            identity={identity}
+            run={run}
+            onOpen={(id) => {
+              setFocusId(id);
+              setTab("entities");
+            }}
           />
         )}
         {tab === "report" && <ReportTab {...shared} />}
