@@ -14,8 +14,8 @@ use zanytky_core::registry::{Registry, Resolution};
 use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Identity, Recipient};
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
-    backup_home, build_package_with_links, build_report, docx_to_text, import_result, parse_result,
-    pdf, restore_home, review_markdown, to_docx, to_markdown, SourceMeta,
+    backup_home, build_package_with_links, build_report, create_demo, docx_to_text, import_result,
+    parse_result, pdf, restore_home, review_markdown, to_docx, to_markdown, SourceMeta,
 };
 
 type Res<T> = Result<T, String>;
@@ -416,6 +416,31 @@ fn make_report(input: ReportInput) -> Res<String> {
     Ok(target.display().to_string())
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DemoInput {
+    folder: String,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct DemoOutput {
+    home: String,
+    identity: String,
+    statements: usize,
+}
+
+/// A fictional case in an empty or new folder, to try the application without an AI.
+#[tauri::command]
+fn make_demo(input: DemoInput) -> Res<DemoOutput> {
+    let info = create_demo(Path::new(&input.folder))?;
+    Ok(DemoOutput {
+        home: info.home.display().to_string(),
+        identity: info.identity.display().to_string(),
+        statements: info.statements,
+    })
+}
+
 const MIN_BACKUP_PASSPHRASE: usize = 8;
 
 #[derive(Deserialize)]
@@ -551,6 +576,7 @@ pub fn run() {
             make_report,
             list_statements,
             make_backup,
+            make_demo,
             restore_backup,
             set_statement_status,
         ])

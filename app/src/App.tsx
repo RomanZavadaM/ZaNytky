@@ -122,6 +122,18 @@ function SetupTab({ t, home, identity, note, run, setHome, setIdentity }: Shared
     if (done) note(fill(t.backupDone, { p: done }));
   };
 
+  const makeDemo = async () => {
+    const folder = await pickFolder();
+    if (!folder) return;
+    const info = await run(() => api.demo(folder));
+    if (info) {
+      setHome(info.home);
+      setIdentity(info.identity);
+      note(fill(t.demoDone, { n: info.statements }));
+      await refresh(info.home);
+    }
+  };
+
   const restoreBackup = async () => {
     const file = await pickFile(["znbak"]);
     if (!file) return;
@@ -176,6 +188,11 @@ function SetupTab({ t, home, identity, note, run, setHome, setIdentity }: Shared
           </button>
         </div>
         {!passOk && <p className="warn">{t.backupNeedPass}</p>}
+      </div>
+      <h3>{t.demoTitle}</h3>
+      <p className="muted">{t.demoNote}</p>
+      <div className="row">
+        <button onClick={makeDemo}>{t.demoMake}</button>
       </div>
     </section>
   );
