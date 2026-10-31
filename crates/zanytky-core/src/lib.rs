@@ -18,10 +18,10 @@ pub mod seal;
 pub mod wrap;
 
 pub use backup::{backup_home, restore_home, BackupError};
-pub use demo::{create_demo, DemoInfo};
 pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };
+pub use demo::{create_demo, DemoInfo};
 pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};
 pub use import::{import_result, ImportError, ImportSummary};

@@ -34,8 +34,16 @@ fn hex(bytes: &[u8]) -> String {
 
 /// Create the fictional case in `home` (must be empty or missing).
 pub fn create_demo(home: &Path) -> Result<DemoInfo, String> {
-    if home.exists() && fs::read_dir(home).map_err(|e| e.to_string())?.next().is_some() {
-        return Err("папка не порожня: демонстрація створюється лише в порожній або новій папці".to_string());
+    if home.exists()
+        && fs::read_dir(home)
+            .map_err(|e| e.to_string())?
+            .next()
+            .is_some()
+    {
+        return Err(
+            "папка не порожня: демонстрація створюється лише в порожній або новій папці"
+                .to_string(),
+        );
     }
     fs::create_dir_all(home).map_err(|e| e.to_string())?;
     let key = new_key().map_err(|e| e.to_string())?;
@@ -54,10 +62,14 @@ pub fn create_demo(home: &Path) -> Result<DemoInfo, String> {
     .map_err(|e| e.to_string())?;
 
     let recipient = parse_recipient(&public).map_err(|e| e.to_string())?;
-    let registry =
-        Registry::open(&home.join("registry.db"), &key, vec![recipient]).map_err(|e| e.to_string())?;
+    let registry = Registry::open(&home.join("registry.db"), &key, vec![recipient])
+        .map_err(|e| e.to_string())?;
     let model = Model::open(&home.join("model.db"), "demo").map_err(|e| e.to_string())?;
-    let person = |name: &str| registry.register(Kind::Name, name).map_err(|e| e.to_string());
+    let person = |name: &str| {
+        registry
+            .register(Kind::Name, name)
+            .map_err(|e| e.to_string())
+    };
     let t1 = person("Петро Іваненко")?;
     let t2 = person("Марія Шевченко")?;
     let t3 = person("Олексій Коваль")?;
