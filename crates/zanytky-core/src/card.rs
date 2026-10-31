@@ -18,6 +18,8 @@ pub struct EntityListRow {
     pub code: Option<String>,
     /// How many statements mention the entity.
     pub statements: u32,
+    /// With how many other entities it shares an address, phone, plate, account or card.
+    pub shared: u32,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -80,6 +82,17 @@ pub struct CardOwner {
     pub statement: i64,
 }
 
+/// An identifier that this entity has in common with others.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SharedSign {
+    /// address, phone, email, plate, iban or card
+    pub kind: String,
+    /// The pseudonym of the identifier.
+    pub value: String,
+    pub others: Vec<CardNeighbor>,
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct EntityCard {
@@ -90,6 +103,8 @@ pub struct EntityCard {
     pub statements: Vec<CardStatement>,
     pub neighbors: Vec<CardNeighbor>,
     pub owners: Vec<CardOwner>,
+    /// Identifiers shared with other entities: always shown, they are a strong sign.
+    pub shared: Vec<SharedSign>,
 }
 
 fn display(row: &EntityRow, names: &HashMap<String, String>) -> String {
@@ -130,6 +145,16 @@ pub fn entity_list(
             }
         }
     }
+    let mut sharing: HashMap<i64, HashSet<i64>> = HashMap::new();
+    for (_, _, holders) in model.shared_identifiers()? {
+        for a in &holders {
+            for b in &holders {
+                if a != b {
+                    sharing.entry(*a).or_default().insert(*b);
+                }
+            }
+        }
+    }
     let mut out = Vec::new();
     for row in model.entities()? {
         out.push(EntityListRow {
@@ -138,6 +163,9 @@ pub fn entity_list(
             label: display(&row, names),
             code: row.public_code.clone(),
             statements: counts.get(&row.id).copied().unwrap_or(0),
+            shared: sharing
+                .get(&row.id)
+                .map_or(0, |set| u32::try_from(set.len()).unwrap_or(u32::MAX)),
         });
     }
     Ok(out)
@@ -224,6 +252,28 @@ pub fn entity_card(
             statement: edge.statement_id,
         });
     }
+    let mut shared = Vec::new();
+    for (kind, value) in model.identifiers_of(id)? {
+        let mut others = Vec::new();
+        for holder in model.identifier_holders(&kind, &value)? {
+            if holder == id {
+                continue;
+            }
+            others.push(CardNeighbor {
+                id: holder,
+                label: label_of(model, names, &mut cache, holder)?,
+                kind: model.entity(holder)?.kind.as_str().to_string(),
+                count: 1,
+            });
+        }
+        if !others.is_empty() {
+            shared.push(SharedSign {
+                kind,
+                value,
+                others,
+            });
+        }
+    }
     let mut neighbors: Vec<CardNeighbor> = neighbors.into_values().collect();
     neighbors.sort_by(|a, b| b.count.cmp(&a.count).then_with(|| a.label.cmp(&b.label)));
     Ok(EntityCard {
@@ -234,6 +284,7 @@ pub fn entity_card(
         statements,
         neighbors,
         owners,
+        shared,
     })
 }
 
@@ -293,6 +344,30 @@ mod tests {
         let names = HashMap::from([(token, "Вигадане Ім'я".to_string())]);
         let named = entity_card(&model, person.id, &names).unwrap();
         assert_eq!(named.label, "Вигадане Ім'я");
+    }
+
+    #[test]
+    fn a_shared_address_is_shown_on_both_cards_and_in_the_list() {
+        let (_dir, model) = demo_model();
+        let list = entity_list(&model, &HashMap::new()).unwrap();
+        let company = list.iter().find(|r| r.label == "ТОВ «Приклад»").unwrap().id;
+        let council = list.iter().find(|r| r.label == "Міська рада").unwrap().id;
+        let address = "A-ABCDEFGHIJKLMNOPQRSTUVWXYZ";
+        model.add_identifier(company, "address", address).unwrap();
+        assert!(entity_card(&model, company, &HashMap::new())
+            .unwrap()
+            .shared
+            .is_empty());
+        model.add_identifier(council, "address", address).unwrap();
+        let card = entity_card(&model, company, &HashMap::new()).unwrap();
+        assert_eq!(card.shared.len(), 1);
+        assert_eq!(card.shared[0].kind, "address");
+        assert_eq!(card.shared[0].others[0].label, "Міська рада");
+        let back = entity_card(&model, council, &HashMap::new()).unwrap();
+        assert_eq!(back.shared[0].others[0].label, "ТОВ «Приклад»");
+        let list = entity_list(&model, &HashMap::new()).unwrap();
+        assert_eq!(list.iter().find(|r| r.id == company).unwrap().shared, 1);
+        assert_eq!(list.iter().filter(|r| r.shared > 0).count(), 2);
     }
 
     #[test]

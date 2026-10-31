@@ -164,6 +164,7 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
                   <th>{t.colType}</th>
                   <th>{t.cardCode}</th>
                   <th>{t.colParties}</th>
+                  <th>{t.sharedCol}</th>
                 </tr>
               </thead>
               <tbody>
@@ -173,6 +174,13 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
                     <td>{kindLabel(lang, row.kind)}</td>
                     <td>{row.code ?? ""}</td>
                     <td>{row.statements}</td>
+                    <td>
+                      {row.shared > 0 && (
+                        <span className="shared-badge" title={t.sharedHint}>
+                          ⚠ {row.shared}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -190,6 +198,18 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
             {kindLabel(lang, card.kind)}
             {card.code ? ` · ${t.cardCode}: ${card.code}` : ""}
           </p>
+          {card.shared.length > 0 && (
+            <div className="shared-box">
+              <h3>⚠ {t.sharedTitle}</h3>
+              <p className="muted">{t.sharedHint}</p>
+              {card.shared.map((sign) => (
+                <p key={`${sign.kind}-${sign.value}`}>
+                  <strong>{kindLabel(lang, sign.kind)}</strong> <code>{sign.value}</code>:{" "}
+                  {sign.others.map((o) => chip(o.id, o.label))}
+                </p>
+              ))}
+            </div>
+          )}
           <h3>{t.cardRelations}</h3>
           {card.statements.length === 0 ? (
             <p className="muted">{t.cardEmpty}</p>

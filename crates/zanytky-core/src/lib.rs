@@ -20,7 +20,7 @@ pub mod seal;
 pub mod wrap;
 
 pub use backup::{backup_home, restore_home, BackupError};
-pub use card::{entity_card, entity_list, EntityCard, EntityListRow};
+pub use card::{entity_card, entity_list, EntityCard, EntityListRow, SharedSign};
 pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };

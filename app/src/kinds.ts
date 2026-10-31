@@ -30,6 +30,12 @@ const uk: Record<string, string> = {
   member: "член",
   group_role: "група",
   procurement_role: "закупівля",
+  address: "адреса",
+  phone: "телефон",
+  email: "пошта",
+  plate: "номер авто",
+  iban: "рахунок",
+  card: "картка",
 };
 
 const en: Record<string, string> = {
@@ -60,6 +66,12 @@ const en: Record<string, string> = {
   member: "member",
   group_role: "group",
   procurement_role: "procurement",
+  address: "address",
+  phone: "phone",
+  email: "e-mail",
+  plate: "plate",
+  iban: "account",
+  card: "card",
 };
 
 export function kindLabel(lang: Lang, key: string): string {
