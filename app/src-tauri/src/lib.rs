@@ -434,10 +434,16 @@ fn names_for(home: &Path, identity_path: &Option<String>) -> Res<std::collection
     let identity = read_identity(path)?;
     let registry = open_registry(home)?;
     let dictionary = registry.dictionary(&identity).map_err(|e| e.to_string())?;
-    Ok(dictionary
+    let mut map: std::collections::HashMap<String, String> = dictionary
         .into_iter()
         .filter_map(|entry| entry.token.map(|token| (token, entry.text)))
-        .collect())
+        .collect();
+    map.extend(
+        registry
+            .identifier_values(&identity)
+            .map_err(|e| e.to_string())?,
+    );
+    Ok(map)
 }
 
 #[tauri::command]

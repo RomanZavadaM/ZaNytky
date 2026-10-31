@@ -31,6 +31,7 @@ pub struct PathStatement {
 pub struct PathSign {
     pub kind: String,
     pub value: String,
+    pub text: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
@@ -149,6 +150,7 @@ pub fn find_paths(
                 }
                 signs.entry((*a, *b)).or_default().push(PathSign {
                     kind: kind.clone(),
+                    text: names.get(&value).cloned(),
                     value: value.clone(),
                 });
                 for (x, y) in [(a, b), (b, a)] {
