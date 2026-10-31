@@ -25,6 +25,8 @@ ZaNytky es **software propietario**: un repositorio público no concede una lice
 
 Los archivos listos para Windows (zip portátil sin instalación, instaladores .msi/.exe) están en la página de [versiones](https://github.com/RomanZavadaM/ZaNytky/releases). Las compilaciones no están firmadas: Windows puede avisar de un editor desconocido.
 
+> **El archivo portátil es solo para conocer el programa.** Lo usa bajo su propio riesgo y sin ninguna garantía. Para el trabajo habitual, use las versiones instaladas (instaladores .exe/.msi).
+
 ## Inicio rápido (aplicación)
 
 1. Descomprima el archivo portátil y ejecute `ZaNytky.exe` (no hay que instalar nada; mantenga la carpeta `webview2` junto a `ZaNytky.exe`).
