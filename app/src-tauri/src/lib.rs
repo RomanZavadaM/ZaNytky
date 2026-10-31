@@ -481,6 +481,32 @@ fn find_entity_paths(input: LinkPathInput) -> Res<PathResult> {
     .map_err(|e| e.to_string())
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct MergeInput {
+    home: String,
+    keep: i64,
+    drop: i64,
+}
+
+/// Fold one entity into another (they are the same one). Can be undone.
+#[tauri::command]
+fn merge_two_entities(input: MergeInput) -> Res<()> {
+    let home = home_path(&input.home)?;
+    open_model(&home)?
+        .merge_entities(input.keep, input.drop)
+        .map_err(|e| e.to_string())
+}
+
+/// Split a folded entity off again.
+#[tauri::command]
+fn unmerge_one_entity(input: MergeInput) -> Res<()> {
+    let home = home_path(&input.home)?;
+    open_model(&home)?
+        .unmerge_entity(input.drop)
+        .map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn get_entity_card(input: CardInput) -> Res<EntityCard> {
     let home = home_path(&input.home)?;
@@ -652,6 +678,8 @@ pub fn run() {
             make_demo,
             list_entities,
             get_entity_card,
+            merge_two_entities,
+            unmerge_one_entity,
             find_entity_paths,
             restore_backup,
             set_statement_status,

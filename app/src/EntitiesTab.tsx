@@ -23,6 +23,8 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
   const [reveal, setReveal] = useState(false);
   const [trail, setTrail] = useState<number[]>([]);
   const [card, setCard] = useState<EntityCardData | null>(null);
+  const [tick, setTick] = useState(0);
+  const [mergeWith, setMergeWith] = useState("");
   const [pathFrom, setPathFrom] = useState("");
   const [pathTo, setPathTo] = useState("");
   const [pathDepth, setPathDepth] = useState(6);
@@ -39,7 +41,7 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
     })();
     // the list is reloaded when the folder or the names switch changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [home, identityPath]);
+  }, [home, identityPath, tick]);
 
   useEffect(() => {
     if (current === null) {
@@ -51,7 +53,7 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
       if (data) setCard(data);
     })();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [home, current, identityPath]);
+  }, [home, current, identityPath, tick]);
 
   const findPath = async () => {
     if (!pathFrom || !pathTo) return;
@@ -59,6 +61,19 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
       api.paths(home, Number(pathFrom), Number(pathTo), pathDepth, pathRefuted, identityPath),
     );
     if (found) setPathResult(found);
+  };
+
+  const doMerge = async () => {
+    if (current === null || !mergeWith) return;
+    await run(() => api.mergeEntities(home, current, Number(mergeWith)));
+    setMergeWith("");
+    setTick(tick + 1);
+  };
+
+  const doUnmerge = async (drop: number) => {
+    if (current === null) return;
+    await run(() => api.unmergeEntity(home, current, drop));
+    setTick(tick + 1);
   };
 
   const open = (id: number) => setTrail([...trail, id]);
@@ -209,6 +224,34 @@ export function EntitiesTab({ t, lang, home, identity, run }: Props) {
                   {sign.others.map((o) => chip(o.id, o.label))}
                 </p>
               ))}
+            </div>
+          )}
+          {card.merged.length > 0 && (
+            <div>
+              <h3>{t.mergedTitle}</h3>
+              {card.merged.map((m) => (
+                <p key={m.id}>
+                  {m.label}{" "}
+                  <button onClick={() => doUnmerge(m.id)}>{t.mergeUndo}</button>
+                </p>
+              ))}
+            </div>
+          )}
+          {card.kind !== "person" && (
+            <div className="row">
+              <select value={mergeWith} onChange={(e) => setMergeWith(e.target.value)}>
+                <option value="">{t.mergePick}</option>
+                {rows
+                  .filter((r) => r.kind === card.kind && r.id !== card.id)
+                  .map((r) => (
+                    <option key={r.id} value={r.id}>
+                      {r.label}
+                    </option>
+                  ))}
+              </select>
+              <button onClick={doMerge} disabled={!mergeWith}>
+                {t.mergeDo}
+              </button>
             </div>
           )}
           <h3>{t.cardRelations}</h3>

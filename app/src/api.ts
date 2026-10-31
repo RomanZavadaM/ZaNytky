@@ -133,6 +133,7 @@ export interface EntityCardData {
   neighbors: CardNeighbor[];
   owners: CardOwner[];
   shared: SharedSignData[];
+  merged: CardNeighbor[];
 }
 
 export interface SharedSignData {
@@ -177,6 +178,10 @@ export const api = {
     invoke<EntityListRow[]>("list_entities", { input: { home, identityPath } }),
   entityCard: (home: string, id: number, identityPath?: string) =>
     invoke<EntityCardData>("get_entity_card", { input: { home, id, identityPath } }),
+  mergeEntities: (home: string, keep: number, drop: number) =>
+    invoke<void>("merge_two_entities", { input: { home, keep, drop } }),
+  unmergeEntity: (home: string, keep: number, drop: number) =>
+    invoke<void>("unmerge_one_entity", { input: { home, keep, drop } }),
   statements: (home: string) => invoke<StatementRow[]>("list_statements", { input: { home } }),
   setStatus: (home: string, id: number, status: "confirmed" | "refuted" | "unverified") =>
     invoke<void>("set_statement_status", { input: { home, id, status } }),
