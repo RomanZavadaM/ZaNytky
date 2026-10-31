@@ -367,7 +367,12 @@ const BIRTH_BEFORE: &[&str] = &[
 
 /// Bounds of a word without the punctuation around it.
 fn trimmed_bounds(chars: &[char], (start, end): (usize, usize)) -> (usize, usize) {
-    let trim = |c: char| matches!(c, ',' | ';' | '.' | ':' | '(' | ')' | '"' | '\u{ab}' | '\u{bb}');
+    let trim = |c: char| {
+        matches!(
+            c,
+            ',' | ';' | '.' | ':' | '(' | ')' | '"' | '\u{ab}' | '\u{bb}'
+        )
+    };
     let (mut first, mut last) = (start, end);
     while first < last && trim(chars[first]) {
         first += 1;
@@ -410,7 +415,9 @@ fn birth_date_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError>
             let end = trimmed_bounds(chars, bounds[w + 2]).1;
             (start, end, w + 2)
         } else if (8..=10).contains(&word.chars().count())
-            && word.chars().all(|c| c.is_ascii_digit() || matches!(c, '.' | '/' | '-'))
+            && word
+                .chars()
+                .all(|c| c.is_ascii_digit() || matches!(c, '.' | '/' | '-'))
         {
             let (start, end) = trimmed_bounds(chars, bounds[w]);
             (start, end, w)
@@ -1017,7 +1024,10 @@ mod tests {
     fn a_date_of_birth_after_its_label_is_replaced() {
         let tok = token(Kind::Birth, "12.03.1985", &key()).unwrap();
         let result = run("дата народження: 12.03.1985, проживає у Львові", &[]);
-        assert_eq!(result.text, format!("дата народження: {tok}, проживає у Львові"));
+        assert_eq!(
+            result.text,
+            format!("дата народження: {tok}, проживає у Львові")
+        );
     }
 
     #[test]
