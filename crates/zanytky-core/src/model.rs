@@ -517,7 +517,7 @@ impl Model {
             )?;
             self.conn.execute(
                 "INSERT INTO entity_merge_party (drop_id, statement_id, role, added) VALUES (?1, ?2, ?3, ?4)",
-                params![drop, statement_id, role, added],
+                params![drop, statement_id, role, added as i64],
             )?;
         }
         let code_set = i64::from(k.public_code.is_none() && d.public_code.is_some());
