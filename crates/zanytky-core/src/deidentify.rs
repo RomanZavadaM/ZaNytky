@@ -9,7 +9,9 @@
 
 use std::collections::{BTreeMap, HashMap, HashSet};
 
-use crate::normalize::{address_marker, normalize, plate_letter, Kind, APOSTROPHES, DASHES};
+use crate::normalize::{
+    address_marker, month_number, normalize, plate_letter, Kind, APOSTROPHES, DASHES,
+};
 use crate::pseudonym::{token, TokenError};
 
 /// A name or alias the investigator knows.
@@ -344,6 +346,92 @@ fn iban_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
                 end,
                 token: token(Kind::Iban, &text, key)?,
                 kind: Kind::Iban,
+            });
+        }
+    }
+    Ok(spans)
+}
+
+/// Words before a date that mark it as a date of birth.
+const BIRTH_BEFORE: &[&str] = &[
+    "народження",
+    "народився",
+    "народилася",
+    "народилось",
+    "народжений",
+    "народжена",
+    "нар",
+    "н",
+    "дн",
+];
+
+/// Bounds of a word without the punctuation around it.
+fn trimmed_bounds(chars: &[char], (start, end): (usize, usize)) -> (usize, usize) {
+    let trim = |c: char| matches!(c, ',' | ';' | '.' | ':' | '(' | ')' | '"' | '\u{ab}' | '\u{bb}');
+    let (mut first, mut last) = (start, end);
+    while first < last && trim(chars[first]) {
+        first += 1;
+    }
+    while last > first && trim(chars[last - 1]) {
+        last -= 1;
+    }
+    (first, last)
+}
+
+fn all_digits(text: &str, min: usize, max: usize) -> bool {
+    (min..=max).contains(&text.chars().count()) && text.chars().all(|c| c.is_ascii_digit())
+}
+
+/// A full date in the text that is marked as a date of birth ("дата народження 12.03.1985",
+/// "народився 12 березня 1985", "(12.03.1985 р.н.)"). Other dates (contracts, events, publication)
+/// are facts the analysis needs and stay; a year alone stays too.
+fn birth_date_spans(chars: &[char], key: &[u8]) -> Result<Vec<Span>, TokenError> {
+    let bounds = word_bounds(chars);
+    let texts: Vec<String> = bounds
+        .iter()
+        .map(|(start, end)| chars[*start..*end].iter().collect())
+        .collect();
+    let lower = |index: usize| {
+        if index < bounds.len() {
+            strip_word(&texts[index]).to_lowercase()
+        } else {
+            String::new()
+        }
+    };
+    let mut spans = Vec::new();
+    for w in 0..bounds.len() {
+        let word = strip_word(&texts[w]);
+        let (start, end, last_word) = if all_digits(word, 1, 2)
+            && w + 2 < bounds.len()
+            && month_number(&lower(w + 1)).is_some()
+            && all_digits(strip_word(&texts[w + 2]), 4, 4)
+        {
+            let start = trimmed_bounds(chars, bounds[w]).0;
+            let end = trimmed_bounds(chars, bounds[w + 2]).1;
+            (start, end, w + 2)
+        } else if (8..=10).contains(&word.chars().count())
+            && word.chars().all(|c| c.is_ascii_digit() || matches!(c, '.' | '/' | '-'))
+        {
+            let (start, end) = trimmed_bounds(chars, bounds[w]);
+            (start, end, w)
+        } else {
+            continue;
+        };
+        let text: String = chars[start..end].iter().collect();
+        if normalize(Kind::Birth, &text).is_err() {
+            continue;
+        }
+        let before = (w.saturating_sub(4)..w).any(|i| BIRTH_BEFORE.contains(&lower(i).as_str()));
+        let next = last_word + 1;
+        let after = matches!(lower(next).as_str(), "р.н" | "р/н" | "рн")
+            || (lower(next) == "р" && lower(next + 1) == "н")
+            || (lower(next) == "року" && lower(next + 1) == "народження");
+        if before || after {
+            spans.push(Span {
+                start,
+                end,
+                token: token(Kind::Birth, &text, key)?,
+                kind: Kind::Birth,
             });
         }
     }
@@ -737,6 +825,7 @@ pub fn deidentify_with_links(
     spans.extend(number_spans(&chars, key)?);
     spans.extend(iban_spans(&chars, key)?);
     spans.extend(card_spans(&chars, key)?);
+    spans.extend(birth_date_spans(&chars, key)?);
     spans.extend(plate_spans(&chars, key)?);
     spans.extend(address_spans(&chars, key)?);
     for span in spans.iter_mut().filter(|s| s.kind != Kind::Name) {
@@ -922,6 +1011,41 @@ mod tests {
         let result = run(text, &[]);
         assert!(result.text.contains("UA213223130000026007233566000"));
         assert!(result.replacements.iter().all(|r| r.kind != Kind::Iban));
+    }
+
+    #[test]
+    fn a_date_of_birth_after_its_label_is_replaced() {
+        let tok = token(Kind::Birth, "12.03.1985", &key()).unwrap();
+        let result = run("дата народження: 12.03.1985, проживає у Львові", &[]);
+        assert_eq!(result.text, format!("дата народження: {tok}, проживає у Львові"));
+    }
+
+    #[test]
+    fn spelled_out_and_numeric_birth_dates_give_one_pseudonym() {
+        let tok = token(Kind::Birth, "1985-03-12", &key()).unwrap();
+        let result = run("народився 12 березня 1985 року; нар. 12/03/1985", &[]);
+        assert_eq!(result.text, format!("народився {tok} року; нар. {tok}"));
+    }
+
+    #[test]
+    fn a_date_before_the_birth_marker_is_replaced() {
+        let tok = token(Kind::Birth, "12.03.1985", &key()).unwrap();
+        let result = run("Іваненко П. (12.03.1985 р.н.) звернувся", &[]);
+        assert_eq!(result.text, format!("Іваненко П. ({tok} р.н.) звернувся"));
+    }
+
+    #[test]
+    fn other_dates_stay() {
+        let text = "Договір від 12.03.1985 і тендер 01.10.2026, дата публікації 05.10.2026.";
+        let result = run(text, &[]);
+        assert_eq!(result.text, text);
+    }
+
+    #[test]
+    fn an_impossible_date_and_a_bare_year_stay() {
+        let text = "народився 31.02.1985; 1985 р.н.";
+        let result = run(text, &[]);
+        assert_eq!(result.text, text);
     }
 
     #[test]

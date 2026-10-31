@@ -96,7 +96,7 @@ fn valid_token(token: &str) -> bool {
     let (prefix, body) = token.split_once('-').unwrap_or(("", ""));
     matches!(
         prefix,
-        "N" | "I" | "E" | "T" | "X" | "M" | "B" | "V" | "A" | "K"
+        "N" | "I" | "E" | "T" | "X" | "M" | "B" | "V" | "A" | "K" | "D"
     ) && body.len() == 26
         && body
             .chars()
