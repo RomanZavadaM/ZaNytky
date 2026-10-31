@@ -17,7 +17,7 @@ use zanytky_core::registry::{Registry, Resolution};
 use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Identity};
 use zanytky_core::{
     backup_home, build_package_with_links, build_report, import_result, parse_result, pdf,
-    restore_home, review_markdown, to_docx, to_markdown, wrap::wrap, SourceMeta,
+    restore_home, review_markdown, review_with_links, to_docx, to_markdown, wrap::wrap, SourceMeta,
 };
 
 type Out<'a> = &'a mut dyn Write;
@@ -358,7 +358,12 @@ fn cmd_check(args: &Args, out: Out) -> Result<(), String> {
     let file =
         parse_result(&read_text(&path)?, args.need("package")?).map_err(|e| e.to_string())?;
     let review = path.with_extension("review.md");
-    write_file(&review, review_markdown(&file).as_bytes())?;
+    // with a data folder the review also shows what is linked to the database
+    let review_text = match home_dir(args) {
+        Ok(home) => review_with_links(&file, &open_model(&home)?).map_err(|e| e.to_string())?,
+        Err(_) => review_markdown(&file),
+    };
+    write_file(&review, review_text.as_bytes())?;
     writeln!(
         out,
         "Результат коректний: джерел {}, суб'єктів {}, тверджень {}. Вичитка: {}",

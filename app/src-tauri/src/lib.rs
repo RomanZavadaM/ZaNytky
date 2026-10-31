@@ -15,7 +15,7 @@ use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Ide
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
     backup_home, build_package_with_links, build_report, create_demo, docx_to_text, import_result,
-    parse_result, pdf, restore_home, review_markdown, to_docx, to_markdown, SourceMeta,
+    parse_result, pdf, restore_home, review_with_links, to_docx, to_markdown, SourceMeta,
 };
 
 type Res<T> = Result<T, String>;
@@ -349,7 +349,8 @@ struct ResultInput {
 #[tauri::command]
 fn check_result(input: ResultInput) -> Res<String> {
     let file = parse_result(&input.json, input.package.trim()).map_err(|e| e.to_string())?;
-    Ok(review_markdown(&file))
+    let model = open_model(&home_path(&input.home)?)?;
+    review_with_links(&file, &model).map_err(|e| e.to_string())
 }
 
 #[derive(Serialize)]
