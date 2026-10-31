@@ -11,7 +11,7 @@ use crate::model::{
     EntityKind, Model, ModelError, NewEntity, NewSource, NewStatement, Reliability, SourceKind,
     StatementType,
 };
-use crate::result::{validate, ResultError, ResultFile};
+use crate::result::{review_markdown, validate, ResultEntity, ResultError, ResultFile};
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum ImportError {
@@ -57,6 +57,43 @@ pub struct ImportSummary {
 
 fn bad(message: &'static str) -> ModelError {
     ModelError::Invalid(message)
+}
+
+/// How an entity of a result relates to what the database already knows.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum LinkMatch {
+    /// Already known: its id and how it was recognised (pseudonym, code or name).
+    Existing { id: i64, by: &'static str },
+    /// Several known entities carry this name; nothing is merged automatically.
+    Ambiguous(Vec<i64>),
+    New,
+}
+
+/// The same rule is used by the review and by the import. A pseudonym or a public code
+/// decides first; without a code the name decides, but never against a different code.
+pub fn match_entity(model: &Model, entity: &ResultEntity) -> Result<LinkMatch, ModelError> {
+    let kind = EntityKind::parse(&entity.kind).ok_or(bad("entity kind"))?;
+    if let Some(id) =
+        model.find_entity(kind, entity.token.as_deref(), entity.public_code.as_deref())?
+    {
+        let by = if entity.token.is_some() {
+            "псевдонімом"
+        } else {
+            "кодом"
+        };
+        return Ok(LinkMatch::Existing { id, by });
+    }
+    if kind != EntityKind::Person && entity.public_code.is_none() {
+        if let Some(label) = entity.label.as_deref() {
+            let ids = model.entities_by_label(kind, label)?;
+            match ids.len() {
+                0 => {}
+                1 => return Ok(LinkMatch::Existing { id: ids[0], by: "назвою" }),
+                _ => return Ok(LinkMatch::Ambiguous(ids)),
+            }
+        }
+    }
+    Ok(LinkMatch::New)
 }
 
 fn import_inside(model: &Model, file: &ResultFile) -> Result<ImportSummary, ModelError> {
@@ -115,14 +152,17 @@ fn import_inside(model: &Model, file: &ResultFile) -> Result<ImportSummary, Mode
     let mut entity_ids: HashMap<&str, i64> = HashMap::new();
     for entity in &file.entities {
         let kind = EntityKind::parse(&entity.kind).ok_or(bad("entity kind"))?;
-        let existing =
-            model.find_entity(kind, entity.token.as_deref(), entity.public_code.as_deref())?;
-        let id = match existing {
-            Some(id) => {
+        let id = match match_entity(model, entity)? {
+            LinkMatch::Existing { id, by } => {
                 summary.entities_existing += 1;
+                if by == "назвою" {
+                    if let Some(label) = entity.label.as_deref() {
+                        model.add_alias(id, label)?;
+                    }
+                }
                 id
             }
-            None => {
+            LinkMatch::Ambiguous(_) | LinkMatch::New => {
                 summary.entities_new += 1;
                 model.add_entity(&NewEntity {
                     kind,
@@ -313,5 +353,161 @@ mod tests {
         assert!(!model.package_imported("pkg-2").unwrap());
         // 2 sources + 2 entities + 1 statement + 1 import entry
         assert_eq!(model.log_len().unwrap(), 6);
+    }
+}
+
+/// The review text plus what each entity of the result is linked to in the database:
+/// new, the same as a known one, or a doubt ("is this the same one?").
+pub fn review_with_links(file: &ResultFile, model: &Model) -> Result<String, ModelError> {
+    let mut lines = String::new();
+    let (mut new, mut known, mut doubt) = (0, 0, 0);
+    for entity in &file.entities {
+        let name = match (&entity.label, &entity.token) {
+            (Some(label), _) => format!("«{label}»"),
+            (None, Some(token)) => token.clone(),
+            _ => entity.reference.clone(),
+        };
+        let head = format!("- {} {} ({})", entity.reference, name, entity.kind);
+        let kind = EntityKind::parse(&entity.kind).ok_or(bad("entity kind"))?;
+        let shown = |id: i64| -> Result<String, ModelError> {
+            let row = model.entity(id)?;
+            Ok(format!(
+                "№{id} {}",
+                row.label.or(row.token).unwrap_or_default()
+            ))
+        };
+        match match_entity(model, entity)? {
+            LinkMatch::Existing { id, by } => {
+                known += 1;
+                lines.push_str(&format!(
+                    "{head}: збіг із наявним {} (за {by})\n",
+                    shown(id)?
+                ));
+            }
+            LinkMatch::Ambiguous(ids) => {
+                doubt += 1;
+                let list: Vec<String> = ids.iter().map(|id| format!("№{id}")).collect();
+                lines.push_str(&format!(
+                    "{head}: сумнів: таку назву має кілька наявних ({}); імпорт створить нового, об'єднайте пізніше\n",
+                    list.join(", ")
+                ));
+            }
+            LinkMatch::New => {
+                let similar = match entity.label.as_deref() {
+                    Some(label) if kind != EntityKind::Person => {
+                        model.similar_entities(kind, label)?
+                    }
+                    _ => Vec::new(),
+                };
+                if similar.is_empty() {
+                    new += 1;
+                    lines.push_str(&format!("{head}: новий\n"));
+                } else {
+                    doubt += 1;
+                    let list: Vec<String> = similar
+                        .iter()
+                        .map(|(id, label)| format!("№{id} «{label}»"))
+                        .collect();
+                    lines.push_str(&format!(
+                        "{head}: новий, але є схожі наявні: {}; якщо це той самий, об'єднайте пізніше\n",
+                        list.join(", ")
+                    ));
+                }
+            }
+        }
+    }
+    let mut out = review_markdown(file);
+    out.push_str(&format!(
+        "\n## Підв'язка до бази\n\nСуб'єктів: нових {new}, збігів {known}, сумнівів {doubt}.\n\n{lines}"
+    ));
+    Ok(out)
+}
+
+#[cfg(test)]
+mod link_tests {
+    use super::*;
+    use crate::result::parse_result;
+
+    fn org_result(package: &str, label: &str, code: Option<&str>) -> String {
+        let code = match code {
+            Some(code) => format!("\"{code}\""),
+            None => "null".to_string(),
+        };
+        format!(
+            r#"{{
+  "package": "{package}",
+  "sources": [{{"ref": "s1", "kind": "media", "title": "Стаття", "url": null,
+    "published_at": null, "reliability": "C", "received_from": null}}],
+  "entities": [
+    {{"ref": "e1", "kind": "org", "label": "{label}", "token": null, "public_code": {code}}},
+    {{"ref": "e2", "kind": "org", "label": "Міська рада", "token": null, "public_code": null}}
+  ],
+  "statements": [{{"kind": "customer", "value": null, "valid_from": null, "valid_to": null,
+    "as_of": null,
+    "parties": [{{"entity": "e2", "role": "customer"}}, {{"entity": "e1", "role": "supplier"}}],
+    "sources": ["s1"], "credibility": 3, "quote": "замовник - міська рада", "note": null}}]
+}}"#
+        )
+    }
+
+    fn import(model: &Model, package: &str, label: &str, code: Option<&str>) -> ImportSummary {
+        let file = parse_result(&org_result(package, label, code), package).unwrap();
+        import_result(model, &file).unwrap()
+    }
+
+    #[test]
+    fn the_same_organisation_named_differently_is_linked_not_duplicated() {
+        let model = Model::open_in_memory("t").unwrap();
+        let first = import(&model, "pkg-1", "ТОВ «Приклад»", None);
+        assert_eq!((first.entities_new, first.entities_existing), (2, 0));
+        let second = import(&model, "pkg-2", "Приклад ТОВ", None);
+        assert_eq!((second.entities_new, second.entities_existing), (0, 2));
+    }
+
+    #[test]
+    fn different_names_are_not_merged() {
+        let model = Model::open_in_memory("t").unwrap();
+        import(&model, "pkg-1", "ТОВ «Приклад»", None);
+        let second = import(&model, "pkg-2", "ТОВ «Будмайстер»", None);
+        assert_eq!((second.entities_new, second.entities_existing), (1, 1));
+    }
+
+    #[test]
+    fn a_different_code_is_never_merged_by_name() {
+        let model = Model::open_in_memory("t").unwrap();
+        import(&model, "pkg-1", "ТОВ «Приклад»", Some("12345678"));
+        let second = import(&model, "pkg-2", "ТОВ «Приклад»", Some("87654321"));
+        assert_eq!((second.entities_new, second.entities_existing), (1, 1));
+    }
+
+    #[test]
+    fn a_later_mention_without_a_code_joins_the_coded_organisation() {
+        let model = Model::open_in_memory("t").unwrap();
+        import(&model, "pkg-1", "ТОВ «Приклад»", Some("12345678"));
+        let second = import(&model, "pkg-2", "Приклад", None);
+        assert_eq!((second.entities_new, second.entities_existing), (0, 2));
+    }
+
+    #[test]
+    fn the_review_shows_what_is_linked() {
+        let model = Model::open_in_memory("t").unwrap();
+        import(&model, "pkg-1", "ТОВ «Приклад»", None);
+        let file = parse_result(&org_result("pkg-2", "Приклад ТОВ", None), "pkg-2").unwrap();
+        let review = review_with_links(&file, &model).unwrap();
+        assert!(review.contains("нових 0, збігів 2, сумнівів 0"));
+        assert!(review.contains("збіг із наявним"));
+    }
+
+    #[test]
+    fn a_similar_name_is_shown_as_a_doubt_and_imported_as_new() {
+        let model = Model::open_in_memory("t").unwrap();
+        import(&model, "pkg-1", "ТОВ «Приклад»", None);
+        let file =
+            parse_result(&org_result("pkg-2", "ТОВ «Приклад Плюс»", None), "pkg-2").unwrap();
+        let review = review_with_links(&file, &model).unwrap();
+        assert!(review.contains("сумнівів 1"));
+        assert!(review.contains("є схожі наявні"));
+        let summary = import_result(&model, &file).unwrap();
+        assert_eq!((summary.entities_new, summary.entities_existing), (1, 1));
     }
 }

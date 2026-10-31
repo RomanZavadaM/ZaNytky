@@ -24,7 +24,7 @@ pub use deidentify::{
 pub use demo::{create_demo, DemoInfo};
 pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};
-pub use import::{import_result, ImportError, ImportSummary};
+pub use import::{import_result, review_with_links, ImportError, ImportSummary, LinkMatch};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use package::{build_package, build_package_with_links, Package, SourceMeta};

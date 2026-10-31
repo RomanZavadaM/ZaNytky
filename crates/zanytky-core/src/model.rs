@@ -11,6 +11,8 @@ use std::path::Path;
 
 use rusqlite::{params, Connection, OptionalExtension};
 
+use crate::normalize::APOSTROPHES;
+
 const SCHEMA: &str = "
 CREATE TABLE IF NOT EXISTS schema_version (version INTEGER NOT NULL);
 CREATE TABLE IF NOT EXISTS entity (
@@ -55,6 +57,11 @@ CREATE TABLE IF NOT EXISTS statement_source (
     source_id INTEGER NOT NULL,
     PRIMARY KEY (statement_id, source_id)
 );
+CREATE TABLE IF NOT EXISTS entity_alias (
+    entity_id INTEGER NOT NULL,
+    alias TEXT NOT NULL,
+    PRIMARY KEY (entity_id, alias)
+);
 CREATE TABLE IF NOT EXISTS change_log (
     id INTEGER PRIMARY KEY,
     at TEXT NOT NULL,
@@ -69,7 +76,42 @@ CREATE INDEX IF NOT EXISTS idx_statement_kind ON statement(kind);
 CREATE INDEX IF NOT EXISTS idx_statement_valid ON statement(valid_from, valid_to);
 CREATE INDEX IF NOT EXISTS idx_source_root ON source(root_id);
 CREATE INDEX IF NOT EXISTS idx_statement_source ON statement_source(source_id);
+CREATE INDEX IF NOT EXISTS idx_alias ON entity_alias(alias);
 ";
+
+/// Legal-form words that do not tell two organisations apart.
+const LEGAL_FORMS: &[&str] = &[
+    "тов", "тзов", "пп", "ат", "пат", "прат", "тдв", "фоп", "дп", "кп", "кнп", "осбб",
+];
+
+/// Comparable form of an organisation's name: lower case, quotes and punctuation removed,
+/// legal-form words dropped ("ТОВ «Приклад»" and "Приклад ТОВ" give "приклад").
+pub fn label_key(label: &str) -> String {
+    let plain: String = label
+        .to_lowercase()
+        .chars()
+        .map(|c| {
+            if c.is_alphanumeric() {
+                c
+            } else if APOSTROPHES.contains(&c) || c == '\'' {
+                '\''
+            } else {
+                ' '
+            }
+        })
+        .collect();
+    let words: Vec<&str> = plain.split_whitespace().collect();
+    let kept: Vec<&str> = words
+        .iter()
+        .copied()
+        .filter(|word| !LEGAL_FORMS.contains(word))
+        .collect();
+    if kept.is_empty() {
+        words.join(" ")
+    } else {
+        kept.join(" ")
+    }
+}
 
 const SCHEMA_VERSION: i64 = 1;
 const NOW: &str = "strftime('%Y-%m-%dT%H:%M:%SZ', 'now')";
@@ -305,10 +347,94 @@ impl Model {
                 params![SCHEMA_VERSION],
             )?;
         }
-        Ok(Self {
+        let model = Self {
             conn,
             actor: actor.to_string(),
-        })
+        };
+        model.backfill_aliases()?;
+        Ok(model)
+    }
+
+    /// Entities made before names were indexed get their name as the first alias.
+    fn backfill_aliases(&self) -> Result<(), ModelError> {
+        let mut statement = self.conn.prepare(
+            "SELECT id, label FROM entity WHERE label IS NOT NULL \
+             AND id NOT IN (SELECT entity_id FROM entity_alias)",
+        )?;
+        let rows: Vec<(i64, String)> = statement
+            .query_map([], |r| Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?)))?
+            .collect::<Result<_, _>>()?;
+        for (id, label) in rows {
+            self.add_alias(id, &label)?;
+        }
+        Ok(())
+    }
+
+    /// Remember one more spelling of an entity's name.
+    pub fn add_alias(&self, entity_id: i64, label: &str) -> Result<(), ModelError> {
+        let key = label_key(label);
+        if key.is_empty() {
+            return Ok(());
+        }
+        self.conn.execute(
+            "INSERT OR IGNORE INTO entity_alias (entity_id, alias) VALUES (?1, ?2)",
+            params![entity_id, key],
+        )?;
+        Ok(())
+    }
+
+    /// Entities of this kind that carry exactly this name (or an alias of it).
+    pub fn entities_by_label(&self, kind: EntityKind, label: &str) -> Result<Vec<i64>, ModelError> {
+        let key = label_key(label);
+        if key.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut statement = self.conn.prepare(
+            "SELECT DISTINCT a.entity_id FROM entity_alias a JOIN entity e ON e.id = a.entity_id \
+             WHERE a.alias = ?1 AND e.kind = ?2 ORDER BY a.entity_id",
+        )?;
+        let ids = statement
+            .query_map(params![key, kind.as_str()], |r| r.get::<_, i64>(0))?
+            .collect::<Result<Vec<i64>, _>>()?;
+        Ok(ids)
+    }
+
+    /// Entities of this kind with a similar but not identical name (at least half of the
+    /// words in common): candidates for "is this the same one?".
+    pub fn similar_entities(
+        &self,
+        kind: EntityKind,
+        label: &str,
+    ) -> Result<Vec<(i64, String)>, ModelError> {
+        let key = label_key(label);
+        let words: HashSet<&str> = key.split(' ').filter(|w| !w.is_empty()).collect();
+        if words.is_empty() {
+            return Ok(Vec::new());
+        }
+        let mut statement = self
+            .conn
+            .prepare("SELECT id, label FROM entity WHERE kind = ?1 AND label IS NOT NULL ORDER BY id")?;
+        let rows = statement.query_map(params![kind.as_str()], |r| {
+            Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
+        })?;
+        let mut found = Vec::new();
+        for row in rows {
+            let (id, other) = row?;
+            let other_key = label_key(&other);
+            if other_key == key {
+                continue;
+            }
+            let other_words: HashSet<&str> = other_key.split(' ').filter(|w| !w.is_empty()).collect();
+            let common = words.intersection(&other_words).count();
+            let all = words.union(&other_words).count();
+            if all > 0 && common * 2 >= all {
+                found.push((id, other));
+            }
+            if found.len() >= 5 {
+                break;
+            }
+        }
+        Ok(found)
     }
 
     pub fn open(path: &Path, actor: &str) -> Result<Self, ModelError> {
@@ -358,6 +484,9 @@ impl Model {
             params![new.kind.as_str(), new.token, new.label, new.public_code],
         )?;
         let id = self.conn.last_insert_rowid();
+        if let Some(label) = new.label {
+            self.add_alias(id, label)?;
+        }
         self.log("add_entity", &format!("entity:{id}"))?;
         Ok(id)
     }
@@ -1107,5 +1236,74 @@ mod tests {
         let st = owns(&m, a, b, "10%", src);
         m.set_status(st, Status::Confirmed).unwrap();
         assert_eq!(m.log_len().unwrap(), 5);
+    }
+}
+
+#[cfg(test)]
+mod alias_tests {
+    use super::*;
+
+    fn org(model: &Model, label: &str) -> i64 {
+        model
+            .add_entity(&NewEntity {
+                kind: EntityKind::Org,
+                token: None,
+                label: Some(label),
+                public_code: None,
+            })
+            .unwrap()
+    }
+
+    #[test]
+    fn spellings_of_one_organisation_give_one_key() {
+        assert_eq!(label_key("ТОВ «Приклад»"), "приклад");
+        assert_eq!(label_key("Приклад ТОВ"), "приклад");
+        assert_eq!(label_key("  Приклад,  тов. "), "приклад");
+        assert_eq!(label_key("ТОВ"), "тов");
+        assert_ne!(label_key("Приклад"), label_key("Приклад Плюс"));
+    }
+
+    #[test]
+    fn an_entity_is_found_by_any_spelling_of_its_name() {
+        let model = Model::open_in_memory("t").unwrap();
+        let id = org(&model, "ТОВ «Приклад»");
+        assert_eq!(
+            model.entities_by_label(EntityKind::Org, "Приклад ТОВ").unwrap(),
+            vec![id]
+        );
+        assert!(model
+            .entities_by_label(EntityKind::Person, "Приклад")
+            .unwrap()
+            .is_empty());
+        model.add_alias(id, "ПП Приклад-Сервіс").unwrap();
+        assert_eq!(
+            model.entities_by_label(EntityKind::Org, "приклад-сервіс").unwrap(),
+            vec![id]
+        );
+    }
+
+    #[test]
+    fn a_name_shared_by_two_entities_returns_both() {
+        let model = Model::open_in_memory("t").unwrap();
+        let a = org(&model, "ТОВ «Приклад»");
+        let b = org(&model, "ПП Приклад");
+        assert_eq!(
+            model.entities_by_label(EntityKind::Org, "Приклад").unwrap(),
+            vec![a, b]
+        );
+    }
+
+    #[test]
+    fn similar_names_are_offered_but_not_identical_ones() {
+        let model = Model::open_in_memory("t").unwrap();
+        let id = org(&model, "ТОВ «Приклад Плюс»");
+        org(&model, "Міська рада");
+        let similar = model.similar_entities(EntityKind::Org, "Приклад").unwrap();
+        assert_eq!(similar.len(), 1);
+        assert_eq!(similar[0].0, id);
+        assert!(model
+            .similar_entities(EntityKind::Org, "ТОВ «Приклад Плюс»")
+            .unwrap()
+            .is_empty());
     }
 }
