@@ -7,7 +7,7 @@
 //! system does not know are reported as candidates so the investigator can
 //! decide what they are (step 2a of the parse package).
 
-use std::collections::{BTreeMap, HashMap};
+use std::collections::{BTreeMap, HashMap, HashSet};
 
 use crate::normalize::{address_marker, normalize, plate_letter, Kind, APOSTROPHES, DASHES};
 use crate::pseudonym::{token, TokenError};
@@ -118,12 +118,43 @@ fn boundary_after(chars: &[char], end: usize) -> bool {
     end >= chars.len() || !chars[end].is_alphanumeric()
 }
 
+/// Other word orders of a full name written as "Surname Name [Patronymic]": the name first,
+/// without the patronymic, name and patronymic. Forms with initials are not generated:
+/// "Іваненко П." can be Петро or Павло, so such mentions stay for the investigator to decide.
+fn name_variants(text: &str) -> Vec<String> {
+    let parts: Vec<&str> = text.split_whitespace().collect();
+    let plain = |part: &&str| {
+        part.chars().count() >= 2
+            && part.chars().all(|c| {
+                c.is_alphabetic()
+                    || APOSTROPHES.contains(&c)
+                    || DASHES.contains(&c)
+                    || c == '\''
+                    || c == '-'
+            })
+    };
+    if !(2..=3).contains(&parts.len()) || !parts.iter().all(plain) {
+        return Vec::new();
+    }
+    match parts.as_slice() {
+        [surname, name] => vec![format!("{name} {surname}")],
+        [surname, name, patronymic] => vec![
+            format!("{name} {patronymic} {surname}"),
+            format!("{surname} {name}"),
+            format!("{name} {surname}"),
+            format!("{name} {patronymic}"),
+        ],
+        _ => Vec::new(),
+    }
+}
+
 fn dictionary_spans(
     chars: &[char],
     dictionary: &[DictEntry],
     key: &[u8],
 ) -> Result<Vec<Span>, TokenError> {
     let mut entries: Vec<(Vec<char>, String)> = Vec::new();
+    let mut originals: Vec<(String, String)> = Vec::new();
     for entry in dictionary {
         let normalized = entry_chars(&entry.text);
         if normalized.is_empty() {
@@ -133,7 +164,34 @@ fn dictionary_spans(
             Some(tok) => tok.clone(),
             None => token(Kind::Name, &entry.text, key)?,
         };
-        entries.push((normalized, tok));
+        entries.push((normalized, tok.clone()));
+        originals.push((entry.text.clone(), tok));
+    }
+    // Other word orders of the same name. An explicit entry always wins, and a form that
+    // would belong to two different people is dropped (left for the investigator).
+    let explicit: HashSet<Vec<char>> = entries.iter().map(|(chars, _)| chars.clone()).collect();
+    let mut generated: HashMap<Vec<char>, Option<String>> = HashMap::new();
+    for (text, tok) in &originals {
+        for variant in name_variants(text) {
+            let variant_chars = entry_chars(&variant);
+            if explicit.contains(&variant_chars) {
+                continue;
+            }
+            match generated.get(&variant_chars) {
+                Some(Some(existing)) if existing != tok => {
+                    generated.insert(variant_chars, None);
+                }
+                Some(_) => {}
+                None => {
+                    generated.insert(variant_chars, Some(tok.clone()));
+                }
+            }
+        }
+    }
+    for (variant_chars, tok) in generated {
+        if let Some(tok) = tok {
+            entries.push((variant_chars, tok));
+        }
     }
     entries.sort_by_key(|(chars, _)| std::cmp::Reverse(chars.len()));
     let mut spans = Vec::new();
@@ -847,6 +905,57 @@ mod tests {
         let b = run("жив на вулиця Шевченка 15", &[]);
         assert_eq!(a.text, b.text);
         assert!(!a.text.contains("Шевченка"));
+    }
+
+    #[test]
+    fn a_full_name_is_found_in_other_word_orders() {
+        let dict = [DictEntry::name("Іваненко Петро Олексійович")];
+        let tok = token(Kind::Name, "Іваненко Петро Олексійович", &key()).unwrap();
+        let result = run(
+            "Петро Олексійович Іваненко та Іваненко Петро, Петро Іваненко і Петро Олексійович.",
+            &dict,
+        );
+        assert_eq!(result.text, format!("{tok} та {tok}, {tok} і {tok}."));
+    }
+
+    #[test]
+    fn a_two_word_name_is_found_in_the_other_order() {
+        let dict = [DictEntry::name("Іваненко Петро")];
+        let tok = token(Kind::Name, "Іваненко Петро", &key()).unwrap();
+        let result = run("Петро Іваненко підписав.", &dict);
+        assert_eq!(result.text, format!("{tok} підписав."));
+    }
+
+    #[test]
+    fn a_form_that_fits_two_people_is_left_for_the_investigator() {
+        let dict = [
+            DictEntry::name("Іваненко Петро Олексійович"),
+            DictEntry::name("Іваненко Петро Іванович"),
+        ];
+        let result = run("Іваненко Петро прийшов.", &dict);
+        assert_eq!(result.text, "Іваненко Петро прийшов.");
+        let texts: Vec<&str> = result.candidates.iter().map(|c| c.text.as_str()).collect();
+        assert!(texts.contains(&"Іваненко Петро"));
+        let first = token(Kind::Name, "Іваненко Петро Олексійович", &key()).unwrap();
+        let full = run("Іваненко Петро Олексійович прийшов.", &dict);
+        assert_eq!(full.text, format!("{first} прийшов."));
+    }
+
+    #[test]
+    fn an_explicit_entry_wins_over_a_generated_form() {
+        let dict = [
+            DictEntry::name("Іваненко Петро"),
+            DictEntry::alias("Петро Іваненко", "N-OTHER"),
+        ];
+        let result = run("Петро Іваненко підписав.", &dict);
+        assert_eq!(result.text, "N-OTHER підписав.");
+    }
+
+    #[test]
+    fn initials_are_not_expanded_automatically() {
+        let dict = [DictEntry::name("Іваненко Петро")];
+        let result = run("Іваненко П. підписав.", &dict);
+        assert_eq!(result.text, "Іваненко П. підписав.");
     }
 
     #[test]
