@@ -27,6 +27,8 @@ pub enum Kind {
     Address,
     /// Payment card number (13-19 digits, valid Luhn check).
     Card,
+    /// Date of birth in any common spelling; the canonical form is ISO (YYYY-MM-DD).
+    Birth,
 }
 
 impl Kind {
@@ -42,6 +44,7 @@ impl Kind {
             Kind::Plate => "plate",
             Kind::Address => "address",
             Kind::Card => "card",
+            Kind::Birth => "birth",
         }
     }
 
@@ -58,6 +61,7 @@ impl Kind {
             "plate" => Some(Kind::Plate),
             "address" => Some(Kind::Address),
             "card" => Some(Kind::Card),
+            "birth" => Some(Kind::Birth),
             _ => None,
         }
     }
@@ -75,6 +79,7 @@ impl Kind {
             Kind::Plate => 'V',
             Kind::Address => 'A',
             Kind::Card => 'K',
+            Kind::Birth => 'D',
         }
     }
 }
@@ -211,6 +216,71 @@ fn valid_ua_iban(text: &str) -> bool {
     remainder == 1
 }
 
+/// Month number of a Ukrainian month name in the genitive ("12 березня 1985").
+pub(crate) fn month_number(word: &str) -> Option<u32> {
+    Some(match word {
+        "січня" => 1,
+        "лютого" => 2,
+        "березня" => 3,
+        "квітня" => 4,
+        "травня" => 5,
+        "червня" => 6,
+        "липня" => 7,
+        "серпня" => 8,
+        "вересня" => 9,
+        "жовтня" => 10,
+        "листопада" => 11,
+        "грудня" => 12,
+        _ => return None,
+    })
+}
+
+fn valid_date(year: u32, month: u32, day: u32) -> bool {
+    if !(1900..=2099).contains(&year) || !(1..=12).contains(&month) {
+        return false;
+    }
+    let leap = year.is_multiple_of(4) && (!year.is_multiple_of(100) || year.is_multiple_of(400));
+    let days = match month {
+        2 if leap => 29,
+        2 => 28,
+        4 | 6 | 9 | 11 => 30,
+        _ => 31,
+    };
+    (1..=days).contains(&day)
+}
+
+/// ISO form of a date written "12.03.1985", "12/03/1985", "1985-03-12" or "12 березня 1985".
+fn normalize_birth(value: &str) -> Option<String> {
+    let lowered = value.trim().to_lowercase();
+    let words: Vec<&str> = lowered.split_whitespace().collect();
+    let (year, month, day) = if words.len() >= 3 {
+        let day: u32 = words[0].parse().ok()?;
+        let month = month_number(words[1])?;
+        let year: u32 = words[2].parse().ok()?;
+        (year, month, day)
+    } else {
+        let parts: Vec<&str> = lowered.split(['.', '/', '-']).collect();
+        let all_digits = parts
+            .iter()
+            .all(|p| !p.is_empty() && p.chars().all(|c| c.is_ascii_digit()));
+        if parts.len() != 3 || !all_digits {
+            return None;
+        }
+        let numbers: Vec<u32> = parts
+            .iter()
+            .map(|p| p.parse().ok())
+            .collect::<Option<Vec<u32>>>()?;
+        if parts[0].len() == 4 {
+            (numbers[0], numbers[1], numbers[2])
+        } else if parts[2].len() == 4 {
+            (numbers[2], numbers[1], numbers[0])
+        } else {
+            return None;
+        }
+    };
+    valid_date(year, month, day).then(|| format!("{year:04}-{month:02}-{day:02}"))
+}
+
 /// The Luhn check used by payment card numbers.
 fn luhn_valid(digits: &str) -> bool {
     let mut sum = 0;
@@ -303,6 +373,10 @@ pub fn normalize(kind: Kind, value: &str) -> Result<String, NormalizeError> {
                 .collect()
         }
         Kind::Address => normalize_address(value),
+        Kind::Birth => match normalize_birth(value) {
+            Some(date) => date,
+            None => return Err(NormalizeError::BadFormat(kind)),
+        },
         Kind::Card => {
             let d = digits(value);
             if !(13..=19).contains(&d.len()) || !luhn_valid(&d) {
@@ -359,6 +433,27 @@ mod tests {
             Err(NormalizeError::BadFormat(Kind::Iban))
         );
         assert!(normalize(Kind::Iban, "UA21").is_err());
+    }
+
+    #[test]
+    fn birth_dates_in_all_spellings_give_one_form() {
+        let a = normalize(Kind::Birth, "12.03.1985").unwrap();
+        let b = normalize(Kind::Birth, "12/03/1985").unwrap();
+        let c = normalize(Kind::Birth, "1985-03-12").unwrap();
+        let d = normalize(Kind::Birth, "12 березня 1985").unwrap();
+        assert_eq!(a, "1985-03-12");
+        assert_eq!(a, b);
+        assert_eq!(a, c);
+        assert_eq!(a, d);
+    }
+
+    #[test]
+    fn impossible_dates_are_refused() {
+        assert!(normalize(Kind::Birth, "31.02.1985").is_err());
+        assert!(normalize(Kind::Birth, "12.13.1985").is_err());
+        assert!(normalize(Kind::Birth, "29.02.1900").is_err());
+        assert!(normalize(Kind::Birth, "29.02.2000").is_ok());
+        assert!(normalize(Kind::Birth, "12.03.85").is_err());
     }
 
     #[test]
