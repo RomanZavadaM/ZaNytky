@@ -21,7 +21,7 @@ ZaNytky は**プロプライエタリソフトウェア**です。リポジト�
 
 ## ダウンロード
 
-**ダウンロード: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.5)** (最新のプレリリース)
+**ダウンロード: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.6)** (最新のプレリリース)
 
 Windows 用の完成ファイル（インストール不要のポータブル zip、.msi/.exe インストーラー）は[リリース](https://github.com/RomanZavadaM/ZaNytky/releases)ページにあります。ビルドは署名されていないため、Windows が不明な発行元の警告を表示することがあります。
 
@@ -57,7 +57,7 @@ zanytky restore copy.znbak --to ./restored --passphrase-file ./pass.txt
 - 人物に対する評価的なレッテルは貼りません。プログラムは判定ではなく、出所と信頼度の等級を示します。
 - 公開情報源のみを使用し、個人データは仮名に置き換えられ、AI には匿名化されたテキストだけが渡されます。
 
-## 現在のバージョン（0.0.5）の制限
+## 現在のバージョン（0.0.6）の制限
 
 - プレリリース版であり、インストーラーには署名がありません。
 - 「文書の解析」は現在テキストと Markdown のみ対応しています（.docx/.pdf の取り込みはまだありません）。

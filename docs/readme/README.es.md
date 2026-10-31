@@ -21,7 +21,7 @@ ZaNytky es **software propietario**: un repositorio público no concede una lice
 
 ## Descarga
 
-**Descargar: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.5)** (última versión preliminar)
+**Descargar: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.6)** (última versión preliminar)
 
 Los archivos listos para Windows (zip portátil sin instalación, instaladores .msi/.exe) están en la página de [versiones](https://github.com/RomanZavadaM/ZaNytky/releases). Las compilaciones no están firmadas: Windows puede avisar de un editor desconocido.
 
@@ -57,7 +57,7 @@ zanytky restore copy.znbak --to ./restored --passphrase-file ./pass.txt
 - Sin etiquetas valorativas sobre personas: el programa muestra el origen y un grado de fiabilidad, no veredictos.
 - Solo fuentes abiertas; los datos personales se sustituyen por seudónimos; la IA recibe únicamente texto anonimizado.
 
-## Limitaciones de la versión actual (0.0.5)
+## Limitaciones de la versión actual (0.0.6)
 
 - Es una versión preliminar: los instaladores no están firmados.
 - «Análisis de documento» solo acepta por ahora texto y Markdown (todavía no hay importación de .docx/.pdf).
