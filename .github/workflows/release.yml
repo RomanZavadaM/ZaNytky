@@ -117,6 +117,7 @@ jobs:
           Set-Content -Path "$dir\README.txt" -Encoding UTF8 -Value @(
             "ZaNytky - портативна версія (без встановлення).",
             "Запустіть ZaNytky.exe. Нічого встановлювати не потрібно: середовище вікна лежить у папці webview2 поруч (не видаляйте її).",
+            "УВАГА: портативна версія призначена лише для ознайомлення; ви користуєтесь нею на власний страх і ризик, без гарантій. Для постійної роботи використовуйте встановлювані версії (.exe/.msi).",
             "Windows може показати попередження про невідомого видавця: збірка не підписана.",
             "Дані зберігаються лише в папці, яку ви оберете. Ключі й паролі зберігайте окремо."
           )
@@ -187,6 +188,7 @@ jobs:
           choose Open, then confirm. If macOS says the file is damaged, run in Terminal:
           xattr -cr /path/to/ZaNytky.app
           Data stays only in the folder you choose. Keep keys and passwords separately.
+          NOTICE: this portable archive is for evaluation only; you use it at your own risk, without any warranty.
           EOF
           ditto -c -k --sequesterRsrc --keepParent "$dir" "out/ZaNytky_${v}_macOS_${{ matrix.arch }}_Portable.zip"
       - uses: actions/upload-artifact@v4
@@ -216,8 +218,14 @@ jobs:
           sha256sum * > SHA256SUMS.txt
           cat SHA256SUMS.txt
           cd ..
+          cp "docs/releases/v${{ inputs.version }}.md" notes_full.md
+          cat >> notes_full.md <<'EOF'
+
+          ---
+          **Портативні архіви призначені лише для ознайомлення**: ви користуєтесь ними на власний страх і ризик, без гарантій. Для постійної роботи використовуйте встановлювані версії (.exe/.msi). / **Portable archives are for evaluation only**: use at your own risk, without any warranty; for regular work use the installers.
+          EOF
           gh release create "v${{ inputs.version }}" dist/* \
             --target "${{ github.sha }}" \
             --prerelease \
             --title "ZaNytky ${{ inputs.version }} (пререліз)" \
-            --notes-file "docs/releases/v${{ inputs.version }}.md"
+            --notes-file notes_full.md

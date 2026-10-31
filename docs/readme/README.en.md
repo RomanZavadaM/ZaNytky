@@ -25,6 +25,8 @@ ZaNytky is **proprietary software**: a public repository does not grant an open-
 
 Ready files for Windows (portable zip without installation, .msi/.exe installers) are on the [releases](https://github.com/RomanZavadaM/ZaNytky/releases) page. Builds are unsigned: Windows may warn about an unknown publisher.
 
+> **The portable archive is for evaluation only.** You use it at your own risk, without any warranty. For regular work, use the installed versions (the .exe/.msi installers).
+
 ## Quick start (application)
 
 1. Unzip the portable archive and run `ZaNytky.exe` (nothing needs to be installed; keep the `webview2` folder next to `ZaNytky.exe`).
