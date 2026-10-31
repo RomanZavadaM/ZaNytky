@@ -86,9 +86,13 @@ pub fn match_entity(model: &Model, entity: &ResultEntity) -> Result<LinkMatch, M
         };
         return Ok(LinkMatch::Existing { id, by });
     }
-    if kind != EntityKind::Person && entity.public_code.is_none() {
+    if kind != EntityKind::Person {
         if let Some(label) = entity.label.as_deref() {
-            let ids = model.entities_by_label(kind, label)?;
+            let mut ids = model.entities_by_label(kind, label)?;
+            if entity.public_code.is_some() {
+                // a code never goes against another code: only ones without a code fit
+                ids.retain(|id| model.entity(*id).is_ok_and(|e| e.public_code.is_none()));
+            }
             match ids.len() {
                 0 => {}
                 1 => {
@@ -167,6 +171,11 @@ fn import_inside(model: &Model, file: &ResultFile) -> Result<ImportSummary, Mode
                     if let Some(label) = entity.label.as_deref() {
                         model.add_alias(id, label)?;
                     }
+                    if let Some(code) = entity.public_code.as_deref() {
+                        if model.entity(id)?.public_code.is_none() {
+                            model.set_public_code(id, code)?;
+                        }
+                    }
                 }
                 id
             }
@@ -185,6 +194,7 @@ fn import_inside(model: &Model, file: &ResultFile) -> Result<ImportSummary, Mode
         }
         entity_ids.insert(entity.reference.as_str(), id);
     }
+    model.merge_same_code()?;
 
     // Statements: always unverified; the quote travels with the statement.
     for statement in &file.statements {
@@ -479,6 +489,32 @@ mod link_tests {
   "statements": []
 }}"#
         )
+    }
+
+    #[test]
+    fn a_name_only_entity_gets_the_code_and_two_same_code_entities_fold() {
+        let model = Model::open_in_memory("t").unwrap();
+        import(&model, "pkg-1", "ТОВ «Приклад»", None);
+        let second = import(&model, "pkg-2", "Приклад ТОВ", Some("12345678"));
+        assert_eq!((second.entities_new, second.entities_existing), (0, 2));
+        let all = model.entities().unwrap();
+        assert_eq!(all.len(), 2);
+        assert!(all
+            .iter()
+            .any(|e| e.public_code.as_deref() == Some("12345678")));
+        // an old duplicate with the same code is folded and can be restored
+        let twin = model
+            .add_entity(&NewEntity {
+                kind: EntityKind::Org,
+                token: None,
+                label: Some("Інша назва"),
+                public_code: Some("12345678"),
+            })
+            .unwrap();
+        assert_eq!(model.merge_same_code().unwrap(), 1);
+        assert_eq!(model.entities().unwrap().len(), 2);
+        model.unmerge_entity(twin).unwrap();
+        assert_eq!(model.entities().unwrap().len(), 3);
     }
 
     #[test]

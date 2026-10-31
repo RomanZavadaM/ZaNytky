@@ -68,6 +68,17 @@ CREATE TABLE IF NOT EXISTS entity_identifier (
     value TEXT NOT NULL,
     PRIMARY KEY (entity_id, kind, value)
 );
+CREATE TABLE IF NOT EXISTS entity_merge (
+    drop_id INTEGER PRIMARY KEY,
+    keep_id INTEGER NOT NULL,
+    code_set INTEGER NOT NULL
+);
+CREATE TABLE IF NOT EXISTS entity_merge_party (
+    drop_id INTEGER NOT NULL,
+    statement_id INTEGER NOT NULL,
+    role TEXT NOT NULL,
+    added INTEGER NOT NULL
+);
 CREATE TABLE IF NOT EXISTS change_log (
     id INTEGER PRIMARY KEY,
     at TEXT NOT NULL,
@@ -408,7 +419,9 @@ impl Model {
     /// The identifiers of one entity as (kind, value).
     pub fn identifiers_of(&self, entity_id: i64) -> Result<Vec<(String, String)>, ModelError> {
         let mut statement = self.conn.prepare(
-            "SELECT kind, value FROM entity_identifier WHERE entity_id = ?1 ORDER BY kind, value",
+            "SELECT DISTINCT kind, value FROM entity_identifier WHERE entity_id = ?1 \
+             OR entity_id IN (SELECT drop_id FROM entity_merge WHERE keep_id = ?1) \
+             ORDER BY kind, value",
         )?;
         let rows = statement
             .query_map(params![entity_id], |r| Ok((r.get(0)?, r.get(1)?)))?
@@ -419,7 +432,9 @@ impl Model {
     /// Entities that carry this identifier.
     pub fn identifier_holders(&self, kind: &str, value: &str) -> Result<Vec<i64>, ModelError> {
         let mut statement = self.conn.prepare(
-            "SELECT entity_id FROM entity_identifier WHERE kind = ?1 AND value = ?2 ORDER BY entity_id",
+            "SELECT DISTINCT COALESCE(m.keep_id, i.entity_id) AS eid FROM entity_identifier i \
+             LEFT JOIN entity_merge m ON m.drop_id = i.entity_id \
+             WHERE i.kind = ?1 AND i.value = ?2 ORDER BY eid",
         )?;
         let ids = statement
             .query_map(params![kind, value], |r| r.get::<_, i64>(0))?
@@ -430,7 +445,9 @@ impl Model {
     /// Every identifier held by two or more entities: (kind, value, holders).
     pub fn shared_identifiers(&self) -> Result<Vec<(String, String, Vec<i64>)>, ModelError> {
         let mut statement = self.conn.prepare(
-            "SELECT kind, value, entity_id FROM entity_identifier WHERE (kind, value) IN              (SELECT kind, value FROM entity_identifier GROUP BY kind, value HAVING COUNT(*) > 1)              ORDER BY kind, value, entity_id",
+            "SELECT DISTINCT i.kind, i.value, COALESCE(m.keep_id, i.entity_id) AS eid \
+             FROM entity_identifier i LEFT JOIN entity_merge m ON m.drop_id = i.entity_id \
+             ORDER BY i.kind, i.value, eid",
         )?;
         let rows: Vec<(String, String, i64)> = statement
             .query_map([], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
@@ -442,7 +459,149 @@ impl Model {
                 _ => out.push((kind, value, vec![id])),
             }
         }
+        out.retain(|(_, _, holders)| holders.len() > 1);
         Ok(out)
+    }
+
+    /// Give an entity its public code (when it was known by name only).
+    pub fn set_public_code(&self, id: i64, code: &str) -> Result<(), ModelError> {
+        self.conn.execute(
+            "UPDATE entity SET public_code = ?1 WHERE id = ?2",
+            params![code, id],
+        )?;
+        self.log("set_public_code", &format!("entity:{id}"))
+    }
+
+    /// Fold the entity `drop` into `keep`: its statements move over, its names and
+    /// identifiers count for `keep`. Nothing is deleted; `unmerge_entity` undoes it.
+    pub fn merge_entities(&self, keep: i64, drop: i64) -> Result<(), ModelError> {
+        if keep == drop {
+            return Err(ModelError::Invalid("choose two different entities"));
+        }
+        let (k, d) = (self.entity(keep)?, self.entity(drop)?);
+        if k.kind != d.kind || k.kind == EntityKind::Person {
+            return Err(ModelError::Invalid(
+                "only entities of one non-person kind merge",
+            ));
+        }
+        if matches!((&k.public_code, &d.public_code), (Some(a), Some(b)) if a != b) {
+            return Err(ModelError::Invalid(
+                "entities with different codes do not merge",
+            ));
+        }
+        let involved: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM entity_merge WHERE drop_id IN (?1, ?2) OR keep_id = ?2",
+            params![keep, drop],
+            |r| r.get(0),
+        )?;
+        if involved > 0 {
+            return Err(ModelError::Invalid("the entity is already merged"));
+        }
+        let rows: Vec<(i64, String)> = {
+            let mut statement = self
+                .conn
+                .prepare("SELECT statement_id, role FROM statement_party WHERE entity_id = ?1")?;
+            let rows = statement
+                .query_map(params![drop], |r| Ok((r.get(0)?, r.get(1)?)))?
+                .collect::<Result<_, _>>()?;
+            rows
+        };
+        for (statement_id, role) in rows {
+            let added = self.conn.execute(
+                "INSERT OR IGNORE INTO statement_party (statement_id, entity_id, role) VALUES (?1, ?2, ?3)",
+                params![statement_id, keep, role],
+            )?;
+            self.conn.execute(
+                "DELETE FROM statement_party WHERE statement_id = ?1 AND entity_id = ?2 AND role = ?3",
+                params![statement_id, drop, role],
+            )?;
+            self.conn.execute(
+                "INSERT INTO entity_merge_party (drop_id, statement_id, role, added) VALUES (?1, ?2, ?3, ?4)",
+                params![drop, statement_id, role, added],
+            )?;
+        }
+        let code_set = i64::from(k.public_code.is_none() && d.public_code.is_some());
+        if code_set == 1 {
+            self.conn.execute(
+                "UPDATE entity SET public_code = ?1 WHERE id = ?2",
+                params![d.public_code, keep],
+            )?;
+        }
+        self.conn.execute(
+            "INSERT INTO entity_merge (drop_id, keep_id, code_set) VALUES (?1, ?2, ?3)",
+            params![drop, keep, code_set],
+        )?;
+        self.log("merge_entities", &format!("entity:{drop}->{keep}"))
+    }
+
+    /// Undo `merge_entities` for the folded entity.
+    pub fn unmerge_entity(&self, drop: i64) -> Result<(), ModelError> {
+        let (keep, code_set): (i64, i64) = self
+            .conn
+            .query_row(
+                "SELECT keep_id, code_set FROM entity_merge WHERE drop_id = ?1",
+                params![drop],
+                |r| Ok((r.get(0)?, r.get(1)?)),
+            )
+            .optional()?
+            .ok_or(ModelError::NotFound)?;
+        let rows: Vec<(i64, String, i64)> = {
+            let mut statement = self.conn.prepare(
+                "SELECT statement_id, role, added FROM entity_merge_party WHERE drop_id = ?1",
+            )?;
+            let rows = statement
+                .query_map(params![drop], |r| Ok((r.get(0)?, r.get(1)?, r.get(2)?)))?
+                .collect::<Result<_, _>>()?;
+            rows
+        };
+        for (statement_id, role, added) in rows {
+            self.conn.execute(
+                "INSERT OR IGNORE INTO statement_party (statement_id, entity_id, role) VALUES (?1, ?2, ?3)",
+                params![statement_id, drop, role],
+            )?;
+            if added == 1 {
+                self.conn.execute(
+                    "DELETE FROM statement_party WHERE statement_id = ?1 AND entity_id = ?2 AND role = ?3",
+                    params![statement_id, keep, role],
+                )?;
+            }
+        }
+        if code_set == 1 {
+            self.conn.execute(
+                "UPDATE entity SET public_code = NULL WHERE id = ?1",
+                params![keep],
+            )?;
+        }
+        self.conn.execute(
+            "DELETE FROM entity_merge_party WHERE drop_id = ?1",
+            params![drop],
+        )?;
+        self.conn
+            .execute("DELETE FROM entity_merge WHERE drop_id = ?1", params![drop])?;
+        self.log("unmerge_entity", &format!("entity:{drop}->{keep}"))
+    }
+
+    /// Entities of one kind with the same public code are one: fold them into the oldest.
+    /// Returns how many were folded.
+    pub fn merge_same_code(&self) -> Result<usize, ModelError> {
+        let mut groups: std::collections::BTreeMap<(String, String), Vec<i64>> =
+            std::collections::BTreeMap::new();
+        for row in self.entities()? {
+            if let (false, Some(code)) = (row.kind == EntityKind::Person, row.public_code) {
+                groups
+                    .entry((row.kind.as_str().to_string(), code))
+                    .or_default()
+                    .push(row.id);
+            }
+        }
+        let mut count = 0;
+        for ids in groups.values().filter(|ids| ids.len() > 1) {
+            for id in &ids[1..] {
+                self.merge_entities(ids[0], *id)?;
+                count += 1;
+            }
+        }
+        Ok(count)
     }
 
     /// Entities of this kind that carry exactly this name (or an alias of it).
@@ -452,8 +611,10 @@ impl Model {
             return Ok(Vec::new());
         }
         let mut statement = self.conn.prepare(
-            "SELECT DISTINCT a.entity_id FROM entity_alias a JOIN entity e ON e.id = a.entity_id \
-             WHERE a.alias = ?1 AND e.kind = ?2 ORDER BY a.entity_id",
+            "SELECT DISTINCT COALESCE(m.keep_id, a.entity_id) AS eid FROM entity_alias a \
+             JOIN entity e ON e.id = a.entity_id \
+             LEFT JOIN entity_merge m ON m.drop_id = a.entity_id \
+             WHERE a.alias = ?1 AND e.kind = ?2 ORDER BY eid",
         )?;
         let ids = statement
             .query_map(params![key, kind.as_str()], |r| r.get::<_, i64>(0))?
@@ -474,7 +635,8 @@ impl Model {
             return Ok(Vec::new());
         }
         let mut statement = self.conn.prepare(
-            "SELECT id, label FROM entity WHERE kind = ?1 AND label IS NOT NULL ORDER BY id",
+            "SELECT id, label FROM entity WHERE kind = ?1 AND label IS NOT NULL \
+             AND id NOT IN (SELECT drop_id FROM entity_merge) ORDER BY id",
         )?;
         let rows = statement.query_map(params![kind.as_str()], |r| {
             Ok((r.get::<_, i64>(0)?, r.get::<_, String>(1)?))
@@ -704,7 +866,8 @@ impl Model {
             return Ok(self
                 .conn
                 .query_row(
-                    "SELECT id FROM entity WHERE kind = ?1 AND public_code = ?2",
+                    "SELECT id FROM entity WHERE kind = ?1 AND public_code = ?2 \
+                     AND id NOT IN (SELECT drop_id FROM entity_merge) ORDER BY id",
                     params![kind.as_str(), code],
                     |r| r.get(0),
                 )
@@ -889,7 +1052,9 @@ impl Model {
     /// One entity by id.
     /// Every entity, oldest first.
     pub fn entities(&self) -> Result<Vec<EntityRow>, ModelError> {
-        let mut statement = self.conn.prepare("SELECT id FROM entity ORDER BY id")?;
+        let mut statement = self.conn.prepare(
+            "SELECT id FROM entity WHERE id NOT IN (SELECT drop_id FROM entity_merge) ORDER BY id",
+        )?;
         let ids = statement
             .query_map([], |r| r.get::<_, i64>(0))?
             .collect::<Result<Vec<i64>, _>>()?;
