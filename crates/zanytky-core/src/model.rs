@@ -1660,7 +1660,7 @@ mod tests {
     #[test]
     fn source_file_is_copied_by_hash_and_recorded_once() {
         let m = model();
-        let src = source(&m, SourceKind::Document, Reliability::B, None);
+        let src = source(&m, SourceKind::Registry, Reliability::B, None);
         let dir = tempfile::tempdir().unwrap();
         let file = dir.path().join("скан.pdf");
         std::fs::write(&file, b"abc").unwrap();
