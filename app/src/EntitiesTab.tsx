@@ -336,11 +336,6 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
                   onChanged={() => setTick(tick + 1)}
                 />
               ))}
-                    </ul>
-                  )}
-                  <button onClick={() => void addFile(source.id)}>{t.sourceFileAdd}</button>
-                </div>
-              ))}
             </>
           )}
           {card.owners.length > 0 && (
