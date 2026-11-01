@@ -14,7 +14,8 @@ use serde_json::Value;
 
 use crate::model::{Model, ModelError, NewSource, Reliability, SourceKind};
 
-#[derive(Debug, Clone, Default, PartialEq, Eq)]
+#[derive(Debug, Clone, Default, PartialEq, Eq, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct TelegramSummary {
     pub channel: String,
     /// Posts looked at (service messages are not counted).

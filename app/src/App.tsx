@@ -12,10 +12,11 @@ import {
 import { fill, LANGS, PACKS, type Lang, type Strings } from "./i18n";
 import { EntitiesTab } from "./EntitiesTab";
 import { GraphTab } from "./GraphTab";
+import { SourcesTab } from "./SourcesTab";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { notifyDataChanged, onDataChanged, openSectionWindow, windowSection } from "./windowApi";
 
-type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "graph" | "report";
+type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "graph" | "report";
 
 /** True when any text box in this window still holds unsaved text. */
 function hasUnsavedText(): boolean {
@@ -581,6 +582,7 @@ export function App() {
     ["result", t.tabResult],
     ["database", t.tabDatabase],
     ["entities", t.tabEntities],
+    ["sources", t.tabSources],
     ["graph", t.tabGraph],
     ["report", t.tabReport],
   ];
@@ -653,6 +655,9 @@ export function App() {
             run={run}
             focusId={focusId}
           />
+        )}
+        {tab === "sources" && (
+          <SourcesTab t={t} lang={(lang in PACKS ? lang : "uk") as Lang} home={home} run={run} />
         )}
         {tab === "graph" && (
           <GraphTab

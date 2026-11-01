@@ -17,6 +17,7 @@ pub mod registry;
 pub mod report;
 pub mod result;
 pub mod seal;
+pub mod sources;
 pub mod telegram;
 pub mod wrap;
 
@@ -44,4 +45,5 @@ pub use report::{
 };
 pub use result::{parse_result, review_markdown, ResultError, ResultFile};
 pub use seal::{parse_identity, parse_recipient, seal, unseal, SealError, Sealed};
+pub use sources::{source_list, source_view, SourceListPage, SourceListRow};
 pub use telegram::{import_telegram_export, TelegramError, TelegramSummary};

@@ -247,3 +247,11 @@ span.tab {
   width: 100%;
   box-sizing: border-box;
 }
+
+.source-list {
+  list-style: none;
+  padding: 0;
+}
+.source-list li {
+  margin: 6px 0;
+}

@@ -645,6 +645,64 @@ struct StatusInput {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct SourceListInput {
+    home: String,
+    query: String,
+    offset: u32,
+    limit: u32,
+}
+
+#[tauri::command]
+fn list_sources(input: SourceListInput) -> Res<zanytky_core::SourceListPage> {
+    let model = open_model(&home_path(&input.home)?)?;
+    zanytky_core::source_list(&model, &input.query, input.offset, input.limit)
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceIdInput {
+    home: String,
+    id: i64,
+}
+
+#[tauri::command]
+fn get_source(input: SourceIdInput) -> Res<zanytky_core::card::CardSource> {
+    let model = open_model(&home_path(&input.home)?)?;
+    zanytky_core::source_view(&model, input.id).map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct TelegramInput {
+    home: String,
+    folder: String,
+    reliability: String,
+}
+
+/// Imports a Telegram Desktop export of a channel (long: it copies the media), off the
+/// interface thread.
+#[tauri::command]
+async fn import_telegram_cmd(input: TelegramInput) -> Res<zanytky_core::TelegramSummary> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = home_path(&input.home)?;
+        let model = open_model(&home)?;
+        let reliability = zanytky_core::model::Reliability::parse(&input.reliability)
+            .ok_or("unknown reliability")?;
+        zanytky_core::import_telegram_export(
+            &model,
+            Path::new(&input.folder),
+            &home.join("attachments"),
+            reliability,
+        )
+        .map_err(|e| e.to_string())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SourceTextInput {
     home: String,
     source_id: i64,
@@ -782,6 +840,9 @@ pub fn run() {
             find_entity_paths,
             restore_backup,
             set_statement_status,
+            list_sources,
+            get_source,
+            import_telegram_cmd,
             set_source_text_cmd,
             add_source_file_cmd,
             reveal_source_file,
