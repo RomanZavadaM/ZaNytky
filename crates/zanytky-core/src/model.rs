@@ -86,6 +86,22 @@ CREATE TABLE IF NOT EXISTS change_log (
     action TEXT NOT NULL,
     ref TEXT NOT NULL
 );
+CREATE TABLE IF NOT EXISTS source_text (
+    source_id INTEGER PRIMARY KEY,
+    body TEXT NOT NULL,
+    recorded_at TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS source_file (
+    id INTEGER PRIMARY KEY,
+    source_id INTEGER NOT NULL,
+    rel_path TEXT NOT NULL,
+    original_name TEXT NOT NULL,
+    mime TEXT,
+    sha256 TEXT NOT NULL,
+    size INTEGER NOT NULL,
+    recorded_at TEXT NOT NULL,
+    UNIQUE (source_id, sha256)
+);
 CREATE INDEX IF NOT EXISTS idx_entity_token ON entity(token);
 CREATE INDEX IF NOT EXISTS idx_party_entity ON statement_party(entity_id, role);
 CREATE INDEX IF NOT EXISTS idx_party_statement ON statement_party(statement_id);
@@ -330,6 +346,19 @@ pub struct SourceRow {
     pub url: Option<String>,
     pub reliability: Reliability,
     pub parent_id: Option<i64>,
+}
+
+/// An attachment of a source: the file lies next to the database, the row keeps its path.
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceFileRow {
+    pub id: i64,
+    pub source_id: i64,
+    /// Path relative to the attachments folder.
+    pub rel_path: String,
+    pub original_name: String,
+    pub mime: Option<String>,
+    pub sha256: String,
+    pub size: u64,
 }
 
 /// A stored statement with its parties and sources.
@@ -769,6 +798,131 @@ impl Model {
         }
         self.log("add_source", &format!("source:{id}"))?;
         Ok(id)
+    }
+
+    /// Keep the full text of a source. A source has one text; a different second text is refused.
+    pub fn set_source_text(&self, source_id: i64, body: &str) -> Result<(), ModelError> {
+        if body.trim().is_empty() {
+            return Err(ModelError::Invalid("source text is empty"));
+        }
+        if !self.exists("source", source_id)? {
+            return Err(ModelError::NotFound);
+        }
+        match self.source_text(source_id)? {
+            Some(old) if old == body => return Ok(()),
+            Some(_) => return Err(ModelError::Invalid("source already has another text")),
+            None => {}
+        }
+        self.conn.execute(
+            &format!(
+                "INSERT INTO source_text (source_id, body, recorded_at) VALUES (?1, ?2, {NOW})"
+            ),
+            params![source_id, body],
+        )?;
+        self.log("set_source_text", &format!("source:{source_id}"))?;
+        Ok(())
+    }
+
+    pub fn source_text(&self, source_id: i64) -> Result<Option<String>, ModelError> {
+        Ok(self
+            .conn
+            .query_row(
+                "SELECT body FROM source_text WHERE source_id = ?1",
+                params![source_id],
+                |r| r.get(0),
+            )
+            .optional()?)
+    }
+
+    /// Copy a file into `attachments_dir` (named by its SHA-256) and record it for the source.
+    /// The same file added twice to one source is recorded once.
+    pub fn add_source_file(
+        &self,
+        source_id: i64,
+        file: &Path,
+        attachments_dir: &Path,
+        mime: Option<&str>,
+    ) -> Result<i64, ModelError> {
+        use sha2::{Digest, Sha256};
+        if !self.exists("source", source_id)? {
+            return Err(ModelError::NotFound);
+        }
+        let bytes = std::fs::read(file).map_err(|_| ModelError::Invalid("cannot read file"))?;
+        let sha256: String = Sha256::digest(&bytes)
+            .iter()
+            .map(|b| format!("{b:02x}"))
+            .collect();
+        let existing: Option<i64> = self
+            .conn
+            .query_row(
+                "SELECT id FROM source_file WHERE source_id = ?1 AND sha256 = ?2",
+                params![source_id, sha256],
+                |r| r.get(0),
+            )
+            .optional()?;
+        if let Some(id) = existing {
+            return Ok(id);
+        }
+        let original_name = file
+            .file_name()
+            .and_then(|n| n.to_str())
+            .unwrap_or("file")
+            .to_string();
+        let extension: String = file
+            .extension()
+            .and_then(|e| e.to_str())
+            .map(|e| e.chars().filter(|c| c.is_ascii_alphanumeric()).collect())
+            .unwrap_or_default();
+        let rel_path = if extension.is_empty() {
+            format!("{}/{}", &sha256[..2], sha256)
+        } else {
+            format!("{}/{}.{}", &sha256[..2], sha256, extension)
+        };
+        let target = attachments_dir.join(&rel_path);
+        if let Some(parent) = target.parent() {
+            std::fs::create_dir_all(parent)
+                .map_err(|_| ModelError::Invalid("cannot create attachments folder"))?;
+        }
+        if !target.exists() {
+            std::fs::write(&target, &bytes)
+                .map_err(|_| ModelError::Invalid("cannot write attachment"))?;
+        }
+        self.conn.execute(
+            &format!(
+                "INSERT INTO source_file (source_id, rel_path, original_name, mime, sha256, size, \
+                 recorded_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6, {NOW})"
+            ),
+            params![
+                source_id,
+                rel_path,
+                original_name,
+                mime,
+                sha256,
+                bytes.len() as i64
+            ],
+        )?;
+        let id = self.conn.last_insert_rowid();
+        self.log("add_source_file", &format!("source_file:{id}"))?;
+        Ok(id)
+    }
+
+    pub fn source_files(&self, source_id: i64) -> Result<Vec<SourceFileRow>, ModelError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT id, source_id, rel_path, original_name, mime, sha256, size \
+             FROM source_file WHERE source_id = ?1 ORDER BY id",
+        )?;
+        let rows = stmt.query_map(params![source_id], |r| {
+            Ok(SourceFileRow {
+                id: r.get(0)?,
+                source_id: r.get(1)?,
+                rel_path: r.get(2)?,
+                original_name: r.get(3)?,
+                mime: r.get(4)?,
+                sha256: r.get(5)?,
+                size: r.get::<_, i64>(6)? as u64,
+            })
+        })?;
+        Ok(rows.collect::<Result<Vec<_>, _>>()?)
     }
 
     /// Add an unverified statement with its parties and sources.
@@ -1561,5 +1715,42 @@ mod alias_tests {
             .similar_entities(EntityKind::Org, "ТОВ «Приклад Плюс»")
             .unwrap()
             .is_empty());
+    }
+
+    #[test]
+    fn source_text_is_kept_and_not_overwritten() {
+        let m = model();
+        let src = source(&m, SourceKind::Media, Reliability::C, None);
+        assert_eq!(m.source_text(src).unwrap(), None);
+        m.set_source_text(src, "повний текст").unwrap();
+        m.set_source_text(src, "повний текст").unwrap();
+        assert_eq!(m.source_text(src).unwrap().as_deref(), Some("повний текст"));
+        assert!(m.set_source_text(src, "інший").is_err());
+        assert!(m.set_source_text(src, "  ").is_err());
+        assert!(m.set_source_text(9999, "x").is_err());
+    }
+
+    #[test]
+    fn source_file_is_copied_by_hash_and_recorded_once() {
+        let m = model();
+        let src = source(&m, SourceKind::Document, Reliability::B, None);
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("скан.pdf");
+        std::fs::write(&file, b"abc").unwrap();
+        let store = dir.path().join("attachments");
+        let id = m
+            .add_source_file(src, &file, &store, Some("application/pdf"))
+            .unwrap();
+        assert_eq!(m.add_source_file(src, &file, &store, None).unwrap(), id);
+        let rows = m.source_files(src).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].size, 3);
+        assert_eq!(rows[0].original_name, "скан.pdf");
+        assert_eq!(
+            rows[0].sha256,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(std::fs::read(store.join(&rows[0].rel_path)).unwrap(), b"abc");
+        assert!(m.add_source_file(9999, &file, &store, None).is_err());
     }
 }

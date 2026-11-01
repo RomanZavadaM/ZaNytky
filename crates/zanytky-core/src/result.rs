@@ -22,6 +22,9 @@ pub struct ResultSource {
     pub reliability: String,
     /// `ref` of the source this one was received from.
     pub received_from: Option<String>,
+    /// Full text of the source, kept in the local database.
+    #[serde(default)]
+    pub text: Option<String>,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq, Deserialize)]
