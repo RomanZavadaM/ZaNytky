@@ -472,7 +472,6 @@ pub fn review_with_links(file: &ResultFile, model: &Model) -> Result<String, Mod
         "\n## Підв'язка до бази\n\nСуб'єктів: нових {new}, збігів {known}, сумнівів {doubt}.\n\n{lines}"
     ));
     Ok(out)
-
 }
 
 #[cfg(test)]
