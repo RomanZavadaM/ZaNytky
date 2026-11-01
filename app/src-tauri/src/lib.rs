@@ -643,6 +643,96 @@ struct StatusInput {
     status: String,
 }
 
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceTextInput {
+    home: String,
+    source_id: i64,
+    text: String,
+}
+
+#[tauri::command]
+fn set_source_text_cmd(input: SourceTextInput) -> Res<()> {
+    let model = open_model(&home_path(&input.home)?)?;
+    model
+        .set_source_text(input.source_id, &input.text)
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct SourceFileInput {
+    home: String,
+    source_id: i64,
+    path: String,
+}
+
+fn mime_of(path: &Path) -> Option<&'static str> {
+    let extension = path.extension()?.to_str()?.to_lowercase();
+    Some(match extension.as_str() {
+        "pdf" => "application/pdf",
+        "png" => "image/png",
+        "jpg" | "jpeg" => "image/jpeg",
+        "gif" => "image/gif",
+        "webp" => "image/webp",
+        "mp4" => "video/mp4",
+        "mov" => "video/quicktime",
+        "mp3" => "audio/mpeg",
+        "ogg" | "oga" => "audio/ogg",
+        "txt" => "text/plain",
+        "html" | "htm" => "text/html",
+        "json" => "application/json",
+        "docx" => "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+        _ => return None,
+    })
+}
+
+#[tauri::command]
+fn add_source_file_cmd(input: SourceFileInput) -> Res<()> {
+    let home = home_path(&input.home)?;
+    let model = open_model(&home)?;
+    let file = PathBuf::from(&input.path);
+    model
+        .add_source_file(input.source_id, &file, &home.join("attachments"), mime_of(&file))
+        .map(|_| ())
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct RevealInput {
+    home: String,
+    rel_path: String,
+}
+
+/// Shows an attachment in the system file manager (no extra plugin: the standard commands).
+#[tauri::command]
+fn reveal_source_file(input: RevealInput) -> Res<()> {
+    let home = home_path(&input.home)?;
+    let relative = Path::new(&input.rel_path);
+    if relative
+        .components()
+        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err("invalid attachment path".to_string());
+    }
+    let target = home.join("attachments").join(relative);
+    if !target.is_file() {
+        return Err("the attachment file is missing".to_string());
+    }
+    #[cfg(target_os = "windows")]
+    let spawned = std::process::Command::new("explorer")
+        .arg(format!("/select,{}", target.display()))
+        .spawn();
+    #[cfg(target_os = "macos")]
+    let spawned = std::process::Command::new("open").arg("-R").arg(&target).spawn();
+    #[cfg(all(not(target_os = "windows"), not(target_os = "macos")))]
+    let spawned = std::process::Command::new("xdg-open")
+        .arg(target.parent().unwrap_or(&home))
+        .spawn();
+    spawned.map(|_| ()).map_err(|e| e.to_string())
+}
+
 #[tauri::command]
 fn set_statement_status(input: StatusInput) -> Res<()> {
     let model = open_model(&home_path(&input.home)?)?;
@@ -692,6 +782,9 @@ pub fn run() {
             find_entity_paths,
             restore_backup,
             set_statement_status,
+            set_source_text_cmd,
+            add_source_file_cmd,
+            reveal_source_file,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ZaNytky");
