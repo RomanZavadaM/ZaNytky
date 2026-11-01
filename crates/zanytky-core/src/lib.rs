@@ -17,6 +17,7 @@ pub mod registry;
 pub mod report;
 pub mod result;
 pub mod seal;
+pub mod telegram;
 pub mod wrap;
 
 pub use backup::{backup_home, restore_home, BackupError};
@@ -42,4 +43,5 @@ pub use report::{
     ReportError,
 };
 pub use result::{parse_result, review_markdown, ResultError, ResultFile};
+pub use telegram::{import_telegram_export, TelegramError, TelegramSummary};
 pub use seal::{parse_identity, parse_recipient, seal, unseal, SealError, Sealed};
