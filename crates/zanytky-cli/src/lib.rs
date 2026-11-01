@@ -36,6 +36,8 @@ zanytky - команди
                                           знеособити текст і скласти пакет для ШІ
   check result.json --package ПАКЕТ       перевірити відповідь ШІ, записати вичитку
   import result.json --package ПАКЕТ      записати перевірений результат у базу
+  import-telegram ПАПКА [--reliability A-F]
+                                          експорт каналу Telegram Desktop (JSON): допис = джерело з текстом і файлами (за замовчуванням надійність F)
   report --identity ФАЙЛ --out ФАЙЛ [--format md|docx|pdf] (--passphrase-file ФАЙЛ | --plain)
           [--title НАЗВА]                 звіт розслідувача (з розкриттям осіб)
   backup --out ФАЙЛ --passphrase-file ФАЙЛ
@@ -389,6 +391,35 @@ fn cmd_import(args: &Args, out: Out) -> Result<(), String> {
     .map_err(|e| e.to_string())
 }
 
+fn cmd_import_telegram(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let folder = PathBuf::from(args.pos(0, "папка експорту Telegram")?);
+    let reliability = match args.flag("reliability") {
+        Some(text) => Reliability::parse(text).ok_or("невідома надійність (A-F)")?,
+        None => Reliability::F,
+    };
+    let summary = zanytky_core::import_telegram_export(
+        &open_model(&home)?,
+        &folder,
+        &home.join("attachments"),
+        reliability,
+    )
+    .map_err(|e| e.to_string())?;
+    writeln!(
+        out,
+        "Канал «{}»: дописів {}, нових джерел {}, уже були {}, текстів {}, файлів додано {}, файлів немає в папці {}, порожніх пропущено {}.",
+        summary.channel,
+        summary.messages,
+        summary.sources_new,
+        summary.sources_existing,
+        summary.texts_added,
+        summary.files_added,
+        summary.files_missing,
+        summary.skipped
+    )
+    .map_err(|e| e.to_string())
+}
+
 fn cmd_report(args: &Args, out: Out) -> Result<(), String> {
     let home = home_dir(args)?;
     let registry = open_registry(&home)?;
@@ -478,6 +509,7 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "prepare" => cmd_prepare(&parsed, out),
         "check" => cmd_check(&parsed, out),
         "import" => cmd_import(&parsed, out),
+        "import-telegram" => cmd_import_telegram(&parsed, out),
         "report" => cmd_report(&parsed, out),
         "backup" => cmd_backup(&parsed, out),
         "restore" => cmd_restore(&parsed, out),
