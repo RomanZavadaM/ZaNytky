@@ -1750,7 +1750,10 @@ mod alias_tests {
             rows[0].sha256,
             "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
         );
-        assert_eq!(std::fs::read(store.join(&rows[0].rel_path)).unwrap(), b"abc");
+        assert_eq!(
+            std::fs::read(store.join(&rows[0].rel_path)).unwrap(),
+            b"abc"
+        );
         assert!(m.add_source_file(9999, &file, &store, None).is_err());
     }
 }
