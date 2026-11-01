@@ -152,6 +152,12 @@ fn import_inside(model: &Model, file: &ResultFile) -> Result<ImportSummary, Mode
                     })?
                 }
             };
+            if let Some(text) = source.text.as_deref().filter(|t| !t.trim().is_empty()) {
+                // A source met again keeps its first text.
+                if model.source_text(id)?.is_none() {
+                    model.set_source_text(id, text)?;
+                }
+            }
             source_ids.insert(source.reference.as_str(), id);
         }
         if waiting.len() == before {
@@ -374,6 +380,30 @@ mod tests {
         assert!(!model.package_imported("pkg-2").unwrap());
         // 2 sources + 2 entities + 1 statement + 1 import entry
         assert_eq!(model.log_len().unwrap(), 6);
+    }
+
+    #[test]
+    fn source_text_from_result_is_kept() {
+        let model = Model::open_in_memory("tester").unwrap();
+        let text = json("pkg-text").replacen(
+            r#""received_from": "s0""#,
+            r#""received_from": "s0", "text": "Повний текст статті""#,
+            1,
+        );
+        let parsed = parse_result(&text, "pkg-text").unwrap();
+        import_result(&model, &parsed).unwrap();
+        let id = model
+            .find_source_by_url("https://example.org/reg")
+            .unwrap()
+            .unwrap();
+        assert_eq!(model.source_text(id).unwrap(), None);
+        let with_text = (1..=2)
+            .find(|i| model.source_text(*i).unwrap().is_some())
+            .expect("a source has text");
+        assert_eq!(
+            model.source_text(with_text).unwrap().as_deref(),
+            Some("Повний текст статті")
+        );
     }
 }
 
