@@ -1,5 +1,5 @@
 import { useEffect, useState } from "react";
-import { api, type CardStatement, type EntityCardData, type EntityListRow, type PathResultData } from "./api";
+import { api, pickAnyFile, type CardSource, type CardStatement, type EntityCardData, type EntityListRow, type PathResultData } from "./api";
 import { fill, type Lang, type Strings } from "./i18n";
 import { kindLabel } from "./kinds";
 
@@ -32,6 +32,7 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
   const [pathDepth, setPathDepth] = useState(6);
   const [pathRefuted, setPathRefuted] = useState(false);
   const [pathResult, setPathResult] = useState<PathResultData | null>(null);
+  const [drafts, setDrafts] = useState<Record<number, string>>({});
   const identityPath = reveal && identity ? identity : undefined;
   const current = trail.length > 0 ? trail[trail.length - 1] : null;
 
@@ -80,6 +81,29 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
     if (current === null) return;
     await run(() => api.unmergeEntity(home, current, drop));
     setTick(tick + 1);
+  };
+
+  const saveText = async (sourceId: number) => {
+    const text = (drafts[sourceId] ?? "").trim();
+    if (!text) return;
+    await run(() => api.setSourceText(home, sourceId, text));
+    setDrafts({ ...drafts, [sourceId]: "" });
+    setTick(tick + 1);
+  };
+
+  const addFile = async (sourceId: number) => {
+    const path = await pickAnyFile();
+    if (!path) return;
+    await run(() => api.addSourceFile(home, sourceId, path));
+    setTick(tick + 1);
+  };
+
+  const sourcesOf = (data: EntityCardData): CardSource[] => {
+    const seen = new Map<number, CardSource>();
+    for (const statement of data.statements) {
+      for (const source of statement.sources) if (!seen.has(source.id)) seen.set(source.id, source);
+    }
+    return Array.from(seen.values());
   };
 
   const open = (id: number) => setTrail([...trail, id]);
@@ -313,6 +337,57 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
                 ))}
               </tbody>
             </table>
+          )}
+          {sourcesOf(card).length > 0 && (
+            <>
+              <h3>{t.cardSources}</h3>
+              {sourcesOf(card).map((source) => (
+                <div key={source.id} className="source-box">
+                  <div>
+                    <b>
+                      [{source.reliability}] {source.title}
+                    </b>
+                    {source.url ? <span className="muted"> {source.url}</span> : null}
+                  </div>
+                  {source.text ? (
+                    <>
+                      <pre className="source-text">{source.text}</pre>
+                      <button onClick={() => void navigator.clipboard.writeText(source.text ?? "")}>
+                        {t.sourceCopy}
+                      </button>
+                    </>
+                  ) : (
+                    <>
+                      <textarea
+                        rows={4}
+                        value={drafts[source.id] ?? ""}
+                        placeholder={t.sourceTextPaste}
+                        onChange={(e) => setDrafts({ ...drafts, [source.id]: e.target.value })}
+                      />
+                      <button disabled={!(drafts[source.id] ?? "").trim()} onClick={() => void saveText(source.id)}>
+                        {t.sourceTextSave}
+                      </button>
+                    </>
+                  )}
+                  {source.files.length > 0 && (
+                    <ul>
+                      {source.files.map((file) => (
+                        <li key={file.id}>
+                          {file.name}{" "}
+                          <span className="muted">
+                            ({Math.max(1, Math.round(file.size / 1024))} KB, {file.sha256.slice(0, 12)})
+                          </span>{" "}
+                          <button onClick={() => void run(() => api.revealSourceFile(home, file.relPath))}>
+                            {t.sourceFileShow}
+                          </button>
+                        </li>
+                      ))}
+                    </ul>
+                  )}
+                  <button onClick={() => void addFile(source.id)}>{t.sourceFileAdd}</button>
+                </div>
+              ))}
+            </>
           )}
           {card.owners.length > 0 && (
             <>

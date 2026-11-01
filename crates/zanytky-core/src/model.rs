@@ -847,8 +847,24 @@ impl Model {
         if !self.exists("source", source_id)? {
             return Err(ModelError::NotFound);
         }
-        let bytes = std::fs::read(file).map_err(|_| ModelError::Invalid("cannot read file"))?;
-        let sha256: String = Sha256::digest(&bytes)
+        use std::io::Read;
+        let mut input =
+            std::fs::File::open(file).map_err(|_| ModelError::Invalid("cannot read file"))?;
+        let mut hasher = Sha256::new();
+        let mut size: u64 = 0;
+        let mut buffer = vec![0u8; 64 * 1024];
+        loop {
+            let n = input
+                .read(&mut buffer)
+                .map_err(|_| ModelError::Invalid("cannot read file"))?;
+            if n == 0 {
+                break;
+            }
+            hasher.update(&buffer[..n]);
+            size += n as u64;
+        }
+        let sha256: String = hasher
+            .finalize()
             .iter()
             .map(|b| format!("{b:02x}"))
             .collect();
@@ -884,7 +900,7 @@ impl Model {
                 .map_err(|_| ModelError::Invalid("cannot create attachments folder"))?;
         }
         if !target.exists() {
-            std::fs::write(&target, &bytes)
+            std::fs::copy(file, &target)
                 .map_err(|_| ModelError::Invalid("cannot write attachment"))?;
         }
         self.conn.execute(
@@ -898,7 +914,7 @@ impl Model {
                 original_name,
                 mime,
                 sha256,
-                bytes.len() as i64
+                size as i64
             ],
         )?;
         let id = self.conn.last_insert_rowid();

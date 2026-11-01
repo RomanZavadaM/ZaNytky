@@ -86,7 +86,19 @@ export interface CardParty {
   role: string;
 }
 
+export interface CardFile {
+  id: number;
+  name: string;
+  mime: string | null;
+  size: number;
+  sha256: string;
+  relPath: string;
+}
+
 export interface CardSource {
+  id: number;
+  text: string | null;
+  files: CardFile[];
   title: string;
   kind: string;
   reliability: string;
@@ -186,6 +198,12 @@ export const api = {
     invoke<void>("unmerge_one_entity", { input: { home, keep, drop } }),
   graph: (home: string, identityPath?: string) =>
     invoke<KnowledgeGraph>("get_entity_graph", { input: { home, identityPath } }),
+  setSourceText: (home: string, sourceId: number, text: string) =>
+    invoke<void>("set_source_text_cmd", { input: { home, sourceId, text } }),
+  addSourceFile: (home: string, sourceId: number, path: string) =>
+    invoke<void>("add_source_file_cmd", { input: { home, sourceId, path } }),
+  revealSourceFile: (home: string, relPath: string) =>
+    invoke<void>("reveal_source_file", { input: { home, relPath } }),
   statements: (home: string) => invoke<StatementRow[]>("list_statements", { input: { home } }),
   setStatus: (home: string, id: number, status: "confirmed" | "refuted" | "unverified") =>
     invoke<void>("set_statement_status", { input: { home, id, status } }),
@@ -217,6 +235,11 @@ export async function pickFolder(): Promise<string | null> {
 
 export async function pickFile(extensions: string[]): Promise<string | null> {
   const chosen = await open({ multiple: false, filters: [{ name: "files", extensions }] });
+  return typeof chosen === "string" ? chosen : null;
+}
+
+export async function pickAnyFile(): Promise<string | null> {
+  const chosen = await open({ multiple: false });
   return typeof chosen === "string" ? chosen : null;
 }
 

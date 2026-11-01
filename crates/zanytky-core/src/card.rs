@@ -32,7 +32,23 @@ pub struct CardParty {
 
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
+pub struct CardFile {
+    pub id: i64,
+    pub name: String,
+    pub mime: Option<String>,
+    pub size: u64,
+    pub sha256: String,
+    /// Path inside the attachments folder of the data folder.
+    pub rel_path: String,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CardSource {
+    pub id: i64,
+    /// Full text kept in the local database (if any).
+    pub text: Option<String>,
+    pub files: Vec<CardFile>,
     pub title: String,
     pub kind: String,
     pub reliability: String,
@@ -221,7 +237,22 @@ pub fn entity_card(
         let mut sources = Vec::new();
         for source_id in &statement.sources {
             let source = model.source(*source_id)?;
+            let files = model
+                .source_files(*source_id)?
+                .into_iter()
+                .map(|f| CardFile {
+                    id: f.id,
+                    name: f.original_name,
+                    mime: f.mime,
+                    size: f.size,
+                    sha256: f.sha256,
+                    rel_path: f.rel_path,
+                })
+                .collect();
             sources.push(CardSource {
+                id: *source_id,
+                text: model.source_text(*source_id)?,
+                files,
                 title: source.title,
                 kind: source.kind.as_str().to_string(),
                 reliability: source.reliability.as_str().to_string(),
