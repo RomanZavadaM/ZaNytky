@@ -132,8 +132,7 @@ pub fn import_telegram_export(
 ) -> Result<TelegramSummary, TelegramError> {
     let raw = std::fs::read_to_string(export_dir.join("result.json"))
         .map_err(|e| TelegramError::Read(e.to_string()))?;
-    let root: Value =
-        serde_json::from_str(&raw).map_err(|e| TelegramError::Read(e.to_string()))?;
+    let root: Value = serde_json::from_str(&raw).map_err(|e| TelegramError::Read(e.to_string()))?;
     drop(raw);
     let channel = root
         .get("name")
@@ -249,8 +248,7 @@ mod tests {
         export(&export_dir);
         let store = dir.path().join("attachments");
 
-        let first =
-            import_telegram_export(&model, &export_dir, &store, Reliability::F).unwrap();
+        let first = import_telegram_export(&model, &export_dir, &store, Reliability::F).unwrap();
         assert_eq!(first.channel, "Канал");
         assert_eq!(first.messages, 6);
         assert_eq!(first.sources_new, 4);
@@ -283,8 +281,7 @@ mod tests {
         assert_eq!(model.source(post4).unwrap().title, "Канал: допис №4");
         assert_eq!(model.source_files(post4).unwrap().len(), 1);
 
-        let second =
-            import_telegram_export(&model, &export_dir, &store, Reliability::F).unwrap();
+        let second = import_telegram_export(&model, &export_dir, &store, Reliability::F).unwrap();
         assert_eq!(second.sources_new, 0);
         assert_eq!(second.sources_existing, 4);
         assert_eq!(second.texts_added, 0);
