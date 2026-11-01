@@ -55,6 +55,32 @@ pub struct CardSource {
     pub url: Option<String>,
 }
 
+/// One source with its full text and files.
+pub fn card_source(model: &Model, source_id: i64) -> Result<CardSource, ModelError> {
+    let source = model.source(source_id)?;
+    let files = model
+        .source_files(source_id)?
+        .into_iter()
+        .map(|f| CardFile {
+            id: f.id,
+            name: f.original_name,
+            mime: f.mime,
+            size: f.size,
+            sha256: f.sha256,
+            rel_path: f.rel_path,
+        })
+        .collect();
+    Ok(CardSource {
+        id: source_id,
+        text: model.source_text(source_id)?,
+        files,
+        title: source.title,
+        kind: source.kind.as_str().to_string(),
+        reliability: source.reliability.as_str().to_string(),
+        url: source.url,
+    })
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct CardStatement {
@@ -236,28 +262,7 @@ pub fn entity_card(
         }
         let mut sources = Vec::new();
         for source_id in &statement.sources {
-            let source = model.source(*source_id)?;
-            let files = model
-                .source_files(*source_id)?
-                .into_iter()
-                .map(|f| CardFile {
-                    id: f.id,
-                    name: f.original_name,
-                    mime: f.mime,
-                    size: f.size,
-                    sha256: f.sha256,
-                    rel_path: f.rel_path,
-                })
-                .collect();
-            sources.push(CardSource {
-                id: *source_id,
-                text: model.source_text(*source_id)?,
-                files,
-                title: source.title,
-                kind: source.kind.as_str().to_string(),
-                reliability: source.reliability.as_str().to_string(),
-                url: source.url,
-            });
+            sources.push(card_source(model, *source_id)?);
         }
         statements.push(CardStatement {
             id: statement.id,

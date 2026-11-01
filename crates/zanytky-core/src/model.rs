@@ -348,6 +348,20 @@ pub struct SourceRow {
     pub parent_id: Option<i64>,
 }
 
+/// A source with what a list and a search need (see `sources.rs`).
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SourceSearchRow {
+    pub id: i64,
+    pub kind: SourceKind,
+    pub title: String,
+    pub url: Option<String>,
+    pub published_at: Option<String>,
+    pub reliability: Reliability,
+    pub body: Option<String>,
+    pub files: u32,
+    pub statements: u32,
+}
+
 /// An attachment of a source: the file lies next to the database, the row keeps its path.
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct SourceFileRow {
@@ -920,6 +934,47 @@ impl Model {
         let id = self.conn.last_insert_rowid();
         self.log("add_source_file", &format!("source_file:{id}"))?;
         Ok(id)
+    }
+
+    /// Every source with its text and counters, newest first.
+    pub fn sources_overview(&self) -> Result<Vec<SourceSearchRow>, ModelError> {
+        let mut stmt = self.conn.prepare(
+            "SELECT s.id, s.kind, s.title, s.url, s.published_at, s.reliability, t.body, \
+             (SELECT COUNT(*) FROM source_file f WHERE f.source_id = s.id), \
+             (SELECT COUNT(*) FROM statement_source x WHERE x.source_id = s.id) \
+             FROM source s LEFT JOIN source_text t ON t.source_id = s.id \
+             ORDER BY COALESCE(s.published_at, '') DESC, s.id DESC",
+        )?;
+        let raw = stmt.query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, String>(2)?,
+                r.get::<_, Option<String>>(3)?,
+                r.get::<_, Option<String>>(4)?,
+                r.get::<_, String>(5)?,
+                r.get::<_, Option<String>>(6)?,
+                r.get::<_, i64>(7)?,
+                r.get::<_, i64>(8)?,
+            ))
+        })?;
+        let mut rows = Vec::new();
+        for item in raw {
+            let (id, kind, title, url, published_at, reliability, body, files, statements) = item?;
+            rows.push(SourceSearchRow {
+                id,
+                kind: SourceKind::parse(&kind).ok_or(ModelError::Invalid("bad source kind"))?,
+                title,
+                url,
+                published_at,
+                reliability: Reliability::parse(&reliability)
+                    .ok_or(ModelError::Invalid("bad reliability"))?,
+                body,
+                files: files as u32,
+                statements: statements as u32,
+            });
+        }
+        Ok(rows)
     }
 
     pub fn source_files(&self, source_id: i64) -> Result<Vec<SourceFileRow>, ModelError> {

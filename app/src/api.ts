@@ -105,6 +105,35 @@ export interface CardSource {
   url: string | null;
 }
 
+export interface SourceListRow {
+  id: number;
+  title: string;
+  kind: string;
+  reliability: string;
+  url: string | null;
+  publishedAt: string | null;
+  excerpt: string;
+  hasText: boolean;
+  files: number;
+  statements: number;
+}
+
+export interface SourceListPage {
+  total: number;
+  rows: SourceListRow[];
+}
+
+export interface TelegramSummary {
+  channel: string;
+  messages: number;
+  sourcesNew: number;
+  sourcesExisting: number;
+  textsAdded: number;
+  filesAdded: number;
+  filesMissing: number;
+  skipped: number;
+}
+
 export interface CardStatement {
   id: number;
   kind: string;
@@ -198,6 +227,11 @@ export const api = {
     invoke<void>("unmerge_one_entity", { input: { home, keep, drop } }),
   graph: (home: string, identityPath?: string) =>
     invoke<KnowledgeGraph>("get_entity_graph", { input: { home, identityPath } }),
+  sources: (home: string, query: string, offset: number, limit: number) =>
+    invoke<SourceListPage>("list_sources", { input: { home, query, offset, limit } }),
+  source: (home: string, id: number) => invoke<CardSource>("get_source", { input: { home, id } }),
+  importTelegram: (home: string, folder: string, reliability: string) =>
+    invoke<TelegramSummary>("import_telegram_cmd", { input: { home, folder, reliability } }),
   setSourceText: (home: string, sourceId: number, text: string) =>
     invoke<void>("set_source_text_cmd", { input: { home, sourceId, text } }),
   addSourceFile: (home: string, sourceId: number, path: string) =>
