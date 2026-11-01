@@ -448,6 +448,30 @@ pub fn review_with_links(file: &ResultFile, model: &Model) -> Result<String, Mod
         "\n## Підв'язка до бази\n\nСуб'єктів: нових {new}, збігів {known}, сумнівів {doubt}.\n\n{lines}"
     ));
     Ok(out)
+
+    #[test]
+    fn source_text_from_result_is_kept() {
+        let model = Model::open_in_memory("tester").unwrap();
+        let text = json("pkg-text").replacen(
+            r#""received_from": "s0""#,
+            r#""received_from": "s0", "text": "Повний текст статті""#,
+            1,
+        );
+        let parsed = parse_result(&text, "pkg-text").unwrap();
+        import_result(&model, &parsed).unwrap();
+        let id = model
+            .find_source_by_url("https://example.org/reg")
+            .unwrap()
+            .unwrap();
+        assert_eq!(model.source_text(id).unwrap(), None);
+        let with_text = (1..=2)
+            .find(|i| model.source_text(*i).unwrap().is_some())
+            .expect("a source has text");
+        assert_eq!(
+            model.source_text(with_text).unwrap().as_deref(),
+            Some("Повний текст статті")
+        );
+    }
 }
 
 #[cfg(test)]
@@ -600,29 +624,5 @@ mod link_tests {
         assert!(review.contains("є схожі наявні"));
         let summary = import_result(&model, &file).unwrap();
         assert_eq!((summary.entities_new, summary.entities_existing), (1, 1));
-    }
-
-    #[test]
-    fn source_text_from_result_is_kept() {
-        let model = Model::open_in_memory("tester").unwrap();
-        let text = json("pkg-text").replacen(
-            r#""received_from": "s0""#,
-            r#""received_from": "s0", "text": "Повний текст статті""#,
-            1,
-        );
-        let parsed = parse_result(&text, "pkg-text").unwrap();
-        import_result(&model, &parsed).unwrap();
-        let id = model
-            .find_source_by_url("https://example.org/reg")
-            .unwrap()
-            .unwrap();
-        assert_eq!(model.source_text(id).unwrap(), None);
-        let with_text = (1..=2)
-            .find(|i| model.source_text(*i).unwrap().is_some())
-            .expect("a source has text");
-        assert_eq!(
-            model.source_text(with_text).unwrap().as_deref(),
-            Some("Повний текст статті")
-        );
     }
 }

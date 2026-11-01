@@ -1643,6 +1643,46 @@ mod tests {
         m.set_status(st, Status::Confirmed).unwrap();
         assert_eq!(m.log_len().unwrap(), 5);
     }
+
+    #[test]
+    fn source_text_is_kept_and_not_overwritten() {
+        let m = model();
+        let src = source(&m, SourceKind::Media, Reliability::C, None);
+        assert_eq!(m.source_text(src).unwrap(), None);
+        m.set_source_text(src, "повний текст").unwrap();
+        m.set_source_text(src, "повний текст").unwrap();
+        assert_eq!(m.source_text(src).unwrap().as_deref(), Some("повний текст"));
+        assert!(m.set_source_text(src, "інший").is_err());
+        assert!(m.set_source_text(src, "  ").is_err());
+        assert!(m.set_source_text(9999, "x").is_err());
+    }
+
+    #[test]
+    fn source_file_is_copied_by_hash_and_recorded_once() {
+        let m = model();
+        let src = source(&m, SourceKind::Document, Reliability::B, None);
+        let dir = tempfile::tempdir().unwrap();
+        let file = dir.path().join("скан.pdf");
+        std::fs::write(&file, b"abc").unwrap();
+        let store = dir.path().join("attachments");
+        let id = m
+            .add_source_file(src, &file, &store, Some("application/pdf"))
+            .unwrap();
+        assert_eq!(m.add_source_file(src, &file, &store, None).unwrap(), id);
+        let rows = m.source_files(src).unwrap();
+        assert_eq!(rows.len(), 1);
+        assert_eq!(rows[0].size, 3);
+        assert_eq!(rows[0].original_name, "скан.pdf");
+        assert_eq!(
+            rows[0].sha256,
+            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
+        );
+        assert_eq!(
+            std::fs::read(store.join(&rows[0].rel_path)).unwrap(),
+            b"abc"
+        );
+        assert!(m.add_source_file(9999, &file, &store, None).is_err());
+    }
 }
 
 #[cfg(test)]
@@ -1715,45 +1755,5 @@ mod alias_tests {
             .similar_entities(EntityKind::Org, "ТОВ «Приклад Плюс»")
             .unwrap()
             .is_empty());
-    }
-
-    #[test]
-    fn source_text_is_kept_and_not_overwritten() {
-        let m = model();
-        let src = source(&m, SourceKind::Media, Reliability::C, None);
-        assert_eq!(m.source_text(src).unwrap(), None);
-        m.set_source_text(src, "повний текст").unwrap();
-        m.set_source_text(src, "повний текст").unwrap();
-        assert_eq!(m.source_text(src).unwrap().as_deref(), Some("повний текст"));
-        assert!(m.set_source_text(src, "інший").is_err());
-        assert!(m.set_source_text(src, "  ").is_err());
-        assert!(m.set_source_text(9999, "x").is_err());
-    }
-
-    #[test]
-    fn source_file_is_copied_by_hash_and_recorded_once() {
-        let m = model();
-        let src = source(&m, SourceKind::Document, Reliability::B, None);
-        let dir = tempfile::tempdir().unwrap();
-        let file = dir.path().join("скан.pdf");
-        std::fs::write(&file, b"abc").unwrap();
-        let store = dir.path().join("attachments");
-        let id = m
-            .add_source_file(src, &file, &store, Some("application/pdf"))
-            .unwrap();
-        assert_eq!(m.add_source_file(src, &file, &store, None).unwrap(), id);
-        let rows = m.source_files(src).unwrap();
-        assert_eq!(rows.len(), 1);
-        assert_eq!(rows[0].size, 3);
-        assert_eq!(rows[0].original_name, "скан.pdf");
-        assert_eq!(
-            rows[0].sha256,
-            "ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad"
-        );
-        assert_eq!(
-            std::fs::read(store.join(&rows[0].rel_path)).unwrap(),
-            b"abc"
-        );
-        assert!(m.add_source_file(9999, &file, &store, None).is_err());
     }
 }
