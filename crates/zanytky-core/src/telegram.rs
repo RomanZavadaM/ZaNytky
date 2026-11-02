@@ -132,7 +132,11 @@ fn classify_url(url: &str) -> Option<(String, String)> {
         .trim_start_matches("http://");
     let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
     let host = rest[..end].to_lowercase();
-    let host = host.trim_start_matches("www.").split(':').next()?.to_string();
+    let host = host
+        .trim_start_matches("www.")
+        .split(':')
+        .next()?
+        .to_string();
     if host.is_empty() || !host.contains('.') {
         return None;
     }
@@ -444,7 +448,9 @@ mod tests {
 
         // the same export again changes nothing
         import_telegram_export(&model, dir.path(), &store, Reliability::F).unwrap();
-        assert_eq!(channel_graph(&model, 777).unwrap().nodes.len(), graph.nodes.len());
+        assert_eq!(
+            channel_graph(&model, 777).unwrap().nodes.len(),
+            graph.nodes.len()
+        );
     }
 }
-
