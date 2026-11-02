@@ -877,6 +877,41 @@ fn add_source_file_cmd(input: SourceFileInput) -> Res<()> {
         .map_err(|e| e.to_string())
 }
 
+/// A picture of the attachments folder as a data address, to show it in the card of a source.
+#[tauri::command]
+fn attachment_preview(input: RevealInput) -> Res<String> {
+    const LIMIT: u64 = 12 * 1024 * 1024;
+    let home = home_path(&input.home)?;
+    let relative = Path::new(&input.rel_path);
+    if relative
+        .components()
+        .any(|c| !matches!(c, std::path::Component::Normal(_)))
+    {
+        return Err("invalid attachment path".to_string());
+    }
+    let mime = match relative
+        .extension()
+        .and_then(|e| e.to_str())
+        .map(str::to_lowercase)
+        .as_deref()
+    {
+        Some("jpg" | "jpeg") => "image/jpeg",
+        Some("png") => "image/png",
+        Some("gif") => "image/gif",
+        Some("webp") => "image/webp",
+        _ => return Err("this file type has no preview".to_string()),
+    };
+    let target = home.join("attachments").join(relative);
+    let size = std::fs::metadata(&target)
+        .map_err(|_| "the attachment file is missing".to_string())?
+        .len();
+    if size > LIMIT {
+        return Err("the picture is too large for a preview".to_string());
+    }
+    let bytes = std::fs::read(&target).map_err(|e| e.to_string())?;
+    Ok(format!("data:{mime};base64,{}", zanytky_core::base64_encode(&bytes)))
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct RevealInput {
@@ -977,6 +1012,7 @@ pub fn run() {
             set_source_text_cmd,
             add_source_file_cmd,
             reveal_source_file,
+            attachment_preview,
         ])
         .run(tauri::generate_context!())
         .expect("error while running ZaNytky");

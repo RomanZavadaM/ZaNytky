@@ -317,6 +317,8 @@ export const api = {
     invoke<void>("set_source_text_cmd", { input: { home, sourceId, text } }),
   addSourceFile: (home: string, sourceId: number, path: string) =>
     invoke<void>("add_source_file_cmd", { input: { home, sourceId, path } }),
+  attachmentPreview: (home: string, relPath: string) =>
+    invoke<string>("attachment_preview", { input: { home, relPath } }),
   revealSourceFile: (home: string, relPath: string) =>
     invoke<void>("reveal_source_file", { input: { home, relPath } }),
   statements: (home: string) => invoke<StatementRow[]>("list_statements", { input: { home } }),

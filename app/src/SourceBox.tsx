@@ -14,6 +14,16 @@ interface Props {
 /** One source: its text (paste, save, copy) and its files (add, show in the folder). */
 export function SourceBox({ t, home, source, run, onChanged }: Props) {
   const [draft, setDraft] = useState("");
+  const [previews, setPreviews] = useState<Record<number, string | null>>({});
+
+  const togglePreview = async (id: number, relPath: string) => {
+    if (previews[id]) {
+      setPreviews({ ...previews, [id]: null });
+      return;
+    }
+    const address = await run(() => api.attachmentPreview(home, relPath));
+    if (address) setPreviews({ ...previews, [id]: address });
+  };
 
   const saveText = async () => {
     const text = draft.trim();
@@ -66,7 +76,17 @@ export function SourceBox({ t, home, source, run, onChanged }: Props) {
               </span>{" "}
               <button onClick={() => void run(() => api.revealSourceFile(home, file.relPath))}>
                 {t.sourceFileShow}
-              </button>
+              </button>{" "}
+              {(file.mime ?? "").startsWith("image/") && (
+                <button onClick={() => void togglePreview(file.id, file.relPath)}>
+                  {previews[file.id] ? t.sourceFileHide : t.sourceFilePreview}
+                </button>
+              )}
+              {previews[file.id] && (
+                <div>
+                  <img src={previews[file.id] ?? undefined} alt={file.name} style={{ maxWidth: "100%", maxHeight: 480 }} />
+                </div>
+              )}
             </li>
           ))}
         </ul>
