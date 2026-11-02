@@ -20,7 +20,9 @@ fn counted(
 ) -> Result<Vec<(String, i64)>, String> {
     let mut stmt = model.connection().prepare(sql).map_err(|e| e.to_string())?;
     let rows = stmt
-        .query_map(params, |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)))
+        .query_map(params, |r| {
+            Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+        })
         .map_err(|e| e.to_string())?
         .collect::<Result<Vec<_>, _>>()
         .map_err(|e| e.to_string())?;
@@ -141,7 +143,11 @@ pub fn build_overview(model: &Model, registry: Option<&Registry>) -> Result<Stri
         .into_iter()
         .filter(|(value, _)| !is_generic_site(value))
         .collect();
-        let _ = writeln!(out, "- Найчастіше посилається на сайти: {}.", list(&sites, 8));
+        let _ = writeln!(
+            out,
+            "- Найчастіше посилається на сайти: {}.",
+            list(&sites, 8)
+        );
         let tg = counted(
             model,
             "SELECT l.value, COUNT(DISTINCT l.source_id) AS n FROM source_link l \
@@ -165,7 +171,10 @@ pub fn build_overview(model: &Model, registry: Option<&Registry>) -> Result<Stri
     let shared = channel_overlaps(model, 40).map_err(|e| e.to_string())?;
     let _ = writeln!(out, "## Спільне між каналами\n");
     if shared.is_empty() {
-        let _ = writeln!(out, "Спільного не знайдено (потрібно щонайменше два канали).\n");
+        let _ = writeln!(
+            out,
+            "Спільного не знайдено (потрібно щонайменше два канали).\n"
+        );
     } else {
         let _ = writeln!(out, "| Вид | Що | Канали (дописів) |\n|---|---|---|");
         for item in &shared {
