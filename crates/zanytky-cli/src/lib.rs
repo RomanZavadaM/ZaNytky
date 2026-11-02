@@ -479,8 +479,13 @@ fn cmd_overview(args: &Args, out: Out) -> Result<(), String> {
     let registry = open_registry(&home).ok();
     let report = zanytky_core::build_overview(&open_model(&home)?, registry.as_ref())?;
     write_file(&target, report.as_bytes())?;
-    writeln!(out, "Огляд записано: {} ({} байт)", target.display(), report.len())
-        .map_err(|e| e.to_string())
+    writeln!(
+        out,
+        "Огляд записано: {} ({} байт)",
+        target.display(),
+        report.len()
+    )
+    .map_err(|e| e.to_string())
 }
 
 fn cmd_backup(args: &Args, out: Out) -> Result<(), String> {
