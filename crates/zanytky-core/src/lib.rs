@@ -14,6 +14,7 @@ pub mod make;
 pub mod model;
 pub mod normalize;
 pub mod overlap;
+pub mod overview;
 pub mod package;
 pub mod path;
 pub mod pdf;
@@ -38,7 +39,9 @@ pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };
 pub use demo::{create_demo, DemoInfo};
-pub use discover::{add_found, discover_everywhere, discover_in_text, Found};
+pub use discover::{
+    add_found, discover_everywhere, discover_in_text, subject_pairs, Found, SubjectPair,
+};
 pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};
 pub use import::{import_result, review_with_links, ImportError, ImportSummary, LinkMatch};
@@ -46,6 +49,7 @@ pub use make::{create_statement, PartyRequest, StatementRequest};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use overlap::{channel_overlaps, overlaps_graph, Shared, SharedChannel};
+pub use overview::build_overview;
 pub use package::{build_package, build_package_with_links, Package, SourceMeta};
 pub use path::{find_paths, EntityPath, PathResult};
 pub use pdf::{pdf_protected, to_pdf};

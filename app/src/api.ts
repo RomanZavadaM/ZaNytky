@@ -302,6 +302,8 @@ export const api = {
     invoke<Found[]>("discover_all_cmd", { input: { home, limit } }),
   addFound: (home: string, kind: string, text: string) =>
     invoke<number>("add_found_cmd", { input: { home, kind, text } }),
+  overview: (home: string) => invoke<string>("build_overview_cmd", { input: { home } }),
+  writeText: (path: string, text: string) => invoke<void>("write_text_cmd", { input: { path, text } }),
   overlaps: (home: string, limit: number) => invoke<Shared[]>("list_overlaps", { input: { home, limit } }),
   overlapGraph: (home: string, limit: number) =>
     invoke<KnowledgeGraph>("get_overlap_graph", { input: { home, limit } }),

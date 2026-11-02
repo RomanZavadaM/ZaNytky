@@ -188,6 +188,25 @@ fn codes_in(text: &str) -> Vec<String> {
     out
 }
 
+/// Everything a text names: (kind, key, written form), once for every occurrence.
+fn subjects_in(text: &str) -> Vec<(String, String, String)> {
+    let mut out = Vec::new();
+    for candidate in find_candidates(text) {
+        if let Some(words) = person_words(&candidate.text) {
+            for _ in 0..candidate.count {
+                out.push(("person".to_string(), person_key(&words), words.join(" ")));
+            }
+        }
+    }
+    for name in org_names(text) {
+        out.push(("org".to_string(), label_key(&name), name));
+    }
+    for code in codes_in(text) {
+        out.push(("code".to_string(), code.clone(), code));
+    }
+    out
+}
+
 /// What one text brings: key -> (kind, written forms with counts, count).
 #[derive(Default)]
 struct Tally {
@@ -199,8 +218,8 @@ impl Tally {
     /// Count what one text brings (one more source for every thing it contains).
     fn add(&mut self, text: &str) {
         let mut seen: HashSet<(String, String)> = HashSet::new();
-        let mut put = |kind: &str, key: String, form: String| {
-            let id = (kind.to_string(), key);
+        for (kind, key, form) in subjects_in(text) {
+            let id = (kind, key);
             *self
                 .forms
                 .entry(id.clone())
@@ -210,23 +229,23 @@ impl Tally {
             if seen.insert(id.clone()) {
                 *self.sources.entry(id).or_insert(0) += 1;
             }
-        };
-        for candidate in find_candidates(text) {
-            if let Some(words) = person_words(&candidate.text) {
-                for _ in 0..candidate.count {
-                    put("person", person_key(&words), words.join(" "));
-                }
-            }
-        }
-        for name in org_names(text) {
-            put("org", label_key(&name), name);
-        }
-        for code in codes_in(text) {
-            put("code", code.clone(), code);
         }
     }
 
     fn into_found(self, model: &Model, registry: Option<&Registry>, only_new: bool) -> Vec<Found> {
+        self.into_keyed(model, registry, only_new)
+            .into_iter()
+            .map(|(_, _, found)| found)
+            .collect()
+    }
+
+    /// Like `into_found`, with the (kind, key) of every find.
+    fn into_keyed(
+        self,
+        model: &Model,
+        registry: Option<&Registry>,
+        only_new: bool,
+    ) -> Vec<(String, String, Found)> {
         let mut out = Vec::new();
         for ((kind, key), forms) in self.forms.iter() {
             let count: u32 = forms.values().sum();
@@ -258,19 +277,23 @@ impl Tally {
                 .get(&(kind.clone(), key.clone()))
                 .copied()
                 .unwrap_or(1);
-            out.push(Found {
-                kind: kind.clone(),
-                text,
-                count,
-                sources,
-                known,
-            });
+            out.push((
+                kind.clone(),
+                key.clone(),
+                Found {
+                    kind: kind.clone(),
+                    text,
+                    count,
+                    sources,
+                    known,
+                },
+            ));
         }
         out.sort_by(|a, b| {
-            b.sources
-                .cmp(&a.sources)
-                .then_with(|| b.count.cmp(&a.count))
-                .then_with(|| a.text.cmp(&b.text))
+            b.2.sources
+                .cmp(&a.2.sources)
+                .then_with(|| b.2.count.cmp(&a.2.count))
+                .then_with(|| a.2.text.cmp(&b.2.text))
         });
         out
     }
@@ -305,6 +328,130 @@ pub fn discover_everywhere(
     found.retain(|f| f.sources >= 2 || f.kind == "code");
     found.truncate(limit);
     Ok(found)
+}
+
+/// Two subjects named in the same paragraph of several posts.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SubjectPair {
+    pub a: String,
+    pub b: String,
+    pub known_a: bool,
+    pub known_b: bool,
+    /// In how many posts they are named together.
+    pub posts: u32,
+    pub channels: u32,
+    /// The paragraph of the first such post, and its address.
+    pub example: String,
+    pub url: String,
+}
+
+type SubjectId = (String, String);
+
+struct PairCount {
+    posts: u32,
+    channels: HashSet<i64>,
+    example: String,
+    url: String,
+}
+
+/// Likely links: pairs of the most frequent subjects (persons and organisations) named in the
+/// same paragraph in at least three posts, the most widespread first.
+pub fn subject_pairs(
+    model: &Model,
+    registry: Option<&Registry>,
+    limit: usize,
+) -> Result<Vec<SubjectPair>, String> {
+    let mut stmt = model
+        .connection()
+        .prepare(
+            "SELECT p.channel_id, s.url, t.body FROM telegram_post p \
+             JOIN source s ON s.id = p.source_id JOIN source_text t ON t.source_id = s.id",
+        )
+        .map_err(|e| e.to_string())?;
+    let rows = stmt
+        .query_map([], |r| {
+            Ok((
+                r.get::<_, i64>(0)?,
+                r.get::<_, Option<String>>(1)?.unwrap_or_default(),
+                r.get::<_, String>(2)?,
+            ))
+        })
+        .map_err(|e| e.to_string())?
+        .collect::<Result<Vec<_>, _>>()
+        .map_err(|e| e.to_string())?;
+
+    let mut tally = Tally::default();
+    for (_, _, body) in &rows {
+        tally.add(body);
+    }
+    let top: HashMap<SubjectId, (String, bool)> = tally
+        .into_keyed(model, registry, false)
+        .into_iter()
+        .filter(|(kind, _, found)| kind.as_str() != "code" && found.sources >= 3)
+        .take(200)
+        .map(|(kind, key, found)| ((kind, key), (found.text, found.known.is_some())))
+        .collect();
+
+    let mut pairs: HashMap<(SubjectId, SubjectId), PairCount> = HashMap::new();
+    for (channel, url, body) in &rows {
+        let mut counted: HashSet<(SubjectId, SubjectId)> = HashSet::new();
+        for paragraph in body.split("\n\n") {
+            if paragraph.starts_with("Переслано з:") || paragraph.chars().count() < 20 {
+                continue;
+            }
+            let mut ids: Vec<SubjectId> = subjects_in(paragraph)
+                .into_iter()
+                .map(|(kind, key, _)| (kind, key))
+                .filter(|id| top.contains_key(id))
+                .collect();
+            ids.sort();
+            ids.dedup();
+            for i in 0..ids.len() {
+                for j in (i + 1)..ids.len() {
+                    let pair = (ids[i].clone(), ids[j].clone());
+                    if !counted.insert(pair.clone()) {
+                        continue;
+                    }
+                    let entry = pairs.entry(pair).or_insert_with(|| PairCount {
+                        posts: 0,
+                        channels: HashSet::new(),
+                        example: paragraph.chars().take(300).collect(),
+                        url: url.clone(),
+                    });
+                    entry.posts += 1;
+                    entry.channels.insert(*channel);
+                }
+            }
+        }
+    }
+    let mut out: Vec<SubjectPair> = pairs
+        .into_iter()
+        .filter(|(_, count)| count.posts >= 3)
+        .filter_map(|((a, b), count)| {
+            let (name_a, known_a) = top.get(&a)?.clone();
+            let (name_b, known_b) = top.get(&b)?.clone();
+            Some(SubjectPair {
+                a: name_a,
+                b: name_b,
+                known_a,
+                known_b,
+                posts: count.posts,
+                channels: count.channels.len() as u32,
+                example: count.example,
+                url: count.url,
+            })
+        })
+        .collect();
+    out.sort_by(|x, y| {
+        y.channels
+            .cmp(&x.channels)
+            .then_with(|| y.posts.cmp(&x.posts))
+            .then_with(|| x.a.cmp(&y.a))
+            .then_with(|| x.b.cmp(&y.b))
+    });
+    out.truncate(limit);
+    Ok(out)
 }
 
 /// Add a found subject to the base (`person` needs the registry: the name is sealed there and

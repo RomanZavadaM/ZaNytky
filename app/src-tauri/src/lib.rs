@@ -683,6 +683,36 @@ fn get_overlap_graph(input: DiscoverInput) -> Res<EntityGraph> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct WriteTextInput {
+    path: String,
+    text: String,
+}
+
+/// Saves a text (the overview) to a file chosen by the user; an existing file is not replaced.
+#[tauri::command]
+fn write_text_cmd(input: WriteTextInput) -> Res<()> {
+    let path = PathBuf::from(&input.path);
+    if path.exists() {
+        return Err("the file already exists".to_string());
+    }
+    std::fs::write(&path, input.text.as_bytes()).map_err(|e| e.to_string())
+}
+
+/// The overview of the whole base as one report (long: off the interface thread).
+#[tauri::command]
+async fn build_overview_cmd(input: DiscoverInput) -> Res<String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = home_path(&input.home)?;
+        let model = open_model(&home)?;
+        let registry = open_registry(&home).ok();
+        zanytky_core::build_overview(&model, registry.as_ref())
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct DiscoverInput {
     home: String,
     id: Option<i64>,
@@ -999,6 +1029,8 @@ pub fn run() {
             list_sources,
             list_channels,
             discover_source_cmd,
+            build_overview_cmd,
+            write_text_cmd,
             list_overlaps,
             get_overlap_graph,
             discover_all_cmd,
