@@ -668,6 +668,19 @@ fn create_statement_cmd(input: CreateStatementInput) -> Res<i64> {
     zanytky_core::create_statement(&model, registry.as_ref(), &input.request)
 }
 
+/// What the imported channels have in common.
+#[tauri::command]
+fn list_overlaps(input: DiscoverInput) -> Res<Vec<zanytky_core::Shared>> {
+    let model = open_model(&home_path(&input.home)?)?;
+    zanytky_core::channel_overlaps(&model, input.limit.unwrap_or(100)).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_overlap_graph(input: DiscoverInput) -> Res<EntityGraph> {
+    let model = open_model(&home_path(&input.home)?)?;
+    zanytky_core::overlaps_graph(&model, input.limit.unwrap_or(60)).map_err(|e| e.to_string())
+}
+
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
 struct DiscoverInput {
@@ -951,6 +964,8 @@ pub fn run() {
             list_sources,
             list_channels,
             discover_source_cmd,
+            list_overlaps,
+            get_overlap_graph,
             discover_all_cmd,
             add_found_cmd,
             get_channel_gaps,
