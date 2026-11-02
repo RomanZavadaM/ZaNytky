@@ -302,7 +302,8 @@ fn expand(
                 .query_map(rusqlite::params![value, channel_id], |r| r.get::<_, i64>(0))?
                 .collect::<Result<Vec<_>, _>>()?;
             // the origin may itself be a channel of the base
-            let mut same = conn.prepare("SELECT channel_id FROM telegram_channel WHERE name = ?1")?;
+            let mut same =
+                conn.prepare("SELECT channel_id FROM telegram_channel WHERE name = ?1")?;
             let same = same
                 .query_map([value], |r| r.get::<_, i64>(0))?
                 .collect::<Result<Vec<_>, _>>()?;
