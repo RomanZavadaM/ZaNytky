@@ -95,7 +95,9 @@ fn person_key(words: &[String]) -> String {
 /// Plausible nominative forms of a word written in another case.
 fn nominative_forms(word: &str) -> Vec<String> {
     let mut forms = vec![word.to_string()];
-    for ending in ["ого", "ому", "ом", "ем", "єм", "ові", "єві", "а", "у", "і", "ю", "я", "ї"] {
+    for ending in [
+        "ого", "ому", "ом", "ем", "єм", "ові", "єві", "а", "у", "і", "ю", "я", "ї",
+    ] {
         if let Some(base) = word.strip_suffix(ending) {
             if base.chars().count() >= 3 {
                 for tail in ["", "о", "й", "ь", "ий", "ій"] {
