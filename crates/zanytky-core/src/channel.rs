@@ -131,31 +131,32 @@ pub fn channel_graph(model: &Model, channel_id: i64) -> Result<EntityGraph, Mode
     let mut edges = Vec::new();
     let mut relations = Vec::new();
 
-    let mut add = |path: String, label: &str, note_type: &str, count: i64, kind: &str, inward: bool| {
-        nodes.push(GraphNodeOut {
-            path: path.clone(),
-            title: format!("{label} ({count})"),
-            note_type: Some(note_type.to_string()),
-        });
-        let (source, target) = if inward {
-            (path.clone(), centre.clone())
-        } else {
-            (centre.clone(), path.clone())
+    let mut add =
+        |path: String, label: &str, note_type: &str, count: i64, kind: &str, inward: bool| {
+            nodes.push(GraphNodeOut {
+                path: path.clone(),
+                title: format!("{label} ({count})"),
+                note_type: Some(note_type.to_string()),
+            });
+            let (source, target) = if inward {
+                (path.clone(), centre.clone())
+            } else {
+                (centre.clone(), path.clone())
+            };
+            edges.push(GraphEdgeOut {
+                source: source.clone(),
+                target: target.clone(),
+            });
+            relations.push(GraphRelationOut {
+                source,
+                target,
+                kind: kind.to_string(),
+                grade: None,
+                origin: None,
+                status: None,
+                evidence: Some(format!("{count}")),
+            });
         };
-        edges.push(GraphEdgeOut {
-            source: source.clone(),
-            target: target.clone(),
-        });
-        relations.push(GraphRelationOut {
-            source,
-            target,
-            kind: kind.to_string(),
-            grade: None,
-            origin: None,
-            status: None,
-            evidence: Some(format!("{count}")),
-        });
-    };
 
     let mut stmt = conn.prepare(
         "SELECT forwarded_from, COUNT(*) AS n FROM telegram_post \
@@ -168,7 +169,14 @@ pub fn channel_graph(model: &Model, channel_id: i64) -> Result<EntityGraph, Mode
         })?
         .collect::<Result<Vec<_>, _>>()?;
     for (origin, count) in forwarded {
-        add(format!("fw:{origin}"), &origin, "channel", count, "forward", true);
+        add(
+            format!("fw:{origin}"),
+            &origin,
+            "channel",
+            count,
+            "forward",
+            true,
+        );
     }
 
     for (kind, note_type, relation) in [
@@ -184,10 +192,9 @@ pub fn channel_graph(model: &Model, channel_id: i64) -> Result<EntityGraph, Mode
         )?;
         let own = format!("c/{channel_id}%");
         let found = stmt
-            .query_map(
-                rusqlite::params![channel_id, kind, own, TOP as i64],
-                |r| Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?)),
-            )?
+            .query_map(rusqlite::params![channel_id, kind, own, TOP as i64], |r| {
+                Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
+            })?
             .collect::<Result<Vec<_>, _>>()?;
         for (value, count) in found {
             add(

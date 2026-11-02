@@ -877,9 +877,9 @@ impl Model {
     /// Ids of every message of the export (posts and service messages): a gap in them means
     /// a message is missing from the export.
     pub fn add_telegram_seen(&self, channel_id: i64, ids: &[i64]) -> Result<(), ModelError> {
-        let mut stmt = self.conn.prepare(
-            "INSERT OR IGNORE INTO telegram_seen (channel_id, msg_id) VALUES (?1, ?2)",
-        )?;
+        let mut stmt = self
+            .conn
+            .prepare("INSERT OR IGNORE INTO telegram_seen (channel_id, msg_id) VALUES (?1, ?2)")?;
         for id in ids {
             stmt.execute(params![channel_id, id])?;
         }
