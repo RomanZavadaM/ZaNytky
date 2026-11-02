@@ -138,6 +138,44 @@ pub fn create_statement(
     Ok(statement)
 }
 
+/// The entity for a name: an existing one (same code, same pseudonym, the only one with this
+/// name) or a new one. A person is given by name; it is sealed in the registry and only the
+/// pseudonym is kept in the base.
+pub fn ensure_entity(
+    model: &Model,
+    registry: Option<&Registry>,
+    kind: EntityKind,
+    label: &str,
+    code: Option<&str>,
+) -> Result<i64, String> {
+    let label = label.trim();
+    if label.is_empty() {
+        return Err("потрібна назва або ім'я суб'єкта".to_string());
+    }
+    if kind == EntityKind::Person {
+        let registry = registry.ok_or("для особи потрібні ключі в папці даних")?;
+        let token = registry
+            .register(Kind::Name, label)
+            .map_err(|e| e.to_string())?;
+        return model
+            .in_transaction(|model| {
+                match model.find_entity(EntityKind::Person, Some(&token), None)? {
+                    Some(id) => Ok(id),
+                    None => model.add_entity(&NewEntity {
+                        kind: EntityKind::Person,
+                        token: Some(&token),
+                        label: None,
+                        public_code: None,
+                    }),
+                }
+            })
+            .map_err(|e| e.to_string());
+    }
+    model
+        .in_transaction(|model| reuse_or_add(model, kind, label, code))
+        .map_err(|e| e.to_string())
+}
+
 /// The same code, or the only entity of this kind with this name, or a new one.
 fn reuse_or_add(
     model: &Model,

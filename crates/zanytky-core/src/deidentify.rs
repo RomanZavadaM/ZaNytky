@@ -704,7 +704,7 @@ fn is_upper_word(word: &str) -> bool {
 }
 
 /// A single word that looks like a surname by its ending (in any listed case form).
-fn is_surname_form(word: &str) -> bool {
+pub(crate) fn is_surname_form(word: &str) -> bool {
     let lower = word.to_lowercase();
     lower.chars().count() >= 5 && SURNAME_ENDINGS.iter().any(|ending| lower.ends_with(ending))
 }
@@ -765,7 +765,7 @@ impl Run {
     }
 }
 
-fn find_candidates(text: &str) -> Vec<Candidate> {
+pub(crate) fn find_candidates(text: &str) -> Vec<Candidate> {
     let mut counts: BTreeMap<String, u32> = BTreeMap::new();
     let mut run = Run::default();
     for raw in text.split_whitespace() {

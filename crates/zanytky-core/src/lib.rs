@@ -5,6 +5,7 @@ pub mod card;
 pub mod channel;
 pub mod deidentify;
 pub mod demo;
+pub mod discover;
 pub mod docx_text;
 pub mod export;
 pub mod import;
@@ -34,6 +35,7 @@ pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };
 pub use demo::{create_demo, DemoInfo};
+pub use discover::{add_found, discover_everywhere, discover_in_text, Found};
 pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};
 pub use import::{import_result, review_with_links, ImportError, ImportSummary, LinkMatch};

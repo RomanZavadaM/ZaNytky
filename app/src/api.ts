@@ -159,6 +159,14 @@ export interface ChannelGaps {
   more: number;
 }
 
+export interface Found {
+  kind: string;
+  text: string;
+  count: number;
+  sources: number;
+  known: number | null;
+}
+
 export interface MonthRow {
   month: string;
   posts: number;
@@ -276,6 +284,12 @@ export const api = {
   source: (home: string, id: number) => invoke<CardSource>("get_source", { input: { home, id } }),
   importTelegram: (home: string, folder: string, reliability: string) =>
     invoke<TelegramSummary>("import_telegram_cmd", { input: { home, folder, reliability } }),
+  discoverSource: (home: string, id: number) =>
+    invoke<Found[]>("discover_source_cmd", { input: { home, id } }),
+  discoverAll: (home: string, limit: number) =>
+    invoke<Found[]>("discover_all_cmd", { input: { home, limit } }),
+  addFound: (home: string, kind: string, text: string) =>
+    invoke<number>("add_found_cmd", { input: { home, kind, text } }),
   channels: (home: string) => invoke<ChannelRow[]>("list_channels", { input: { home } }),
   channelGaps: (home: string, id: number) => invoke<ChannelGaps>("get_channel_gaps", { input: { home, id } }),
   channelGraph: (home: string, id: number, expanded: string[]) =>
