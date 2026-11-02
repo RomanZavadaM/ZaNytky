@@ -657,7 +657,7 @@ export function App() {
           />
         )}
         {tab === "sources" && (
-          <SourcesTab t={t} lang={(lang in PACKS ? lang : "uk") as Lang} home={home} run={run} />
+          <SourcesTab t={t} lang={(lang in PACKS ? lang : "uk") as Lang} home={home} identity={identity} run={run} />
         )}
         {tab === "graph" && (
           <GraphTab

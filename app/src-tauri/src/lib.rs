@@ -645,6 +645,31 @@ struct StatusInput {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct CreateStatementInput {
+    home: String,
+    request: zanytky_core::StatementRequest,
+}
+
+/// A statement made by hand from a source; parties are existing or new entities.
+#[tauri::command]
+fn create_statement_cmd(input: CreateStatementInput) -> Res<i64> {
+    let home = home_path(&input.home)?;
+    let model = open_model(&home)?;
+    let needs_registry = input
+        .request
+        .parties
+        .iter()
+        .any(|p| p.entity_id.is_none() && p.kind.as_deref() == Some("person"));
+    let registry = if needs_registry {
+        Some(open_registry(&home)?)
+    } else {
+        None
+    };
+    zanytky_core::create_statement(&model, registry.as_ref(), &input.request)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SourceListInput {
     home: String,
     query: String,
@@ -841,6 +866,7 @@ pub fn run() {
             restore_backup,
             set_statement_status,
             list_sources,
+            create_statement_cmd,
             get_source,
             import_telegram_cmd,
             set_source_text_cmd,

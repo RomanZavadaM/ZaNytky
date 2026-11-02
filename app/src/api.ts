@@ -123,6 +123,24 @@ export interface SourceListPage {
   rows: SourceListRow[];
 }
 
+export interface PartyRequest {
+  role: string;
+  entityId?: number;
+  kind?: string;
+  label?: string;
+  publicCode?: string;
+}
+
+export interface StatementRequest {
+  sourceId: number;
+  kind: string;
+  value?: string;
+  credibility: number;
+  quote: string;
+  note?: string;
+  parties: PartyRequest[];
+}
+
 export interface TelegramSummary {
   channel: string;
   messages: number;
@@ -232,6 +250,8 @@ export const api = {
   source: (home: string, id: number) => invoke<CardSource>("get_source", { input: { home, id } }),
   importTelegram: (home: string, folder: string, reliability: string) =>
     invoke<TelegramSummary>("import_telegram_cmd", { input: { home, folder, reliability } }),
+  createStatement: (home: string, request: StatementRequest) =>
+    invoke<number>("create_statement_cmd", { input: { home, request } }),
   setSourceText: (home: string, sourceId: number, text: string) =>
     invoke<void>("set_source_text_cmd", { input: { home, sourceId, text } }),
   addSourceFile: (home: string, sourceId: number, path: string) =>
