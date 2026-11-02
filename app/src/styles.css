@@ -255,3 +255,59 @@ span.tab {
 .source-list li {
   margin: 6px 0;
 }
+
+.ov-channel {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  margin-right: 1rem;
+}
+.ov-channel i {
+  width: 0.9rem;
+  height: 0.9rem;
+  border-radius: 3px;
+  display: inline-block;
+}
+.ov-kinds .chip.on {
+  background: #7c8df0;
+  color: #fff;
+}
+.ov-rows {
+  display: grid;
+  gap: 2px;
+}
+.ov-row {
+  display: grid;
+  grid-template-columns: 11rem minmax(8rem, 1fr) minmax(12rem, 1.4fr);
+  gap: 0.6rem;
+  align-items: center;
+  padding: 3px 0;
+  border-bottom: 1px solid #e3e6ec;
+}
+.ov-kind {
+  color: #6b7280;
+  font-size: 0.8rem;
+}
+.ov-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ov-bars {
+  display: grid;
+  gap: 2px;
+}
+.ov-bar {
+  display: flex;
+  align-items: center;
+  gap: 0.4rem;
+}
+.ov-bar > span {
+  display: block;
+  height: 0.7rem;
+  border-radius: 3px;
+}
+.ov-bar b {
+  font-size: 0.78rem;
+  font-weight: 500;
+}
