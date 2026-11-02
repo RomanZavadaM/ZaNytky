@@ -40,7 +40,9 @@ fn clean(text: &Option<String>) -> Option<&str> {
 /// What a party needs before the database is touched.
 enum Prepared {
     Existing(i64),
-    Person { token: String },
+    Person {
+        token: String,
+    },
     Other {
         kind: EntityKind,
         label: String,
@@ -284,6 +286,9 @@ mod tests {
         bad_source.credibility = 4;
         assert!(create_statement(&model, None, &bad_source).is_err());
         // a failed attempt leaves no half-made entities
-        assert!(model.entities_by_label(EntityKind::Org, "А").unwrap().is_empty());
+        assert!(model
+            .entities_by_label(EntityKind::Org, "А")
+            .unwrap()
+            .is_empty());
     }
 }
