@@ -141,6 +141,24 @@ export interface StatementRequest {
   parties: PartyRequest[];
 }
 
+export interface ChannelRow {
+  channelId: number;
+  name: string;
+  posts: number;
+  seen: number;
+  firstId: number;
+  lastId: number;
+  missing: number;
+  firstDate: string | null;
+  lastDate: string | null;
+}
+
+export interface ChannelGaps {
+  missing: number;
+  ranges: { from: number; to: number }[];
+  more: number;
+}
+
 export interface TelegramSummary {
   channel: string;
   messages: number;
@@ -250,6 +268,9 @@ export const api = {
   source: (home: string, id: number) => invoke<CardSource>("get_source", { input: { home, id } }),
   importTelegram: (home: string, folder: string, reliability: string) =>
     invoke<TelegramSummary>("import_telegram_cmd", { input: { home, folder, reliability } }),
+  channels: (home: string) => invoke<ChannelRow[]>("list_channels", { input: { home } }),
+  channelGaps: (home: string, id: number) => invoke<ChannelGaps>("get_channel_gaps", { input: { home, id } }),
+  channelGraph: (home: string, id: number) => invoke<KnowledgeGraph>("get_channel_graph", { input: { home, id } }),
   createStatement: (home: string, request: StatementRequest) =>
     invoke<number>("create_statement_cmd", { input: { home, request } }),
   setSourceText: (home: string, sourceId: number, text: string) =>

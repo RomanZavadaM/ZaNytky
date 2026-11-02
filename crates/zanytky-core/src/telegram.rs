@@ -123,6 +123,72 @@ fn files_of(message: &Value) -> Vec<(String, Option<String>)> {
     files
 }
 
+/// (kind, value) of the address of a link: `tg` for a channel or chat of Telegram, `site`
+/// for the host of any other address.
+fn classify_url(url: &str) -> Option<(String, String)> {
+    let rest = url
+        .trim()
+        .trim_start_matches("https://")
+        .trim_start_matches("http://");
+    let end = rest.find(['/', '?', '#']).unwrap_or(rest.len());
+    let host = rest[..end].to_lowercase();
+    let host = host.trim_start_matches("www.").split(':').next()?.to_string();
+    if host.is_empty() || !host.contains('.') {
+        return None;
+    }
+    if host == "t.me" || host == "telegram.me" || host == "telegram.dog" {
+        let mut parts = rest[end..].trim_start_matches('/').split(['/', '?', '#']);
+        let first = parts.next().unwrap_or("");
+        if first.is_empty() || first.starts_with('+') || first == "joinchat" {
+            return None;
+        }
+        if first == "c" {
+            let id = parts.next().unwrap_or("");
+            return if id.is_empty() {
+                None
+            } else {
+                Some(("tg".to_string(), format!("c/{id}")))
+            };
+        }
+        return Some(("tg".to_string(), first.to_lowercase()));
+    }
+    Some(("site".to_string(), host))
+}
+
+/// Links, sites and mentions of a post, from the structured parts of its text.
+fn links_of(message: &Value) -> Vec<(String, String)> {
+    let mut out = Vec::new();
+    let Some(entities) = message.get("text_entities").and_then(Value::as_array) else {
+        return out;
+    };
+    for entity in entities {
+        let kind = entity.get("type").and_then(Value::as_str).unwrap_or("");
+        let text = entity.get("text").and_then(Value::as_str).unwrap_or("");
+        let found = match kind {
+            "link" => classify_url(text),
+            "text_link" => entity
+                .get("href")
+                .and_then(Value::as_str)
+                .and_then(classify_url),
+            "mention" => {
+                let name = text.trim().trim_start_matches('@').to_lowercase();
+                if name.is_empty() {
+                    None
+                } else {
+                    Some(("mention".to_string(), name))
+                }
+            }
+            _ => None,
+        };
+        if let Some(pair) = found {
+            if !out.contains(&pair) {
+                out.push(pair);
+            }
+        }
+    }
+    out
+}
+
 /// Read `result.json` of the export folder and write the posts into the model.
 /// All of it is written, or none of it (files already copied stay: they are named by hash).
 pub fn import_telegram_export(
@@ -163,6 +229,12 @@ pub fn import_telegram_export(
             channel: channel.clone(),
             ..TelegramSummary::default()
         };
+        model.set_telegram_channel(channel_id, &channel)?;
+        let seen: Vec<i64> = messages
+            .iter()
+            .filter_map(|m| m.get("id").and_then(Value::as_i64))
+            .collect();
+        model.add_telegram_seen(channel_id, &seen)?;
         for message in messages {
             if message.get("type").and_then(Value::as_str) != Some("message") {
                 continue;
@@ -212,6 +284,13 @@ pub fn import_telegram_export(
                 model.set_source_text(source_id, &body)?;
                 summary.texts_added += 1;
             }
+            model.set_telegram_post(
+                source_id,
+                channel_id,
+                id,
+                message.get("forwarded_from").and_then(Value::as_str),
+            )?;
+            model.add_source_links(source_id, &links_of(message))?;
             for (path, mime) in files {
                 let before = model.source_files(source_id)?.len();
                 model.add_source_file(source_id, &path, attachments_dir, mime.as_deref())?;
@@ -305,4 +384,67 @@ mod tests {
         std::fs::write(dir.path().join("result.json"), r#"{"messages": []}"#).unwrap();
         assert!(import_telegram_export(&model, dir.path(), dir.path(), Reliability::F).is_err());
     }
+
+    #[test]
+    fn addresses_are_sorted_into_channels_and_sites() {
+        assert_eq!(
+            classify_url("https://t.me/SomeChan/123"),
+            Some(("tg".to_string(), "somechan".to_string()))
+        );
+        assert_eq!(
+            classify_url("https://t.me/c/555/9"),
+            Some(("tg".to_string(), "c/555".to_string()))
+        );
+        assert_eq!(classify_url("https://t.me/+secretinvite"), None);
+        assert_eq!(
+            classify_url("http://www.Example.org:8080/a?b=1"),
+            Some(("site".to_string(), "example.org".to_string()))
+        );
+        assert_eq!(classify_url("not an address"), None);
+    }
+
+    #[test]
+    fn the_import_records_forwards_links_and_the_ids_of_the_export() {
+        use crate::channel::{channel_gaps, channel_graph, channel_list};
+        let model = Model::open_in_memory("tester").unwrap();
+        let dir = tempfile::tempdir().unwrap();
+        let json = r#"{
+  "name": "Канал", "type": "public_channel", "id": 777,
+  "messages": [
+    {"id": 1, "type": "service", "date": "2024-01-01T10:00:00", "action": "create_channel", "text": ""},
+    {"id": 2, "type": "message", "date": "2024-01-02T10:00:00", "text": "Один",
+     "text_entities": [{"type": "link", "text": "https://example.org/a"},
+                       {"type": "link", "text": "https://t.me/other/5"},
+                       {"type": "mention", "text": "@Some_Account"}]},
+    {"id": 3, "type": "message", "date": "2024-01-03T10:00:00", "text": "Два", "forwarded_from": "Інший канал"},
+    {"id": 4, "type": "message", "date": "2024-01-04T10:00:00", "text": "Три", "forwarded_from": "Інший канал"},
+    {"id": 8, "type": "message", "date": "2024-01-08T10:00:00", "text": "Вісім"}
+  ]
+}"#;
+        std::fs::write(dir.path().join("result.json"), json).unwrap();
+        let store = dir.path().join("attachments");
+        import_telegram_export(&model, dir.path(), &store, Reliability::F).unwrap();
+
+        let channels = channel_list(&model).unwrap();
+        assert_eq!(channels.len(), 1);
+        assert_eq!(channels[0].name, "Канал");
+        assert_eq!(channels[0].posts, 4);
+        assert_eq!((channels[0].first_id, channels[0].last_id), (1, 8));
+        assert_eq!(channels[0].missing, 3);
+        let gaps = channel_gaps(&model, 777).unwrap();
+        assert_eq!(gaps.ranges.len(), 1);
+        assert_eq!((gaps.ranges[0].from, gaps.ranges[0].to), (5, 7));
+
+        let graph = channel_graph(&model, 777).unwrap();
+        let titles: Vec<&str> = graph.nodes.iter().map(|n| n.title.as_str()).collect();
+        assert!(titles.contains(&"Інший канал (2)"));
+        assert!(titles.contains(&"example.org (1)"));
+        assert!(titles.contains(&"other (1)"));
+        assert!(titles.contains(&"some_account (1)"));
+
+        // the same export again changes nothing
+        import_telegram_export(&model, dir.path(), &store, Reliability::F).unwrap();
+        assert_eq!(channel_graph(&model, 777).unwrap().nodes.len(), graph.nodes.len());
+    }
 }
+
