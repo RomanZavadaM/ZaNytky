@@ -4,18 +4,18 @@
 
 ## Téléchargement
 
-**Dernière version : [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.15) (préversion)**
+**Dernière version : [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.16) (préversion)**
 
 | Plateforme | Fichier |
 |---|---|
-| Windows - installateur (recommandé) | [ZaNytky_0.0.15_Setup_Windows_x64.exe](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.15/ZaNytky_0.0.15_Setup_Windows_x64.exe) |
-| Windows - MSI | [ZaNytky_0.0.15_Windows_x64.msi](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.15/ZaNytky_0.0.15_Windows_x64.msi) |
-| Windows - archive portable (évaluation seulement) | [ZaNytky_0.0.15_Windows_x64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.15/ZaNytky_0.0.15_Windows_x64_Portable.zip) |
-| Windows - ligne de commande | [ZaNytky_0.0.15_CLI_Windows_x64.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.15/ZaNytky_0.0.15_CLI_Windows_x64.zip) |
-| macOS (Apple Silicon) | [ZaNytky_0.0.15_macOS_arm64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.15/ZaNytky_0.0.15_macOS_arm64_Portable.zip) |
-| macOS (Intel) | [ZaNytky_0.0.15_macOS_x86_64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.15/ZaNytky_0.0.15_macOS_x86_64_Portable.zip) |
+| Windows - installateur (recommandé) | [ZaNytky_0.0.16_Setup_Windows_x64.exe](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.16/ZaNytky_0.0.16_Setup_Windows_x64.exe) |
+| Windows - MSI | [ZaNytky_0.0.16_Windows_x64.msi](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.16/ZaNytky_0.0.16_Windows_x64.msi) |
+| Windows - archive portable (évaluation seulement) | [ZaNytky_0.0.16_Windows_x64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.16/ZaNytky_0.0.16_Windows_x64_Portable.zip) |
+| Windows - ligne de commande | [ZaNytky_0.0.16_CLI_Windows_x64.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.16/ZaNytky_0.0.16_CLI_Windows_x64.zip) |
+| macOS (Apple Silicon) | [ZaNytky_0.0.16_macOS_arm64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.16/ZaNytky_0.0.16_macOS_arm64_Portable.zip) |
+| macOS (Intel) | [ZaNytky_0.0.16_macOS_x86_64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.16/ZaNytky_0.0.16_macOS_x86_64_Portable.zip) |
 
-- Sommes de contrôle : [SHA256SUMS.txt](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.15/SHA256SUMS.txt) et [page de la version](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.15). Toutes les versions : [Releases](https://github.com/RomanZavadaM/ZaNytky/releases).
+- Sommes de contrôle : [SHA256SUMS.txt](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.16/SHA256SUMS.txt) et [page de la version](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.16). Toutes les versions : [Releases](https://github.com/RomanZavadaM/ZaNytky/releases).
 - Les builds ne sont pas signés : Windows peut avertir d'un éditeur inconnu ; les builds macOS ne sont pas notarisés et n'ont pas été testés sur un vrai Mac.
 - L'archive portable sert uniquement à l'évaluation, sans aucune garantie ; pour un usage régulier, utilisez l'installateur.
 
@@ -61,7 +61,7 @@ zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 - Aucune étiquette de jugement sur les personnes : nous montrons l'origine et la fiabilité, pas des verdicts.
 - Sources ouvertes uniquement. Textes et fichiers sont conservés localement, sans anonymisation ; l'IA ne reçoit que du texte anonymisé.
 
-## Limites de la version actuelle (0.0.15)
+## Limites de la version actuelle (0.0.16)
 
 - Préversion : les installateurs ne sont pas signés.
 - Pas d'import PDF ni de reconnaissance de texte des scans ou vidéos ; la citation d'une déclaration se colle à la main.
