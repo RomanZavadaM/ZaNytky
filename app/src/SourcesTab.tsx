@@ -3,17 +3,19 @@ import { api, pickFolder, type CardSource, type SourceListPage } from "./api";
 import { fill, type Lang, type Strings } from "./i18n";
 import { kindLabel } from "./kinds";
 import { SourceBox } from "./SourceBox";
+import { StatementForm } from "./StatementForm";
 
 interface Props {
   t: Strings;
   lang: Lang;
   home: string;
+  identity: string;
   run: <T>(work: () => Promise<T>) => Promise<T | undefined>;
 }
 
 const PAGE = 50;
 
-export function SourcesTab({ t, lang, home, run }: Props) {
+export function SourcesTab({ t, lang, home, identity, run }: Props) {
   const [input, setInput] = useState("");
   const [query, setQuery] = useState("");
   const [offset, setOffset] = useState(0);
@@ -80,6 +82,15 @@ export function SourcesTab({ t, lang, home, run }: Props) {
           {page.rows.find((r) => r.id === selected)?.publishedAt ?? ""} · {kindLabel(lang, detail.kind)}
         </p>
         <SourceBox t={t} home={home} source={detail} run={run} onChanged={() => setTick(tick + 1)} />
+        <StatementForm
+          t={t}
+          lang={lang}
+          home={home}
+          identity={identity}
+          sourceId={detail.id}
+          run={run}
+          onCreated={() => setTick(tick + 1)}
+        />
       </section>
     );
   }
