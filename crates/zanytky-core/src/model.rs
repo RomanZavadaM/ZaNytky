@@ -108,6 +108,10 @@ CREATE INDEX IF NOT EXISTS idx_party_statement ON statement_party(statement_id);
 CREATE INDEX IF NOT EXISTS idx_statement_kind ON statement(kind);
 CREATE INDEX IF NOT EXISTS idx_statement_valid ON statement(valid_from, valid_to);
 CREATE INDEX IF NOT EXISTS idx_source_root ON source(root_id);
+CREATE INDEX IF NOT EXISTS idx_source_published ON source(published_at, id);
+CREATE VIRTUAL TABLE IF NOT EXISTS source_fts USING fts5(
+    title, url, body, tokenize = 'unicode61 remove_diacritics 2'
+);
 CREATE INDEX IF NOT EXISTS idx_statement_source ON statement_source(source_id);
 CREATE INDEX IF NOT EXISTS idx_alias ON entity_alias(alias);
 CREATE INDEX IF NOT EXISTS idx_identifier ON entity_identifier(kind, value);
@@ -357,7 +361,8 @@ pub struct SourceSearchRow {
     pub url: Option<String>,
     pub published_at: Option<String>,
     pub reliability: Reliability,
-    pub body: Option<String>,
+    /// The beginning of the text (at most 600 characters), if the source has a text.
+    pub head: Option<String>,
     pub files: u32,
     pub statements: u32,
 }
@@ -413,7 +418,20 @@ impl Model {
             actor: actor.to_string(),
         };
         model.backfill_aliases()?;
+        model.backfill_search_index()?;
         Ok(model)
+    }
+
+    /// Sources made before the search index existed (or by an older version) get their row.
+    fn backfill_search_index(&self) -> Result<(), ModelError> {
+        self.conn.execute(
+            "INSERT INTO source_fts (rowid, title, url, body) \
+             SELECT s.id, s.title, COALESCE(s.url, ''), COALESCE(t.body, '') \
+             FROM source s LEFT JOIN source_text t ON t.source_id = s.id \
+             WHERE s.id NOT IN (SELECT rowid FROM source_fts)",
+            [],
+        )?;
+        Ok(())
     }
 
     /// Entities made before names were indexed get their name as the first alias.
@@ -810,6 +828,10 @@ impl Model {
             self.conn
                 .execute("UPDATE source SET root_id = id WHERE id = ?1", params![id])?;
         }
+        self.conn.execute(
+            "INSERT INTO source_fts (rowid, title, url, body) VALUES (?1, ?2, ?3, '')",
+            params![id, new.title, new.url.unwrap_or("")],
+        )?;
         self.log("add_source", &format!("source:{id}"))?;
         Ok(id)
     }
@@ -831,6 +853,10 @@ impl Model {
             &format!(
                 "INSERT INTO source_text (source_id, body, recorded_at) VALUES (?1, ?2, {NOW})"
             ),
+            params![source_id, body],
+        )?;
+        self.conn.execute(
+            "UPDATE source_fts SET body = ?2 WHERE rowid = ?1",
             params![source_id, body],
         )?;
         self.log("set_source_text", &format!("source:{source_id}"))?;
@@ -936,31 +962,78 @@ impl Model {
         Ok(id)
     }
 
-    /// Every source with its text and counters, newest first.
-    pub fn sources_overview(&self) -> Result<Vec<SourceSearchRow>, ModelError> {
-        let mut stmt = self.conn.prepare(
-            "SELECT s.id, s.kind, s.title, s.url, s.published_at, s.reliability, t.body, \
+    /// A page of sources, newest first. With `fts_query` (an FTS5 expression) only the
+    /// sources that match it; returns the number of all matches and the rows of the page.
+    pub fn search_sources(
+        &self,
+        fts_query: Option<&str>,
+        offset: u32,
+        limit: u32,
+    ) -> Result<(u32, Vec<SourceSearchRow>), ModelError> {
+        const COLUMNS: &str = "s.id, s.kind, s.title, s.url, s.published_at, s.reliability, \
+             substr(t.body, 1, 600), \
              (SELECT COUNT(*) FROM source_file f WHERE f.source_id = s.id), \
-             (SELECT COUNT(*) FROM statement_source x WHERE x.source_id = s.id) \
-             FROM source s LEFT JOIN source_text t ON t.source_id = s.id \
-             ORDER BY COALESCE(s.published_at, '') DESC, s.id DESC",
-        )?;
-        let raw = stmt.query_map([], |r| {
+             (SELECT COUNT(*) FROM statement_source x WHERE x.source_id = s.id)";
+        type Raw = (
+            i64,
+            String,
+            String,
+            Option<String>,
+            Option<String>,
+            String,
+            Option<String>,
+            i64,
+            i64,
+        );
+        fn raw(r: &rusqlite::Row) -> rusqlite::Result<Raw> {
             Ok((
-                r.get::<_, i64>(0)?,
-                r.get::<_, String>(1)?,
-                r.get::<_, String>(2)?,
-                r.get::<_, Option<String>>(3)?,
-                r.get::<_, Option<String>>(4)?,
-                r.get::<_, String>(5)?,
-                r.get::<_, Option<String>>(6)?,
-                r.get::<_, i64>(7)?,
-                r.get::<_, i64>(8)?,
+                r.get(0)?,
+                r.get(1)?,
+                r.get(2)?,
+                r.get(3)?,
+                r.get(4)?,
+                r.get(5)?,
+                r.get(6)?,
+                r.get(7)?,
+                r.get(8)?,
             ))
-        })?;
+        }
+        let (total, found): (i64, Vec<Raw>) = match fts_query {
+            Some(query) => {
+                let total = self.conn.query_row(
+                    "SELECT COUNT(*) FROM source_fts WHERE source_fts MATCH ?1",
+                    params![query],
+                    |r| r.get(0),
+                )?;
+                let mut stmt = self.conn.prepare(&format!(
+                    "SELECT {COLUMNS} FROM source_fts \
+                     JOIN source s ON s.id = source_fts.rowid \
+                     LEFT JOIN source_text t ON t.source_id = s.id \
+                     WHERE source_fts MATCH ?1 \
+                     ORDER BY s.published_at DESC, s.id DESC LIMIT ?2 OFFSET ?3"
+                ))?;
+                let rows = stmt
+                    .query_map(params![query, limit, offset], raw)?
+                    .collect::<Result<Vec<_>, _>>()?;
+                (total, rows)
+            }
+            None => {
+                let total = self
+                    .conn
+                    .query_row("SELECT COUNT(*) FROM source", [], |r| r.get(0))?;
+                let mut stmt = self.conn.prepare(&format!(
+                    "SELECT {COLUMNS} FROM source s \
+                     LEFT JOIN source_text t ON t.source_id = s.id \
+                     ORDER BY s.published_at DESC, s.id DESC LIMIT ?1 OFFSET ?2"
+                ))?;
+                let rows = stmt
+                    .query_map(params![limit, offset], raw)?
+                    .collect::<Result<Vec<_>, _>>()?;
+                (total, rows)
+            }
+        };
         let mut rows = Vec::new();
-        for item in raw {
-            let (id, kind, title, url, published_at, reliability, body, files, statements) = item?;
+        for (id, kind, title, url, published_at, reliability, head, files, statements) in found {
             rows.push(SourceSearchRow {
                 id,
                 kind: SourceKind::parse(&kind).ok_or(ModelError::Invalid("bad source kind"))?,
@@ -969,12 +1042,12 @@ impl Model {
                 published_at,
                 reliability: Reliability::parse(&reliability)
                     .ok_or(ModelError::Invalid("bad reliability"))?,
-                body,
+                head,
                 files: files as u32,
                 statements: statements as u32,
             });
         }
-        Ok(rows)
+        Ok((total as u32, rows))
     }
 
     pub fn source_files(&self, source_id: i64) -> Result<Vec<SourceFileRow>, ModelError> {
@@ -1753,6 +1826,26 @@ mod tests {
             b"abc"
         );
         assert!(m.add_source_file(9999, &file, &store, None).is_err());
+    }
+
+    #[test]
+    fn sources_made_without_the_index_are_found_after_a_backfill() {
+        let m = model();
+        m.conn
+            .execute(
+                "INSERT INTO source (kind, title, url, published_at, reliability, parent_id,                  root_id, recorded_at) VALUES ('media', 'Старе джерело', NULL, '2020-01-01', 'F',                  NULL, 1, '2020-01-01T00:00:00Z')",
+                [],
+            )
+            .unwrap();
+        m.conn
+            .execute(
+                "INSERT INTO source_text (source_id, body, recorded_at)                  VALUES (1, 'тут є слово Міндіч', '2020-01-01T00:00:00Z')",
+                [],
+            )
+            .unwrap();
+        assert_eq!(m.search_sources(Some("\"мінді\"*"), 0, 10).unwrap().0, 0);
+        m.backfill_search_index().unwrap();
+        assert_eq!(m.search_sources(Some("\"мінді\"*"), 0, 10).unwrap().0, 1);
     }
 }
 

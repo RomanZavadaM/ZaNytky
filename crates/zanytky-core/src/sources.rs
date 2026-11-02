@@ -39,46 +39,53 @@ fn excerpt(body: &str) -> String {
     short
 }
 
-/// Sources whose title, address or text contain every word of `query` (any letter case),
-/// newest first; `offset` and `limit` pick the page. An empty query lists everything.
+/// The FTS5 expression for a user's query: every word is a prefix ("мінді" finds "Міндіча"),
+/// all of them must be present. `None` when the query has no words at all.
+fn fts_expression(query: &str) -> Option<String> {
+    let words: Vec<String> = query
+        .split(|c: char| !c.is_alphanumeric())
+        .filter(|w| !w.is_empty())
+        .map(|w| format!("\"{w}\"*"))
+        .collect();
+    if words.is_empty() {
+        None
+    } else {
+        Some(words.join(" AND "))
+    }
+}
+
+/// Sources whose title, address or text contain every word of `query` (any letter case,
+/// word beginnings), newest first; `offset` and `limit` pick the page. An empty query lists
+/// everything. Uses the search index of the database, so it stays fast on large bases.
 pub fn source_list(
     model: &Model,
     query: &str,
     offset: u32,
     limit: u32,
 ) -> Result<SourceListPage, ModelError> {
-    let words: Vec<String> = query.split_whitespace().map(str::to_lowercase).collect();
-    let mut total = 0u32;
-    let mut rows = Vec::new();
-    for row in model.sources_overview()? {
-        if !words.is_empty() {
-            let haystack = format!(
-                "{}\n{}\n{}",
-                row.title,
-                row.url.as_deref().unwrap_or(""),
-                row.body.as_deref().unwrap_or("")
-            )
-            .to_lowercase();
-            if !words.iter().all(|word| haystack.contains(word.as_str())) {
-                continue;
-            }
-        }
-        if total >= offset && (rows.len() as u32) < limit {
-            rows.push(SourceListRow {
-                id: row.id,
-                title: row.title,
-                kind: row.kind.as_str().to_string(),
-                reliability: row.reliability.as_str().to_string(),
-                url: row.url,
-                published_at: row.published_at,
-                excerpt: row.body.as_deref().map(excerpt).unwrap_or_default(),
-                has_text: row.body.is_some(),
-                files: row.files,
-                statements: row.statements,
-            });
-        }
-        total += 1;
+    let expression = fts_expression(query);
+    if expression.is_none() && !query.trim().is_empty() {
+        return Ok(SourceListPage {
+            total: 0,
+            rows: Vec::new(),
+        });
     }
+    let (total, found) = model.search_sources(expression.as_deref(), offset, limit)?;
+    let rows = found
+        .into_iter()
+        .map(|row| SourceListRow {
+            id: row.id,
+            title: row.title,
+            kind: row.kind.as_str().to_string(),
+            reliability: row.reliability.as_str().to_string(),
+            url: row.url,
+            published_at: row.published_at,
+            excerpt: row.head.as_deref().map(excerpt).unwrap_or_default(),
+            has_text: row.head.is_some(),
+            files: row.files,
+            statements: row.statements,
+        })
+        .collect();
     Ok(SourceListPage { total, rows })
 }
 
@@ -141,5 +148,16 @@ mod tests {
         let view = source_view(&m, id).unwrap();
         assert_eq!(view.text.as_deref(), Some("Повний текст"));
         assert!(source_view(&m, 999).is_err());
+    }
+
+    #[test]
+    fn word_beginnings_match_and_punctuation_is_harmless() {
+        let m = Model::open_in_memory("tester").unwrap();
+        add(&m, "Допис", "2024-01-01", Some("Міндічем і Галущенком"));
+        add(&m, "Інший", "2024-01-02", Some("нічого"));
+        assert_eq!(source_list(&m, "мінді", 0, 10).unwrap().total, 1);
+        assert_eq!(source_list(&m, "\"Міндіч\" Галущ", 0, 10).unwrap().total, 1);
+        assert_eq!(source_list(&m, "!!!", 0, 10).unwrap().total, 0);
+        assert_eq!(source_list(&m, "", 0, 10).unwrap().total, 2);
     }
 }
