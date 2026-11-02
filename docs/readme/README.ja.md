@@ -4,18 +4,18 @@
 
 ## ダウンロード
 
-**最新版：[ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.13)（プレリリース）**
+**最新版：[ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.14)（プレリリース）**
 
 | プラットフォーム | ファイル |
 |---|---|
-| Windows - インストーラー（推奨） | [ZaNytky_0.0.13_Setup_Windows_x64.exe](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.13/ZaNytky_0.0.13_Setup_Windows_x64.exe) |
-| Windows - MSI | [ZaNytky_0.0.13_Windows_x64.msi](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.13/ZaNytky_0.0.13_Windows_x64.msi) |
-| Windows - ポータブル版（お試し用） | [ZaNytky_0.0.13_Windows_x64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.13/ZaNytky_0.0.13_Windows_x64_Portable.zip) |
-| Windows - コマンドライン | [ZaNytky_0.0.13_CLI_Windows_x64.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.13/ZaNytky_0.0.13_CLI_Windows_x64.zip) |
-| macOS（Apple Silicon） | [ZaNytky_0.0.13_macOS_arm64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.13/ZaNytky_0.0.13_macOS_arm64_Portable.zip) |
-| macOS（Intel） | [ZaNytky_0.0.13_macOS_x86_64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.13/ZaNytky_0.0.13_macOS_x86_64_Portable.zip) |
+| Windows - インストーラー（推奨） | [ZaNytky_0.0.14_Setup_Windows_x64.exe](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.14/ZaNytky_0.0.14_Setup_Windows_x64.exe) |
+| Windows - MSI | [ZaNytky_0.0.14_Windows_x64.msi](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.14/ZaNytky_0.0.14_Windows_x64.msi) |
+| Windows - ポータブル版（お試し用） | [ZaNytky_0.0.14_Windows_x64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.14/ZaNytky_0.0.14_Windows_x64_Portable.zip) |
+| Windows - コマンドライン | [ZaNytky_0.0.14_CLI_Windows_x64.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.14/ZaNytky_0.0.14_CLI_Windows_x64.zip) |
+| macOS（Apple Silicon） | [ZaNytky_0.0.14_macOS_arm64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.14/ZaNytky_0.0.14_macOS_arm64_Portable.zip) |
+| macOS（Intel） | [ZaNytky_0.0.14_macOS_x86_64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.14/ZaNytky_0.0.14_macOS_x86_64_Portable.zip) |
 
-- チェックサム：[SHA256SUMS.txt](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.13/SHA256SUMS.txt) と[リリースページ](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.13)。すべてのリリース：[Releases](https://github.com/RomanZavadaM/ZaNytky/releases)。
+- チェックサム：[SHA256SUMS.txt](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.14/SHA256SUMS.txt) と[リリースページ](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.14)。すべてのリリース：[Releases](https://github.com/RomanZavadaM/ZaNytky/releases)。
 - ビルドは署名されていません。Windows が不明な発行元の警告を出すことがあります。macOS ビルドは公証されておらず、実機の Mac では未検証です。
 - ポータブル版はお試し用で、いかなる保証もありません。継続利用にはインストーラーを使ってください。
 
@@ -61,7 +61,7 @@ zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 - 人物に対する評価的なレッテルは貼りません。出所と信頼性の評価を示し、判決は示しません。
 - 公開情報源のみ。本文とファイルは匿名化せずローカルに保管し、AI には匿名化したテキストだけを渡します。
 
-## 現行バージョン（0.0.13）の制限
+## 現行バージョン（0.0.14）の制限
 
 - プレリリース：インストーラーは署名されていません。
 - PDF の取り込みとスキャン・動画からの文字認識はまだありません。主張の引用は手で貼り付けます。
