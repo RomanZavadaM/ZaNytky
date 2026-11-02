@@ -40,7 +40,7 @@ pub enum TelegramError {
 impl fmt::Display for TelegramError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            TelegramError::Read(message) => write!(f, "cannot read the export: {message}"),
+            TelegramError::Read(message) => write!(f, "не вдалося прочитати експорт: {message}"),
             TelegramError::Format(message) => write!(f, "unexpected export format: {message}"),
             TelegramError::Model(error) => write!(f, "{error}"),
         }
@@ -131,8 +131,16 @@ pub fn import_telegram_export(
     attachments_dir: &Path,
     reliability: Reliability,
 ) -> Result<TelegramSummary, TelegramError> {
-    let raw = std::fs::read_to_string(export_dir.join("result.json"))
-        .map_err(|e| TelegramError::Read(e.to_string()))?;
+    let raw = std::fs::read_to_string(export_dir.join("result.json")).map_err(|e| {
+        if export_dir.join("result.json").exists() {
+            TelegramError::Read(e.to_string())
+        } else {
+            TelegramError::Read(
+                "у папці немає result.json: оберіть саму папку експорту Telegram Desktop (JSON), де лежить result.json"
+                    .to_string(),
+            )
+        }
+    })?;
     let root: Value = serde_json::from_str(&raw).map_err(|e| TelegramError::Read(e.to_string()))?;
     drop(raw);
     let channel = root
