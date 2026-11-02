@@ -14,11 +14,12 @@ import { EntitiesTab } from "./EntitiesTab";
 import { GraphTab } from "./GraphTab";
 import { ChannelsTab } from "./ChannelsTab";
 import { OverlapsTab } from "./OverlapsTab";
+import { OverviewTab } from "./OverviewTab";
 import { SourcesTab } from "./SourcesTab";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { notifyDataChanged, onDataChanged, openSectionWindow, windowSection } from "./windowApi";
 
-type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "graph" | "report";
+type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "overview" | "graph" | "report";
 
 /** True when any text box in this window still holds unsaved text. */
 function hasUnsavedText(): boolean {
@@ -587,6 +588,7 @@ export function App() {
     ["sources", t.tabSources],
     ["channels", t.tabChannels],
     ["overlaps", t.tabOverlaps],
+    ["overview", t.tabOverview],
     ["graph", t.tabGraph],
     ["report", t.tabReport],
   ];
@@ -669,6 +671,7 @@ export function App() {
         {tab === "overlaps" && (
           <OverlapsTab t={t} lang={(lang in PACKS ? lang : "uk") as Lang} home={home} run={run} />
         )}
+        {tab === "overview" && <OverviewTab t={t} home={home} run={run} />}
         {tab === "graph" && (
           <GraphTab
             t={t}

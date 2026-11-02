@@ -46,7 +46,7 @@ const GENERIC_SITES: &[&str] = &[
     "linkedin.com", "spotify.com", "apple.com", "podcasts.apple.com",
 ];
 
-fn is_generic_site(host: &str) -> bool {
+pub(crate) fn is_generic_site(host: &str) -> bool {
     GENERIC_SITES
         .iter()
         .any(|generic| host == *generic || host.ends_with(&format!(".{generic}")))

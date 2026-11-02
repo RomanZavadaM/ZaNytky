@@ -40,6 +40,7 @@ zanytky - команди
                                           експорт каналу Telegram Desktop (JSON): допис = джерело з текстом і файлами (за замовчуванням надійність F)
   report --identity ФАЙЛ --out ФАЙЛ [--format md|docx|pdf] (--passphrase-file ФАЙЛ | --plain)
           [--title НАЗВА]                 звіт розслідувача (з розкриттям осіб)
+  overview --out ФАЙЛ                     огляд бази одним звітом Markdown: канали, піки, збіги, нові суб'єкти, імовірні зв'язки
   backup --out ФАЙЛ --passphrase-file ФАЙЛ
                                           зашифрована резервна копія всієї папки даних (закрийте інші програми)
   restore ФАЙЛ --to ПАПКА --passphrase-file ФАЙЛ
@@ -469,6 +470,19 @@ fn passphrase_from(args: &Args) -> Result<String, String> {
     Ok(passphrase.to_string())
 }
 
+fn cmd_overview(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let target = PathBuf::from(args.need("out")?);
+    if target.exists() {
+        return Err("файл огляду вже існує, він не перезаписується".to_string());
+    }
+    let registry = open_registry(&home).ok();
+    let report = zanytky_core::build_overview(&open_model(&home)?, registry.as_ref())?;
+    write_file(&target, report.as_bytes())?;
+    writeln!(out, "Огляд записано: {} ({} байт)", target.display(), report.len())
+        .map_err(|e| e.to_string())
+}
+
 fn cmd_backup(args: &Args, out: Out) -> Result<(), String> {
     let home = home_dir(args)?;
     let target = PathBuf::from(args.need("out")?);
@@ -511,6 +525,7 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "import" => cmd_import(&parsed, out),
         "import-telegram" => cmd_import_telegram(&parsed, out),
         "report" => cmd_report(&parsed, out),
+        "overview" => cmd_overview(&parsed, out),
         "backup" => cmd_backup(&parsed, out),
         "restore" => cmd_restore(&parsed, out),
         "help" | "--help" | "-h" => write!(out, "{HELP}").map_err(|e| e.to_string()),
