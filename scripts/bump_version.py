@@ -25,6 +25,8 @@ MANIFESTS = [
 ]
 README_PATTERNS = [
     r"releases/tag/v(" + VER + r")",
+    r"releases/download/v(" + VER + r")/",
+    r"ZaNytky_(" + VER + r")_",   # імена файлів у таблиці завантажень
     r"\((" + VER + r")\)",   # заголовки «(0.0.4)» у круглих дужках
     r"（(" + VER + r")）",   # японські дужки
 ]

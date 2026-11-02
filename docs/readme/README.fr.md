@@ -2,73 +2,78 @@
 
 [🇺🇦 Українська](../../README.md) · [🇬🇧 English](README.en.md) · **🇫🇷 Français** · [🇩🇪 Deutsch](README.de.md) · [🇪🇸 Español](README.es.md) · [🇰🇷 한국어](README.ko.md) · [🇯🇵 日本語](README.ja.md)
 
-Application pour organiser les liens entre des sujets issus de sources ouvertes, avec pseudonymisation des données personnelles par clé.
+## Téléchargement
 
-Statut : **début de développement** (préversion). Implémentation : Rust (cœur) et React (fenêtre). L'ukrainien est la langue de référence de l'interface et de la documentation.
+**Dernière version : [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.8) (préversion)**
 
-ZaNytky est un **logiciel propriétaire** : un dépôt public n'accorde pas de licence open source (voir LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Aucune donnée d'utilisateur n'est stockée dans le dépôt.
+| Plateforme | Fichier |
+|---|---|
+| Windows - installateur (recommandé) | [ZaNytky_0.0.8_Setup_Windows_x64.exe](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.8/ZaNytky_0.0.8_Setup_Windows_x64.exe) |
+| Windows - MSI | [ZaNytky_0.0.8_Windows_x64.msi](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.8/ZaNytky_0.0.8_Windows_x64.msi) |
+| Windows - archive portable (évaluation seulement) | [ZaNytky_0.0.8_Windows_x64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.8/ZaNytky_0.0.8_Windows_x64_Portable.zip) |
+| Windows - ligne de commande | [ZaNytky_0.0.8_CLI_Windows_x64.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.8/ZaNytky_0.0.8_CLI_Windows_x64.zip) |
+| macOS (Apple Silicon) | [ZaNytky_0.0.8_macOS_arm64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.8/ZaNytky_0.0.8_macOS_arm64_Portable.zip) |
+| macOS (Intel) | [ZaNytky_0.0.8_macOS_x86_64_Portable.zip](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.8/ZaNytky_0.0.8_macOS_x86_64_Portable.zip) |
+
+- Sommes de contrôle : [SHA256SUMS.txt](https://github.com/RomanZavadaM/ZaNytky/releases/download/v0.0.8/SHA256SUMS.txt) et [page de la version](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.8). Toutes les versions : [Releases](https://github.com/RomanZavadaM/ZaNytky/releases).
+- Les builds ne sont pas signés : Windows peut avertir d'un éditeur inconnu ; les builds macOS ne sont pas notarisés et n'ont pas été testés sur un vrai Mac.
+- L'archive portable sert uniquement à l'évaluation, sans aucune garantie ; pour un usage régulier, utilisez l'installateur.
+
+Application pour organiser les liens entre sujets à partir de sources ouvertes : sources avec texte intégral et fichiers, déclarations avec citations, graphe des liens, recherche du chemin le plus court entre sujets. Les données personnelles sont remplacées par des pseudonymes à clé.
+
+Statut : **développement précoce** (préversion 0.0.8). ZaNytky est un **logiciel propriétaire** : un dépôt public n'accorde pas de licence open source (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Aucune donnée utilisateur n'est stockée dans le dépôt.
 
 > Cette traduction est automatique et n'a pas été relue par des locuteurs natifs ; le texte ukrainien fait foi.
 
-## Fonctionnalités
+## Fonctions
 
-- Pseudonymes univoques des valeurs (noms, numéros fiscaux, téléphones, e-mails) selon une clé système : la même valeur donne toujours le même code.
-- Les originaux ne sont conservés que scellés pour la clé publique de l'enquêteur (age) ; seul le détenteur de la clé privée peut les ouvrir.
-- Anonymisation du texte avant l'analyse par l'IA et paquet pour l'IA (texte, instruction, métadonnées) ; décisions de l'enquêteur sur les mentions non reconnues.
-- Vérification de la réponse de l'IA, relecture humaine, import dans la base (SQLite) comme « non vérifié ».
-- Modèle : sujets, sources avec chaîne jusqu'à la source d'origine, déclarations avec notes de fiabilité et de crédibilité, arbre de propriété.
-- Rapport de l'enquêteur en Markdown, Word et PDF, protégé par une phrase secrète.
+- **Sources :** texte intégral et fichiers (scans, photos, vidéo) dans la base locale ; recherche par titre, texte et adresse.
+- **Import d'un canal Telegram** (export Telegram Desktop, JSON) : chaque message devient une source avec texte et pièces jointes.
+- **Déclarations avec citation** de la source : type, parties avec rôles (sujets existants ou nouveaux), niveau de crédibilité ; toujours « non vérifiée ».
+- **Sujets :** fiche avec déclarations, sources, chaîne de propriété et signes communs (adresse, téléphone, plaque, compte) ; fusion des doublons ; graphe ; chemin le plus court entre deux sujets.
+- **Pseudonymisation :** codes uniques à clé système ; originaux uniquement scellés (age) pour la clé de l'enquêteur ; anonymisation du texte et paquet pour l'IA ; contrôle et import de la réponse.
+- **Rapport** Markdown, Word et PDF avec phrase secrète ; sauvegarde chiffrée du dossier de données. 7 langues.
 
-## Téléchargement
+## Démarrage rapide
 
-**Télécharger: [ZaNytky v0.0.4](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.8)** (dernière préversion)
-
-Les fichiers prêts pour Windows (zip portable sans installation, installateurs .msi/.exe) sont sur la page des [versions](https://github.com/RomanZavadaM/ZaNytky/releases). Les builds ne sont pas signées : Windows peut avertir d'un éditeur inconnu.
-
-> **L'archive portable est destinée uniquement à la découverte.** Vous l'utilisez à vos propres risques, sans aucune garantie. Pour un usage régulier, utilisez les versions installées (installateurs .exe/.msi).
-
-## Démarrage rapide (application)
-
-1. Décompressez l'archive portable et lancez `ZaNytky.exe` (rien à installer ; gardez le dossier `webview2` à côté de `ZaNytky.exe`).
-2. Onglet « Configuration » : choisissez un dossier de données vide et cliquez sur « Préparer le dossier » ; créez une clé d'enquêteur et gardez son fichier en lieu sûr.
-3. Onglet « Préparer le document » : collez le texte, cliquez sur « Anonymiser et préparer le paquet pour l'IA », copiez le texte et l'instruction et donnez-les à l'IA.
-4. Onglet « Résultat de l'IA » : collez la réponse (result.json), vérifiez-la, lisez la relecture et importez.
-5. Onglets « Base » et « Rapport » : parcourez les déclarations, confirmez ou réfutez-les, créez un rapport.
+1. Installez l'application (ou décompressez l'archive portable et lancez `ZaNytky.exe`).
+2. « Paramètres » : choisissez un dossier de données vide hors du dossier du code, « Préparer le dossier », créez la clé de l'enquêteur et gardez-la à part.
+3. « Sources » : importez l'export d'un canal Telegram (bouton en haut) ou ajoutez texte et fichiers à la main.
+4. Ouvrez une source et créez une déclaration : citation, parties, rôles. Consultez « Sujets » et « Graphe ».
+5. Pour l'analyse par IA : « Document » (anonymisation et paquet) et « Résultat IA » (contrôle et import). « Rapport » donne la synthèse.
 
 ## Ligne de commande
 
-Les mêmes actions existent en commandes ; `zanytky help` les liste toutes.
+Les mêmes fonctions existent en commandes ; `zanytky help` les liste.
 
 ```bash
 zanytky init --home ./home
 zanytky identity-new ./investigator.txt
-zanytky register name "Іваненко Петро" --home ./home
-zanytky prepare doc.md --home ./home --out ./pkg --id pkg-1 --title "Title" --identity ./investigator.txt
-zanytky check  result.json --package pkg-1
+zanytky import-telegram "ChatExport_2026-11-01" --home ./home --reliability F
 zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
-zanytky restore copy.znbak --to ./restored --passphrase-file ./pass.txt
 ```
 
 ## Principes
 
-- Chaque affirmation a une source et une chaîne jusqu'à la source primaire ; une rumeur ne devient pas un fait, et les échos d'une même rumeur comptent comme une seule source primaire.
-- Aucune étiquette évaluative sur les personnes : le programme montre l'origine et une note de fiabilité, pas des verdicts.
-- Sources ouvertes uniquement ; les données personnelles sont remplacées par des pseudonymes ; l'IA ne reçoit qu'un texte anonymisé.
+- Chaque déclaration a une source et une chaîne jusqu'à la source première ; une rumeur ne devient pas un fait, et les échos d'une rumeur ne forment qu'une source première.
+- Aucune étiquette de jugement sur les personnes : nous montrons l'origine et la fiabilité, pas des verdicts.
+- Sources ouvertes uniquement. Textes et fichiers sont conservés localement, sans anonymisation ; l'IA ne reçoit que du texte anonymisé.
 
 ## Limites de la version actuelle (0.0.8)
 
-- Il s'agit d'une préversion : les installateurs ne sont pas signés.
-- « Analyse de document » n'accepte pour l'instant que le texte et le Markdown (pas encore d'import .docx/.pdf).
-- Le rapport Word n'a pas été vérifié dans Microsoft Word, ni le PDF dans une visionneuse ; la détection des noms inconnus est simple (mots en majuscule) et donne de faux candidats.
-- Gardez le dossier de données hors du dossier du code et n'inscrivez pas de données personnelles (par exemple une adresse e-mail) dans l'identifiant du paquet : il est transmis à l'IA sans anonymisation.
+- Préversion : les installateurs ne sont pas signés.
+- Pas d'import PDF ni de reconnaissance de texte des scans ou vidéos ; la citation d'une déclaration se colle à la main.
+- Le rapport Word et l'affichage PDF n'ont pas été vérifiés dans Microsoft Word ni des lecteurs PDF ; la reconnaissance des noms inconnus est simple.
+- Gardez le dossier de données hors du dossier du code et ne mettez pas de données personnelles dans l'identifiant du paquet : il est transmis à l'IA sans anonymisation.
 
 ## Sécurité
 
-Conservez séparément la clé système (`system.key` dans le dossier de données), la clé privée de l'enquêteur et la phrase secrète, et ne les ajoutez jamais à un dépôt. L'application n'envoie rien sur le réseau.
+Conservez séparément la clé système (`system.key` dans le dossier de données), la clé privée de l'enquêteur et la phrase secrète, et ne les ajoutez jamais au dépôt. L'application n'envoie rien sur le réseau.
 
 ## Documentation
 
-- [Guide d'utilisation](../user-guide/USER_GUIDE.fr.md)
+- [Guide de l'utilisateur](../../docs/user-guide/USER_GUIDE.fr.md)
+- [Notes de version](../../docs/releases)
 - [LICENSE](../../LICENSE.md)
