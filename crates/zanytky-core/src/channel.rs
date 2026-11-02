@@ -185,13 +185,24 @@ fn connections(
 }
 
 /// The nodes and lines of a graph, without repeats.
-struct Builder {
-    graph: EntityGraph,
+pub(crate) struct Builder {
+    pub(crate) graph: EntityGraph,
     seen: std::collections::HashSet<String>,
 }
 
 impl Builder {
-    fn node(&mut self, path: &str, title: String, note_type: &str) {
+    pub(crate) fn new() -> Self {
+        Builder {
+            graph: EntityGraph {
+                nodes: Vec::new(),
+                edges: Vec::new(),
+                relations: Vec::new(),
+            },
+            seen: std::collections::HashSet::new(),
+        }
+    }
+
+    pub(crate) fn node(&mut self, path: &str, title: String, note_type: &str) {
         if self.seen.insert(path.to_string()) {
             self.graph.nodes.push(GraphNodeOut {
                 path: path.to_string(),
@@ -201,7 +212,7 @@ impl Builder {
         }
     }
 
-    fn line(&mut self, source: &str, target: &str, kind: &str, evidence: String) {
+    pub(crate) fn line(&mut self, source: &str, target: &str, kind: &str, evidence: String) {
         let exists = self
             .graph
             .relations
@@ -368,14 +379,7 @@ pub fn channel_graph(
 ) -> Result<EntityGraph, ModelError> {
     let conn = model.connection();
     let centre = format!("ch:{channel_id}");
-    let mut builder = Builder {
-        graph: EntityGraph {
-            nodes: Vec::new(),
-            edges: Vec::new(),
-            relations: Vec::new(),
-        },
-        seen: std::collections::HashSet::new(),
-    };
+    let mut builder = Builder::new();
     builder.node(&centre, channel_name(conn, channel_id)?, "channel");
     let items = connections(conn, channel_id, TOP)?;
     builder.around(&centre, items);

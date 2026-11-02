@@ -167,6 +167,18 @@ export interface Found {
   known: number | null;
 }
 
+export interface SharedChannel {
+  channelId: number;
+  name: string;
+  count: number;
+}
+
+export interface Shared {
+  kind: string;
+  value: string;
+  channels: SharedChannel[];
+}
+
 export interface MonthRow {
   month: string;
   posts: number;
@@ -290,6 +302,9 @@ export const api = {
     invoke<Found[]>("discover_all_cmd", { input: { home, limit } }),
   addFound: (home: string, kind: string, text: string) =>
     invoke<number>("add_found_cmd", { input: { home, kind, text } }),
+  overlaps: (home: string, limit: number) => invoke<Shared[]>("list_overlaps", { input: { home, limit } }),
+  overlapGraph: (home: string, limit: number) =>
+    invoke<KnowledgeGraph>("get_overlap_graph", { input: { home, limit } }),
   channels: (home: string) => invoke<ChannelRow[]>("list_channels", { input: { home } }),
   channelGaps: (home: string, id: number) => invoke<ChannelGaps>("get_channel_gaps", { input: { home, id } }),
   channelGraph: (home: string, id: number, expanded: string[]) =>

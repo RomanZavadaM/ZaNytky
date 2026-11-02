@@ -12,6 +12,7 @@ pub mod import;
 pub mod make;
 pub mod model;
 pub mod normalize;
+pub mod overlap;
 pub mod package;
 pub mod path;
 pub mod pdf;
@@ -42,6 +43,7 @@ pub use import::{import_result, review_with_links, ImportError, ImportSummary, L
 pub use make::{create_statement, PartyRequest, StatementRequest};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
+pub use overlap::{channel_overlaps, overlaps_graph, Shared, SharedChannel};
 pub use package::{build_package, build_package_with_links, Package, SourceMeta};
 pub use path::{find_paths, EntityPath, PathResult};
 pub use pdf::{pdf_protected, to_pdf};
