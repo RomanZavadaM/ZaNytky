@@ -312,7 +312,7 @@ mod tests {
             1,
             LONG,
             Some("Спільний"),
-            &[("site", "example.org")],
+            &[("site", "example.org"), ("site", "youtube.com")],
         );
         post(
             &model,
@@ -320,7 +320,12 @@ mod tests {
             1,
             &format!("Переслано з: Хтось\n\n{LONG}"),
             Some("Спільний"),
-            &[("site", "example.org"), ("tg", "c/1")],
+            &[
+                ("site", "example.org"),
+                ("site", "m.youtube.com"),
+                ("site", "youtube.com"),
+                ("tg", "c/1"),
+            ],
         );
         post(&model, 2, 2, "Короткий", Some("Один"), &[]);
 
@@ -332,6 +337,8 @@ mod tests {
         };
         assert!(has("forward", "Спільний"));
         assert!(has("site", "example.org"));
+        // a platform every channel links to is left out
+        assert!(!shared.iter().any(|s| s.value.contains("youtube")));
         assert!(shared.iter().any(|s| s.kind == "text"));
         // a link nobody else has is not shared
         assert!(!shared.iter().any(|s| s.value == "c/1"));
