@@ -17,6 +17,12 @@ interface Props {
   refreshKey: number;
   load: () => Promise<KnowledgeGraph>;
   onOpen: (path: string) => void;
+  /** Names of node types for the legend (otherwise the raw type). */
+  typeLabel?: (type: string) => string;
+  /** The hint under the graph; `null` hides it. */
+  hint?: string | null;
+  /** A plain graph: no reliability scales or shapes, more labels. */
+  plain?: boolean;
 }
 
 // v2: the defaults changed (more room between nodes), so older saved values are not reused.
@@ -141,7 +147,7 @@ function buildTrace(graph: Graph, root: string) {
   return { tree, nodes, edges, materials: [...materials] };
 }
 
-export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }: Props) {
+export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, typeLabel, hint, plain }: Props) {
   const { language } = useI18n();
   const strings = GRAPH_STRINGS[language];
   const containerRef = useRef<HTMLDivElement | null>(null);
@@ -340,9 +346,9 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }
     const renderer = new Sigma(graph, container, {
       renderEdgeLabels: false,
       // Fewer, larger labels: on a dense graph the names of neighbours no longer overprint each other.
-      labelDensity: 0.6,
-      labelGridCellSize: 130,
-      labelRenderedSizeThreshold: 8,
+      labelDensity: plain ? 1 : 0.6,
+      labelGridCellSize: plain ? 90 : 130,
+      labelRenderedSizeThreshold: plain ? 3 : 8,
       labelColor: { color: labelColor },
       labelSize: 12,
       defaultEdgeColor: edgeColor,
@@ -630,9 +636,12 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }
             >
               {strings.float}
             </button>
+            {!plain && (
             <button type="button" aria-pressed={shapes} className={shapes ? "on" : ""} title={strings.shapesHint} onClick={() => setShapes((value) => !value)}>
               {strings.shapes}
             </button>
+            )}
+            {!plain && (
             <label className="knowledge-graph-grade-filter" title={strings.gradeFilterHint}>
               {strings.gradeFilter}{" "}
               <select
@@ -644,6 +653,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }
                 <option value="4">{strings.gradeMedium}</option>
               </select>
             </label>
+            )}
             <button type="button" aria-pressed={paused} className={paused ? "on" : ""} onClick={() => setPaused((value) => !value)}>
               {paused ? strings.resume : strings.pause}
             </button>
@@ -674,6 +684,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }
               </button>
             </details>
           </div>
+          {!plain && (
           <details className="knowledge-graph-key">
             <summary>{strings.legend}</summary>
             <p>
@@ -710,6 +721,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }
             </p>
             <p>{strings.legendRumour}</p>
           </details>
+          )}
           <ul className="knowledge-graph-legend" aria-label={strings.typesHeading}>
             {legend.map(([type, count]) => (
               <li key={type || "_none"}>
@@ -720,7 +732,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }
                   onClick={() => toggleType(type)}
                 >
                   {shapes ? <GlyphIcon type={type} color={stateColor("none", isDarkBackground())} /> : <span className="dot" style={{ background: typeColor(type) }} />}
-                  {type || strings.noType} <small>{count}</small>
+                  {typeLabel ? typeLabel(type) : type || strings.noType} <small>{count}</small>
                 </button>
               </li>
             ))}
@@ -784,7 +796,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen }
           </div>
         )}
       </div>
-      {hasGraph && <p className="knowledge-graph-hint">{strings.openHint}</p>}
+      {hasGraph && hint !== null && <p className="knowledge-graph-hint">{hint ?? strings.openHint}</p>}
     </section>
   );
 }

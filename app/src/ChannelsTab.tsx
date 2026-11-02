@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { api, type ChannelGaps, type ChannelRow, type MonthRow } from "./api";
 import { KnowledgeGraphPanel } from "./graph/KnowledgeGraphPanel";
 import { LanguageContext, type LanguageCode } from "./graph/lang";
+import { channelTypeLabel } from "./graphTypes";
 import { fill, type Lang, type Strings } from "./i18n";
 
 interface Props {
@@ -165,10 +166,18 @@ export function ChannelsTab({ t, lang, home, run }: Props) {
       )}
       <h3>{t.channelsGraphTitle}</h3>
       <p className="muted">{t.channelsRefreshHint}</p>
-      <p className="muted">{t.channelsExpandHint}</p>
       {expanded.length > 0 && <button onClick={() => setExpanded([])}>{t.channelsCollapse}</button>}
       <LanguageContext.Provider value={(lang as LanguageCode) ?? "uk"}>
-        <KnowledgeGraphPanel mode="global" notePath="" refreshKey={(selected ?? 0) * 1000 + expanded.length} load={load} onOpen={expand} />
+        <KnowledgeGraphPanel
+          mode="global"
+          notePath=""
+          refreshKey={(selected ?? 0) * 1000 + expanded.length}
+          load={load}
+          onOpen={expand}
+          plain
+          typeLabel={(type) => channelTypeLabel(t, type)}
+          hint={t.channelsExpandHint}
+        />
       </LanguageContext.Provider>
     </section>
   );
