@@ -159,6 +159,14 @@ export interface ChannelGaps {
   more: number;
 }
 
+export interface MonthRow {
+  month: string;
+  posts: number;
+  forwarded: number;
+  topOrigin: string | null;
+  topCount: number;
+}
+
 export interface TelegramSummary {
   channel: string;
   messages: number;
@@ -270,7 +278,10 @@ export const api = {
     invoke<TelegramSummary>("import_telegram_cmd", { input: { home, folder, reliability } }),
   channels: (home: string) => invoke<ChannelRow[]>("list_channels", { input: { home } }),
   channelGaps: (home: string, id: number) => invoke<ChannelGaps>("get_channel_gaps", { input: { home, id } }),
-  channelGraph: (home: string, id: number) => invoke<KnowledgeGraph>("get_channel_graph", { input: { home, id } }),
+  channelGraph: (home: string, id: number, expanded: string[]) =>
+    invoke<KnowledgeGraph>("get_channel_graph", { input: { home, id, expanded } }),
+  channelTimeline: (home: string, id: number) =>
+    invoke<MonthRow[]>("get_channel_timeline", { input: { home, id } }),
   createStatement: (home: string, request: StatementRequest) =>
     invoke<number>("create_statement_cmd", { input: { home, request } }),
   setSourceText: (home: string, sourceId: number, text: string) =>

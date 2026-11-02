@@ -111,74 +111,48 @@ pub fn channel_gaps(model: &Model, channel_id: i64) -> Result<ChannelGaps, Model
 
 /// How many nodes of each kind (forwarded-from, channels, sites, mentions) the graph shows.
 const TOP: usize = 30;
+/// How many nodes an expanded node adds.
+const EXPAND_TOP: usize = 15;
 
-/// The connections of one channel as a graph: the channel in the middle; around it the
-/// sources of its forwarded posts, the channels and sites it links to, and the accounts it
-/// mentions (the most frequent ones). A line says how many posts it comes from.
-pub fn channel_graph(model: &Model, channel_id: i64) -> Result<EntityGraph, ModelError> {
-    let conn = model.connection();
-    let name: String = conn.query_row(
-        "SELECT name FROM telegram_channel WHERE channel_id = ?1",
-        [channel_id],
-        |r| r.get(0),
-    )?;
-    let centre = format!("ch:{channel_id}");
-    let mut nodes = vec![GraphNodeOut {
-        path: centre.clone(),
-        title: name.clone(),
-        note_type: Some("channel".to_string()),
-    }];
-    let mut edges = Vec::new();
-    let mut relations = Vec::new();
+/// One connection of a channel: a node around it and the line to it.
+struct Item {
+    path: String,
+    label: String,
+    note_type: &'static str,
+    count: i64,
+    kind: &'static str,
+    /// The line runs from the node to the channel (a forward), otherwise the other way.
+    inward: bool,
+}
 
-    let mut add =
-        |path: String, label: &str, note_type: &str, count: i64, kind: &str, inward: bool| {
-            nodes.push(GraphNodeOut {
-                path: path.clone(),
-                title: format!("{label} ({count})"),
-                note_type: Some(note_type.to_string()),
-            });
-            let (source, target) = if inward {
-                (path.clone(), centre.clone())
-            } else {
-                (centre.clone(), path.clone())
-            };
-            edges.push(GraphEdgeOut {
-                source: source.clone(),
-                target: target.clone(),
-            });
-            relations.push(GraphRelationOut {
-                source,
-                target,
-                kind: kind.to_string(),
-                grade: None,
-                origin: None,
-                status: None,
-                evidence: Some(format!("{count}")),
-            });
-        };
-
+/// The most frequent connections of a channel: where its posts were forwarded from, the
+/// channels and sites it links to, the accounts it mentions.
+fn connections(
+    conn: &rusqlite::Connection,
+    channel_id: i64,
+    top: usize,
+) -> Result<Vec<Item>, ModelError> {
+    let mut items = Vec::new();
     let mut stmt = conn.prepare(
         "SELECT forwarded_from, COUNT(*) AS n FROM telegram_post \
          WHERE channel_id = ?1 AND forwarded_from IS NOT NULL AND forwarded_from <> '' \
          GROUP BY forwarded_from ORDER BY n DESC, forwarded_from LIMIT ?2",
     )?;
     let forwarded = stmt
-        .query_map(rusqlite::params![channel_id, TOP as i64], |r| {
+        .query_map(rusqlite::params![channel_id, top as i64], |r| {
             Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
         })?
         .collect::<Result<Vec<_>, _>>()?;
     for (origin, count) in forwarded {
-        add(
-            format!("fw:{origin}"),
-            &origin,
-            "channel",
+        items.push(Item {
+            path: format!("fw:{origin}"),
+            label: origin,
+            note_type: "channel",
             count,
-            "forward",
-            true,
-        );
+            kind: "forward",
+            inward: true,
+        });
     }
-
     for (kind, note_type, relation) in [
         ("tg", "channel", "link"),
         ("site", "site", "link"),
@@ -192,26 +166,283 @@ pub fn channel_graph(model: &Model, channel_id: i64) -> Result<EntityGraph, Mode
         )?;
         let own = format!("c/{channel_id}%");
         let found = stmt
-            .query_map(rusqlite::params![channel_id, kind, own, TOP as i64], |r| {
+            .query_map(rusqlite::params![channel_id, kind, own, top as i64], |r| {
                 Ok((r.get::<_, String>(0)?, r.get::<_, i64>(1)?))
             })?
             .collect::<Result<Vec<_>, _>>()?;
         for (value, count) in found {
-            add(
-                format!("{kind}:{value}"),
-                &value,
+            items.push(Item {
+                path: format!("{kind}:{value}"),
+                label: value,
                 note_type,
                 count,
-                relation,
-                false,
-            );
+                kind: relation,
+                inward: false,
+            });
         }
     }
-    Ok(EntityGraph {
-        nodes,
-        edges,
-        relations,
-    })
+    Ok(items)
+}
+
+/// The nodes and lines of a graph, without repeats.
+struct Builder {
+    graph: EntityGraph,
+    seen: std::collections::HashSet<String>,
+}
+
+impl Builder {
+    fn node(&mut self, path: &str, title: String, note_type: &str) {
+        if self.seen.insert(path.to_string()) {
+            self.graph.nodes.push(GraphNodeOut {
+                path: path.to_string(),
+                title,
+                note_type: Some(note_type.to_string()),
+            });
+        }
+    }
+
+    fn line(&mut self, source: &str, target: &str, kind: &str, evidence: String) {
+        let exists = self
+            .graph
+            .relations
+            .iter()
+            .any(|r| r.source == source && r.target == target && r.kind == kind);
+        if exists {
+            return;
+        }
+        self.graph.edges.push(GraphEdgeOut {
+            source: source.to_string(),
+            target: target.to_string(),
+        });
+        self.graph.relations.push(GraphRelationOut {
+            source: source.to_string(),
+            target: target.to_string(),
+            kind: kind.to_string(),
+            grade: None,
+            origin: None,
+            status: None,
+            evidence: Some(evidence),
+        });
+    }
+
+    fn around(&mut self, centre: &str, items: Vec<Item>) {
+        for item in items {
+            self.node(
+                &item.path,
+                format!("{} ({})", item.label, item.count),
+                item.note_type,
+            );
+            let (source, target) = if item.inward {
+                (item.path.as_str(), centre)
+            } else {
+                (centre, item.path.as_str())
+            };
+            self.line(source, target, item.kind, format!("{}", item.count));
+        }
+    }
+}
+
+fn channel_name(conn: &rusqlite::Connection, channel_id: i64) -> Result<String, ModelError> {
+    Ok(conn.query_row(
+        "SELECT name FROM telegram_channel WHERE channel_id = ?1",
+        [channel_id],
+        |r| r.get(0),
+    )?)
+}
+
+/// The most recent posts of the channel that match `condition` (a WHERE part on `p`, `l`).
+fn recent_posts(
+    conn: &rusqlite::Connection,
+    sql_from_where: &str,
+    params: &[&dyn rusqlite::ToSql],
+) -> Result<Vec<(i64, String)>, ModelError> {
+    let mut stmt = conn.prepare(&format!(
+        "SELECT DISTINCT s.id, COALESCE(s.published_at, ''), s.title {sql_from_where} \
+         ORDER BY s.published_at DESC, s.id DESC LIMIT {EXPAND_TOP}"
+    ))?;
+    let rows = stmt
+        .query_map(params, |r| {
+            let id: i64 = r.get(0)?;
+            let date: String = r.get(1)?;
+            let title: String = r.get(2)?;
+            let short: String = title.chars().take(60).collect();
+            Ok((id, format!("{date} {short}").trim().to_string()))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    Ok(rows)
+}
+
+/// Add what hangs on an expanded node: the posts it comes from, the other channels of the
+/// base that have the same connection, and (for a channel) its own connections.
+fn expand(
+    builder: &mut Builder,
+    conn: &rusqlite::Connection,
+    channel_id: i64,
+    node: &str,
+) -> Result<(), ModelError> {
+    if !builder.seen.contains(node) {
+        return Ok(());
+    }
+    let Some((prefix, value)) = node.split_once(':') else {
+        return Ok(());
+    };
+    let (posts, others): (Vec<(i64, String)>, Vec<i64>) = match prefix {
+        "fw" => {
+            let posts = recent_posts(
+                conn,
+                "FROM telegram_post p JOIN source s ON s.id = p.source_id \
+                 WHERE p.channel_id = ?1 AND p.forwarded_from = ?2",
+                &[&channel_id, &value],
+            )?;
+            let mut stmt = conn.prepare(
+                "SELECT DISTINCT channel_id FROM telegram_post \
+                 WHERE forwarded_from = ?1 AND channel_id <> ?2",
+            )?;
+            let others = stmt
+                .query_map(rusqlite::params![value, channel_id], |r| r.get::<_, i64>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            // the origin may itself be a channel of the base
+            let mut same =
+                conn.prepare("SELECT channel_id FROM telegram_channel WHERE name = ?1")?;
+            let same = same
+                .query_map([value], |r| r.get::<_, i64>(0))?
+                .collect::<Result<Vec<_>, _>>()?;
+            for id in same {
+                let name = channel_name(conn, id)?;
+                builder.node(&format!("ch:{id}"), name, "channel");
+                builder.line(node, &format!("ch:{id}"), "same", "".to_string());
+            }
+            (posts, others)
+        }
+        "tg" | "site" | "mention" => {
+            let posts = recent_posts(
+                conn,
+                "FROM source_link l JOIN telegram_post p ON p.source_id = l.source_id \
+                 JOIN source s ON s.id = p.source_id \
+                 WHERE p.channel_id = ?1 AND l.kind = ?2 AND l.value = ?3",
+                &[&channel_id, &prefix, &value],
+            )?;
+            let mut stmt = conn.prepare(
+                "SELECT DISTINCT p.channel_id FROM source_link l \
+                 JOIN telegram_post p ON p.source_id = l.source_id \
+                 WHERE l.kind = ?1 AND l.value = ?2 AND p.channel_id <> ?3",
+            )?;
+            let others = stmt
+                .query_map(rusqlite::params![prefix, value, channel_id], |r| {
+                    r.get::<_, i64>(0)
+                })?
+                .collect::<Result<Vec<_>, _>>()?;
+            (posts, others)
+        }
+        "ch" => {
+            let id: i64 = value.parse().unwrap_or(-1);
+            let items = connections(conn, id, EXPAND_TOP)?;
+            builder.around(node, items);
+            return Ok(());
+        }
+        _ => return Ok(()),
+    };
+    for (id, title) in posts {
+        let path = format!("post:{id}");
+        builder.node(&path, title, "source");
+        builder.line(node, &path, "post", String::new());
+    }
+    for id in others {
+        let path = format!("ch:{id}");
+        let name = channel_name(conn, id)?;
+        builder.node(&path, name, "channel");
+        builder.line(node, &path, "shared", String::new());
+    }
+    Ok(())
+}
+
+/// The connections of one channel as a graph: the channel in the middle; around it the
+/// sources of its forwarded posts, the channels and sites it links to, and the accounts it
+/// mentions (the most frequent ones). A line says how many posts it comes from. Every node in
+/// `expanded` is opened: its posts, the other channels of the base with the same connection
+/// (the hidden links between channels), and for a channel its own connections.
+pub fn channel_graph(
+    model: &Model,
+    channel_id: i64,
+    expanded: &[String],
+) -> Result<EntityGraph, ModelError> {
+    let conn = model.connection();
+    let centre = format!("ch:{channel_id}");
+    let mut builder = Builder {
+        graph: EntityGraph {
+            nodes: Vec::new(),
+            edges: Vec::new(),
+            relations: Vec::new(),
+        },
+        seen: std::collections::HashSet::new(),
+    };
+    builder.node(&centre, channel_name(conn, channel_id)?, "channel");
+    let items = connections(conn, channel_id, TOP)?;
+    builder.around(&centre, items);
+    for node in expanded {
+        expand(&mut builder, conn, channel_id, node)?;
+    }
+    Ok(builder.graph)
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct MonthRow {
+    /// `YYYY-MM`.
+    pub month: String,
+    pub posts: u32,
+    /// Of them forwarded from another channel.
+    pub forwarded: u32,
+    pub top_origin: Option<String>,
+    pub top_count: u32,
+}
+
+/// Posts of the channel by month, with the most frequent origin of the forwarded ones.
+pub fn channel_timeline(model: &Model, channel_id: i64) -> Result<Vec<MonthRow>, ModelError> {
+    let conn = model.connection();
+    let mut stmt = conn.prepare(
+        "SELECT substr(s.published_at, 1, 7), COUNT(*), \
+         SUM(p.forwarded_from IS NOT NULL AND p.forwarded_from <> '') \
+         FROM telegram_post p JOIN source s ON s.id = p.source_id \
+         WHERE p.channel_id = ?1 AND s.published_at IS NOT NULL \
+         GROUP BY 1 ORDER BY 1",
+    )?;
+    let mut rows = stmt
+        .query_map([channel_id], |r| {
+            Ok(MonthRow {
+                month: r.get(0)?,
+                posts: r.get::<_, i64>(1)? as u32,
+                forwarded: r.get::<_, i64>(2)? as u32,
+                top_origin: None,
+                top_count: 0,
+            })
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    let mut stmt = conn.prepare(
+        "SELECT substr(s.published_at, 1, 7) AS m, p.forwarded_from, COUNT(*) AS n \
+         FROM telegram_post p JOIN source s ON s.id = p.source_id \
+         WHERE p.channel_id = ?1 AND s.published_at IS NOT NULL \
+         AND p.forwarded_from IS NOT NULL AND p.forwarded_from <> '' \
+         GROUP BY m, p.forwarded_from ORDER BY m, n DESC, p.forwarded_from",
+    )?;
+    let origins = stmt
+        .query_map([channel_id], |r| {
+            Ok((
+                r.get::<_, String>(0)?,
+                r.get::<_, String>(1)?,
+                r.get::<_, i64>(2)?,
+            ))
+        })?
+        .collect::<Result<Vec<_>, _>>()?;
+    for (month, origin, n) in origins {
+        if let Some(row) = rows.iter_mut().find(|row| row.month == month) {
+            if row.top_origin.is_none() {
+                row.top_origin = Some(origin);
+                row.top_count = n as u32;
+            }
+        }
+    }
+    Ok(rows)
 }
 
 #[cfg(test)]
