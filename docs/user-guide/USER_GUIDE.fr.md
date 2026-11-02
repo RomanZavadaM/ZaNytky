@@ -33,6 +33,17 @@ Ce guide décrit la fenêtre de l'application. La version ukrainienne fait foi.
 - Choisissez un format (Word, PDF, Markdown) et saisissez une phrase secrète. Le rapport révèle les personnes avec votre clé privée ; il contient donc des données personnelles en clair. Sans phrase secrète, un rapport n'est créé qu'après confirmation explicite « Sans phrase secrète ».
 - Un rapport protégé a l'extension `.age` ; ouvrez-le avec [age](https://age-encryption.org) et votre phrase secrète.
 
+## 6. Sources et canaux Telegram
+
+- **Importer un canal.** Dans Telegram Desktop : canal → « Exporter l'historique » → format JSON. Dans l'onglet « Sources », « Choisir le dossier et importer » et choisissez le dossier contenant `result.json`. Chaque message devient une source avec son texte intégral ; photos, vidéos et fichiers deviennent des pièces jointes. L'import peut être répété : pas de doublons. La fiabilité des sources est F (inconnue) par défaut.
+- **Sources.** Recherche par titre, texte et adresse (débuts de mots, toute casse, tous les mots doivent figurer). Dans une source ouverte : le texte (coller, enregistrer, copier), « Ajouter un fichier », « Afficher dans le dossier », « Afficher l'image ».
+- **Une déclaration à partir d'une source.** Type, valeur, crédibilité 1-6, **citation obligatoire**, 2 à 4 parties avec rôles (sujets existants ou nouveaux). Une nouvelle personne se saisit par son nom complet : le nom va au registre scellé, seul un pseudonyme reste dans la base. Une déclaration est toujours « non vérifiée ».
+- **Découverte automatique de sujets.** « Trouver les sujets dans le texte » liste personnes, organisations (SARL « ... ») et codes de registre, marqués « dans la base » ou « nouveau », avec « Ajouter à la base ». « Nouveaux sujets dans tous les textes » donne le haut des inconnus. Ce sont des indices : confirmez à la main.
+- **Canaux.** Chronologie par mois avec pics d'activité, numéros de messages absents de l'exportation (peut-être supprimés), graphe du canal : d'où il transfère, vers quoi il renvoie, qui il mentionne. Un clic sur un nœud le développe. Pour remplir l'analyse d'un canal importé auparavant, réimportez son dossier.
+- **Recoupements** (au moins deux canaux) : lignes avec une barre par canal - source de transferts, canal, site, mention, long texte identique ; filtre par type ; graphe sur demande. Les plateformes génériques (YouTube, Facebook...) sont exclues.
+- **Aperçu.** Un bouton écrit un rapport sur toute la base : canaux, pics, recoupements, nouveaux sujets et **liens probables** (paires de sujets nommés dans le même paragraphe dans au moins 3 messages, avec une citation). Enregistrement en `.md` ; en ligne de commande : `zanytky overview --home DOSSIER --out FICHIER`.
+- **Important.** Recoupements, pics, découverte et aperçu sont des indices pour des hypothèses, pas des faits. Les textes et fichiers sont conservés sans anonymisation, uniquement dans la base locale ; gardez le dossier de données hors des dossiers de code et faites des sauvegardes.
+
 ## Sécurité
 
 - Conservez séparément la clé système, la clé privée de l'enquêteur et la phrase secrète. Perdre la clé privée signifie que les données ne pourront plus être révélées.

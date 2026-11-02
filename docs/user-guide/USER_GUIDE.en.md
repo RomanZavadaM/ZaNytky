@@ -33,6 +33,17 @@ This guide describes the application window. The Ukrainian version is the refere
 - Choose a format (Word, PDF, Markdown) and enter a passphrase. The report reveals persons with your private key, so it contains open personal data. Without a passphrase a report is created only after you explicitly confirm "No passphrase".
 - A protected report has the extension `.age`; open it with [age](https://age-encryption.org) and your passphrase.
 
+## 6. Sources and Telegram channels
+
+- **Importing a channel.** In Telegram Desktop: channel → "Export chat history" → JSON format. In the "Sources" tab press "Choose folder and import" and pick the folder with `result.json`. Every post becomes a source with its full text; photos, videos and files become attachments. The import can be repeated: no duplicates. The reliability of the sources is F (unknown) by default.
+- **Sources.** Search by title, text and address (word beginnings, any letter case, every word must be present). In an open source: the text (paste, save, copy), "Add file", "Show in folder", "Show picture".
+- **A statement from a source.** In an open source: kind, value, credibility 1-6, a **required quote**, 2-4 parties with roles (existing or new subjects). A new person is entered by full name: the name goes to the sealed registry, only a pseudonym stays in the base. A statement is always "unverified".
+- **Automatic discovery of subjects.** "Find subjects in the text" lists persons, organisations (LLC "...") and registry codes marked "in the base" or "new" with an "Add to the base" button. "New subjects in all texts" gives the top of the unknown ones across the base. These are hints: confirm by hand.
+- **Channels.** A timeline by month with activity peaks, post numbers missing from the export (possibly deleted), a channel graph: where it forwards from, what it links to, whom it mentions. Click a node to expand it (posts, other channels of the base with the same connection). To fill the analysis for a channel imported earlier, import its folder again.
+- **Overlaps** (at least two channels): rows with a bar per channel - a common source of forwards, channel, site, mention, identical long text; a filter by kind; the graph on request. Generic platforms (YouTube, Facebook, etc.) are left out.
+- **Overview.** One button writes a report over the whole base: channels, peaks, overlaps, new subjects and **likely links** (pairs of subjects named in the same paragraph in at least 3 posts, with an example quote). Save it as `.md` with the button; the same on the command line: `zanytky overview --home FOLDER --out FILE`.
+- **Important.** Overlaps, peaks, discovery and the Overview are hints for hypotheses, not facts. Texts and files of sources are stored without de-identification in the local database only; keep the data folder outside code folders and make backups.
+
 ## Security
 
 - Keep the system key, the investigator's private key and the passphrase separately. Losing the private key means the data can no longer be revealed.
