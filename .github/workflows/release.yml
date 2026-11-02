@@ -94,7 +94,7 @@ jobs:
           Copy-Item app\src-tauri\target\release\bundle\msi\*.msi "out\ZaNytky_${v}_Windows_x64.msi"
 
           # command line tool
-          $cli = "ZaNytky-cli-windows-x64"
+          $cli = "ZaNytky_${v}_CLI_Windows_x64"
           New-Item -ItemType Directory $cli | Out-Null
           Copy-Item target\release\zanytky.exe $cli
           Copy-Item LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md $cli
@@ -102,7 +102,7 @@ jobs:
           Compress-Archive -Path $cli -DestinationPath "out\ZaNytky_${v}_CLI_Windows_x64.zip"
 
           # portable app with its own web view runtime: nothing to install in Windows
-          $dir = "ZaNytky-app-portable-windows-x64"
+          $dir = "ZaNytky_${v}_Windows_x64_Portable"
           New-Item -ItemType Directory $dir | Out-Null
           Copy-Item app\src-tauri\target\release\zanytky-app.exe "$dir\ZaNytky.exe"
           Copy-Item LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md $dir
@@ -174,7 +174,7 @@ jobs:
       - name: Package
         run: |
           v="${{ inputs.version }}"
-          dir="ZaNytky-macos-${{ matrix.arch }}"
+          dir="ZaNytky_${v}_macOS_${{ matrix.arch }}_Portable"
           mkdir -p "$dir" out
           cp -R app/src-tauri/target/release/bundle/macos/ZaNytky.app "$dir/"
           cp target/release/zanytky "$dir/"
