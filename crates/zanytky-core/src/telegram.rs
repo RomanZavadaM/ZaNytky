@@ -409,7 +409,7 @@ mod tests {
 
     #[test]
     fn the_import_records_forwards_links_and_the_ids_of_the_export() {
-        use crate::channel::{channel_gaps, channel_graph, channel_list};
+        use crate::channel::{channel_gaps, channel_graph, channel_list, channel_timeline};
         let model = Model::open_in_memory("tester").unwrap();
         let dir = tempfile::tempdir().unwrap();
         let json = r#"{
@@ -439,7 +439,7 @@ mod tests {
         assert_eq!(gaps.ranges.len(), 1);
         assert_eq!((gaps.ranges[0].from, gaps.ranges[0].to), (5, 7));
 
-        let graph = channel_graph(&model, 777).unwrap();
+        let graph = channel_graph(&model, 777, &[]).unwrap();
         let titles: Vec<&str> = graph.nodes.iter().map(|n| n.title.as_str()).collect();
         assert!(titles.contains(&"Інший канал (2)"));
         assert!(titles.contains(&"example.org (1)"));
@@ -449,8 +449,24 @@ mod tests {
         // the same export again changes nothing
         import_telegram_export(&model, dir.path(), &store, Reliability::F).unwrap();
         assert_eq!(
-            channel_graph(&model, 777).unwrap().nodes.len(),
+            channel_graph(&model, 777, &[]).unwrap().nodes.len(),
             graph.nodes.len()
         );
+
+        // expanding a node adds the posts it comes from
+        let opened = channel_graph(&model, 777, &["fw:Інший канал".to_string()]).unwrap();
+        let posts = opened
+            .nodes
+            .iter()
+            .filter(|n| n.path.starts_with("post:"))
+            .count();
+        assert_eq!(posts, 2);
+
+        // the timeline: one month, 4 posts, 2 forwarded from the same origin
+        let months = channel_timeline(&model, 777).unwrap();
+        assert_eq!(months.len(), 1);
+        assert_eq!(months[0].month, "2024-01");
+        assert_eq!((months[0].posts, months[0].forwarded), (4, 2));
+        assert_eq!(months[0].top_origin.as_deref(), Some("Інший канал"));
     }
 }

@@ -673,6 +673,7 @@ fn create_statement_cmd(input: CreateStatementInput) -> Res<i64> {
 struct ChannelInput {
     home: String,
     id: Option<i64>,
+    expanded: Option<Vec<String>>,
 }
 
 #[tauri::command]
@@ -692,7 +693,15 @@ fn get_channel_gaps(input: ChannelInput) -> Res<zanytky_core::ChannelGaps> {
 fn get_channel_graph(input: ChannelInput) -> Res<EntityGraph> {
     let model = open_model(&home_path(&input.home)?)?;
     let id = input.id.ok_or_else(|| "a channel id is required".to_string())?;
-    zanytky_core::channel_graph(&model, id).map_err(|e| e.to_string())
+    let expanded = input.expanded.unwrap_or_default();
+    zanytky_core::channel_graph(&model, id, &expanded).map_err(|e| e.to_string())
+}
+
+#[tauri::command]
+fn get_channel_timeline(input: ChannelInput) -> Res<Vec<zanytky_core::MonthRow>> {
+    let model = open_model(&home_path(&input.home)?)?;
+    let id = input.id.ok_or_else(|| "a channel id is required".to_string())?;
+    zanytky_core::channel_timeline(&model, id).map_err(|e| e.to_string())
 }
 
 #[derive(Deserialize)]
@@ -896,6 +905,7 @@ pub fn run() {
             list_channels,
             get_channel_gaps,
             get_channel_graph,
+            get_channel_timeline,
             create_statement_cmd,
             get_source,
             import_telegram_cmd,
