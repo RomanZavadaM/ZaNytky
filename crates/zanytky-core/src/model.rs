@@ -109,6 +109,30 @@ CREATE INDEX IF NOT EXISTS idx_statement_kind ON statement(kind);
 CREATE INDEX IF NOT EXISTS idx_statement_valid ON statement(valid_from, valid_to);
 CREATE INDEX IF NOT EXISTS idx_source_root ON source(root_id);
 CREATE INDEX IF NOT EXISTS idx_source_published ON source(published_at, id);
+CREATE TABLE IF NOT EXISTS telegram_channel (
+    channel_id INTEGER PRIMARY KEY,
+    name TEXT NOT NULL
+);
+CREATE TABLE IF NOT EXISTS telegram_seen (
+    channel_id INTEGER NOT NULL,
+    msg_id INTEGER NOT NULL,
+    PRIMARY KEY (channel_id, msg_id)
+) WITHOUT ROWID;
+CREATE TABLE IF NOT EXISTS telegram_post (
+    source_id INTEGER PRIMARY KEY,
+    channel_id INTEGER NOT NULL,
+    msg_id INTEGER NOT NULL,
+    forwarded_from TEXT,
+    UNIQUE (channel_id, msg_id)
+);
+CREATE INDEX IF NOT EXISTS idx_post_forward ON telegram_post(channel_id, forwarded_from);
+CREATE TABLE IF NOT EXISTS source_link (
+    source_id INTEGER NOT NULL,
+    kind TEXT NOT NULL,
+    value TEXT NOT NULL,
+    PRIMARY KEY (source_id, kind, value)
+) WITHOUT ROWID;
+CREATE INDEX IF NOT EXISTS idx_link_value ON source_link(kind, value);
 CREATE VIRTUAL TABLE IF NOT EXISTS source_fts USING fts5(
     title, url, body, tokenize = 'unicode61 remove_diacritics 2'
 );
@@ -834,6 +858,64 @@ impl Model {
         )?;
         self.log("add_source", &format!("source:{id}"))?;
         Ok(id)
+    }
+
+    /// The open connection, for read-only analysis modules of this crate.
+    pub(crate) fn connection(&self) -> &Connection {
+        &self.conn
+    }
+
+    /// Remember a Telegram channel (id and name) of an imported export.
+    pub fn set_telegram_channel(&self, channel_id: i64, name: &str) -> Result<(), ModelError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO telegram_channel (channel_id, name) VALUES (?1, ?2)",
+            params![channel_id, name],
+        )?;
+        Ok(())
+    }
+
+    /// Ids of every message of the export (posts and service messages): a gap in them means
+    /// a message is missing from the export.
+    pub fn add_telegram_seen(&self, channel_id: i64, ids: &[i64]) -> Result<(), ModelError> {
+        let mut stmt = self
+            .conn
+            .prepare("INSERT OR IGNORE INTO telegram_seen (channel_id, msg_id) VALUES (?1, ?2)")?;
+        for id in ids {
+            stmt.execute(params![channel_id, id])?;
+        }
+        Ok(())
+    }
+
+    /// The Telegram origin of a source: channel, message id and where it was forwarded from.
+    pub fn set_telegram_post(
+        &self,
+        source_id: i64,
+        channel_id: i64,
+        msg_id: i64,
+        forwarded_from: Option<&str>,
+    ) -> Result<(), ModelError> {
+        self.conn.execute(
+            "INSERT OR REPLACE INTO telegram_post (source_id, channel_id, msg_id, forwarded_from) \
+             VALUES (?1, ?2, ?3, ?4)",
+            params![source_id, channel_id, msg_id, forwarded_from],
+        )?;
+        Ok(())
+    }
+
+    /// Links found in the text of a source: (kind, value) with kind `tg` (a channel or chat of
+    /// Telegram), `site` (a web site) or `mention` (an account named with @).
+    pub fn add_source_links(
+        &self,
+        source_id: i64,
+        links: &[(String, String)],
+    ) -> Result<(), ModelError> {
+        let mut stmt = self.conn.prepare(
+            "INSERT OR IGNORE INTO source_link (source_id, kind, value) VALUES (?1, ?2, ?3)",
+        )?;
+        for (kind, value) in links {
+            stmt.execute(params![source_id, kind, value])?;
+        }
+        Ok(())
     }
 
     /// Keep the full text of a source. A source has one text; a different second text is refused.

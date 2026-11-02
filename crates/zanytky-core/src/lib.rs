@@ -2,6 +2,7 @@
 
 pub mod backup;
 pub mod card;
+pub mod channel;
 pub mod deidentify;
 pub mod demo;
 pub mod docx_text;
@@ -26,6 +27,7 @@ pub use backup::{backup_home, restore_home, BackupError};
 pub use card::{
     entity_card, entity_graph, entity_list, EntityCard, EntityGraph, EntityListRow, SharedSign,
 };
+pub use channel::{channel_gaps, channel_graph, channel_list, ChannelGaps, ChannelRow};
 pub use deidentify::{
     deidentify, deidentify_with_links, Candidate, Deidentified, DictEntry, Replacement,
 };

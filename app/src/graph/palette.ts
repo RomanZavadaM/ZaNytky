@@ -20,6 +20,9 @@ const KNOWN: Record<string, string> = {
   source: "#6B7280",
   material: "#A8AEB8",
   note: "#7C8DF0",
+  channel: "#CC79A7",
+  site: "#56B4E9",
+  mention: "#F0E442",
 };
 
 const FALLBACK = ["#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7", "#999999"];
