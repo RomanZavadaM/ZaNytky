@@ -1,5 +1,6 @@
 //! ZaNytky core: canonical form of values and keyed one-to-one pseudonyms.
 
+pub mod b64;
 pub mod backup;
 pub mod card;
 pub mod channel;
@@ -25,6 +26,7 @@ pub mod sources;
 pub mod telegram;
 pub mod wrap;
 
+pub use b64::base64_encode;
 pub use backup::{backup_home, restore_home, BackupError};
 pub use card::{
     entity_card, entity_graph, entity_list, EntityCard, EntityGraph, EntityListRow, SharedSign,
