@@ -239,7 +239,7 @@ mod tests {
         let row = get(&model, first);
         assert_eq!(row.sources, vec![source]);
         assert_eq!(row.parties.len(), 2);
-        assert!(row.note.unwrap().starts_with("Цитата: володіє"));
+        assert!(row.note.as_ref().unwrap().starts_with("Цитата: володіє"));
 
         // the same names and the same code: no new entities
         let second = create_statement(
