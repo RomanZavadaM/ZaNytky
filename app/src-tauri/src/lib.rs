@@ -670,6 +670,53 @@ fn create_statement_cmd(input: CreateStatementInput) -> Res<i64> {
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct DiscoverInput {
+    home: String,
+    id: Option<i64>,
+    limit: Option<usize>,
+    kind: Option<String>,
+    text: Option<String>,
+}
+
+/// Subjects found in the text of one source.
+#[tauri::command]
+fn discover_source_cmd(input: DiscoverInput) -> Res<Vec<zanytky_core::Found>> {
+    let home = home_path(&input.home)?;
+    let model = open_model(&home)?;
+    let id = input.id.ok_or_else(|| "a source id is required".to_string())?;
+    let text = model
+        .source_text(id)
+        .map_err(|e| e.to_string())?
+        .unwrap_or_default();
+    let registry = open_registry(&home).ok();
+    Ok(zanytky_core::discover_in_text(&model, registry.as_ref(), &text))
+}
+
+/// The subjects that occur in many sources of the base and are not known yet.
+#[tauri::command]
+async fn discover_all_cmd(input: DiscoverInput) -> Res<Vec<zanytky_core::Found>> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let home = home_path(&input.home)?;
+        let model = open_model(&home)?;
+        let registry = open_registry(&home).ok();
+        zanytky_core::discover_everywhere(&model, registry.as_ref(), input.limit.unwrap_or(100))
+    })
+    .await
+    .map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+fn add_found_cmd(input: DiscoverInput) -> Res<i64> {
+    let home = home_path(&input.home)?;
+    let model = open_model(&home)?;
+    let registry = open_registry(&home).ok();
+    let kind = input.kind.ok_or_else(|| "a kind is required".to_string())?;
+    let text = input.text.ok_or_else(|| "a name is required".to_string())?;
+    zanytky_core::add_found(&model, registry.as_ref(), &kind, &text)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct ChannelInput {
     home: String,
     id: Option<i64>,
@@ -903,6 +950,9 @@ pub fn run() {
             set_statement_status,
             list_sources,
             list_channels,
+            discover_source_cmd,
+            discover_all_cmd,
+            add_found_cmd,
             get_channel_gaps,
             get_channel_graph,
             get_channel_timeline,

@@ -3,6 +3,7 @@ import { api, pickFolder, type CardSource, type SourceListPage } from "./api";
 import { fill, type Lang, type Strings } from "./i18n";
 import { kindLabel } from "./kinds";
 import { SourceBox } from "./SourceBox";
+import { DiscoverPanel } from "./DiscoverPanel";
 import { StatementForm } from "./StatementForm";
 
 interface Props {
@@ -82,6 +83,7 @@ export function SourcesTab({ t, lang, home, identity, run }: Props) {
           {page.rows.find((r) => r.id === selected)?.publishedAt ?? ""} · {kindLabel(lang, detail.kind)}
         </p>
         <SourceBox t={t} home={home} source={detail} run={run} onChanged={() => setTick(tick + 1)} />
+        <DiscoverPanel t={t} lang={lang} home={home} sourceId={detail.id} run={run} />
         <StatementForm
           t={t}
           lang={lang}
@@ -115,6 +117,11 @@ export function SourcesTab({ t, lang, home, identity, run }: Props) {
         </button>
         {importNote ? <p className="ok">{importNote}</p> : null}
       </div>
+
+      <details>
+        <summary>{t.discoverAllTitle}</summary>
+        <DiscoverPanel t={t} lang={lang} home={home} sourceId={null} run={run} />
+      </details>
 
       <form
         onSubmit={(e) => {
