@@ -35,6 +35,23 @@ pub struct Shared {
 /// Shorter texts are too common ("thanks", greetings) to say anything.
 const MIN_TEXT_CHARS: usize = 80;
 
+/// Platforms, shorteners and payment pages that every channel links to: sharing them says
+/// nothing, so they are left out of the overlaps.
+#[rustfmt::skip]
+const GENERIC_SITES: &[&str] = &[
+    "youtube.com", "youtu.be", "facebook.com", "fb.com", "fb.me", "instagram.com", "twitter.com",
+    "x.com", "t.co", "bit.ly", "tinyurl.com", "goo.gl", "google.com", "telegra.ph", "telegram.org",
+    "t.me", "monobank.ua", "privatbank.ua", "paypal.com", "patreon.com", "buymeacoffee.com",
+    "linktr.ee", "wikipedia.org", "tiktok.com", "threads.net", "whatsapp.com", "wa.me",
+    "linkedin.com", "spotify.com", "apple.com", "podcasts.apple.com",
+];
+
+fn is_generic_site(host: &str) -> bool {
+    GENERIC_SITES
+        .iter()
+        .any(|generic| host == *generic || host.ends_with(&format!(".{generic}")))
+}
+
 fn names(model: &Model) -> Result<BTreeMap<i64, String>, ModelError> {
     let mut stmt = model
         .connection()
@@ -102,6 +119,9 @@ pub fn channel_overlaps(model: &Model, limit: usize) -> Result<Vec<Shared>, Mode
         })?
         .collect::<Result<Vec<_>, _>>()?;
     for (kind, value, channel, count) in rows {
+        if kind == "site" && is_generic_site(&value) {
+            continue;
+        }
         found
             .entry((kind, value))
             .or_default()
@@ -292,7 +312,7 @@ mod tests {
             1,
             LONG,
             Some("Спільний"),
-            &[("site", "example.org")],
+            &[("site", "example.org"), ("site", "youtube.com")],
         );
         post(
             &model,
@@ -300,7 +320,12 @@ mod tests {
             1,
             &format!("Переслано з: Хтось\n\n{LONG}"),
             Some("Спільний"),
-            &[("site", "example.org"), ("tg", "c/1")],
+            &[
+                ("site", "example.org"),
+                ("site", "m.youtube.com"),
+                ("site", "youtube.com"),
+                ("tg", "c/1"),
+            ],
         );
         post(&model, 2, 2, "Короткий", Some("Один"), &[]);
 
@@ -312,6 +337,8 @@ mod tests {
         };
         assert!(has("forward", "Спільний"));
         assert!(has("site", "example.org"));
+        // a platform every channel links to is left out
+        assert!(!shared.iter().any(|s| s.value.contains("youtube")));
         assert!(shared.iter().any(|s| s.kind == "text"));
         // a link nobody else has is not shared
         assert!(!shared.iter().any(|s| s.value == "c/1"));
