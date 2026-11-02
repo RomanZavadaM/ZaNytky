@@ -232,21 +232,23 @@ impl Tally {
         }
     }
 
-    fn into_found(self, model: &Model, registry: Option<&Registry>, only_new: bool) -> Vec<Found> {
-        self.into_keyed(model, registry, only_new)
+    fn into_found(self, model: &Model, registry: Option<&Registry>, pick: &Pick) -> Vec<Found> {
+        self.into_keyed(model, registry, pick)
             .into_iter()
             .map(|(_, _, found)| found)
             .collect()
     }
 
-    /// Like `into_found`, with the (kind, key) of every find.
+    /// The finds that pass `pick`, the most widespread first, with the (kind, key) of every one.
+    /// The base is asked "is it known?" only for the finds that are picked: this is the slow
+    /// part (a person is looked for in several forms).
     fn into_keyed(
         self,
         model: &Model,
         registry: Option<&Registry>,
-        only_new: bool,
+        pick: &Pick,
     ) -> Vec<(String, String, Found)> {
-        let mut out = Vec::new();
+        let mut ranked: Vec<(String, String, String, u32, u32)> = Vec::new();
         for ((kind, key), forms) in self.forms.iter() {
             let count: u32 = forms.values().sum();
             // the most frequent form, the shortest among equals
@@ -255,6 +257,30 @@ impl Tally {
                 .max_by(|a, b| a.1.cmp(b.1).then_with(|| b.0.len().cmp(&a.0.len())))
                 .map(|(form, _)| form.clone())
                 .unwrap_or_default();
+            let sources = self
+                .sources
+                .get(&(kind.clone(), key.clone()))
+                .copied()
+                .unwrap_or(1);
+            ranked.push((kind.clone(), key.clone(), text, count, sources));
+        }
+        ranked.sort_by(|a, b| {
+            b.4.cmp(&a.4)
+                .then_with(|| b.3.cmp(&a.3))
+                .then_with(|| a.2.cmp(&b.2))
+        });
+        let mut out = Vec::new();
+        for (kind, key, text, count, sources) in ranked {
+            if out.len() >= pick.limit {
+                break;
+            }
+            if kind == "code" {
+                if !pick.include_codes {
+                    continue;
+                }
+            } else if sources < pick.min_sources {
+                continue;
+            }
             let known = match kind.as_str() {
                 "person" => registry.and_then(|r| {
                     let words: Vec<String> = text.split_whitespace().map(str::to_string).collect();
@@ -269,19 +295,14 @@ impl Tally {
                     .ok()
                     .flatten(),
             };
-            if only_new && known.is_some() {
+            if pick.only_new && known.is_some() {
                 continue;
             }
-            let sources = self
-                .sources
-                .get(&(kind.clone(), key.clone()))
-                .copied()
-                .unwrap_or(1);
             out.push((
                 kind.clone(),
-                key.clone(),
+                key,
                 Found {
-                    kind: kind.clone(),
+                    kind,
                     text,
                     count,
                     sources,
@@ -289,21 +310,31 @@ impl Tally {
                 },
             ));
         }
-        out.sort_by(|a, b| {
-            b.2.sources
-                .cmp(&a.2.sources)
-                .then_with(|| b.2.count.cmp(&a.2.count))
-                .then_with(|| a.2.text.cmp(&b.2.text))
-        });
         out
     }
+}
+
+/// Which finds to take.
+struct Pick {
+    /// Leave out those the base already knows.
+    only_new: bool,
+    /// At least in this many sources (registry codes are not held to it).
+    min_sources: u32,
+    include_codes: bool,
+    limit: usize,
 }
 
 /// Subjects found in one text, with whether the base already knows them.
 pub fn discover_in_text(model: &Model, registry: Option<&Registry>, text: &str) -> Vec<Found> {
     let mut tally = Tally::default();
     tally.add(text);
-    tally.into_found(model, registry, false)
+    let pick = Pick {
+        only_new: false,
+        min_sources: 1,
+        include_codes: true,
+        limit: usize::MAX,
+    };
+    tally.into_found(model, registry, &pick)
 }
 
 /// The subjects that occur in the most sources of the whole base and are not known yet.
@@ -324,9 +355,13 @@ pub fn discover_everywhere(
         let body = body.map_err(|e| e.to_string())?;
         tally.add(&body);
     }
-    let mut found = tally.into_found(model, registry, true);
-    found.retain(|f| f.sources >= 2 || f.kind == "code");
-    found.truncate(limit);
+    let pick = Pick {
+        only_new: true,
+        min_sources: 2,
+        include_codes: true,
+        limit,
+    };
+    let found = tally.into_found(model, registry, &pick);
     Ok(found)
 }
 
@@ -385,11 +420,15 @@ pub fn subject_pairs(
     for (_, _, body) in &rows {
         tally.add(body);
     }
+    let pick = Pick {
+        only_new: false,
+        min_sources: 3,
+        include_codes: false,
+        limit: 200,
+    };
     let top: HashMap<SubjectId, (String, bool)> = tally
-        .into_keyed(model, registry, false)
+        .into_keyed(model, registry, &pick)
         .into_iter()
-        .filter(|(kind, _, found)| kind.as_str() != "code" && found.sources >= 3)
-        .take(200)
         .map(|(kind, key, found)| ((kind, key), (found.text, found.known.is_some())))
         .collect();
 
