@@ -33,6 +33,17 @@ Dieses Handbuch beschreibt das Anwendungsfenster. Maßgeblich ist die ukrainisch
 - Wählen Sie ein Format (Word, PDF, Markdown) und geben Sie eine Passphrase ein. Der Bericht legt Personen mit Ihrem privaten Schlüssel offen und enthält daher offene personenbezogene Daten. Ohne Passphrase wird ein Bericht nur nach ausdrücklicher Bestätigung „Ohne Passphrase“ erstellt.
 - Ein geschützter Bericht hat die Endung `.age`; öffnen Sie ihn mit [age](https://age-encryption.org) und Ihrer Passphrase.
 
+## 6. Quellen und Telegram-Kanäle
+
+- **Kanal importieren.** In Telegram Desktop: Kanal → »Chat-Verlauf exportieren« → Format JSON. Im Tab »Quellen« »Ordner wählen und importieren« und den Ordner mit `result.json` wählen. Jeder Beitrag wird zur Quelle mit Volltext; Fotos, Videos und Dateien werden Anhänge. Der Import ist wiederholbar: keine Duplikate. Die Verlässlichkeit der Quellen ist standardmäßig F (unbekannt).
+- **Quellen.** Suche nach Titel, Text und Adresse (Wortanfänge, jede Groß-/Kleinschreibung, alle Wörter müssen vorkommen). In einer geöffneten Quelle: der Text (einfügen, speichern, kopieren), »Datei hinzufügen«, »Im Ordner anzeigen«, »Bild anzeigen«.
+- **Eine Aussage aus einer Quelle.** Art, Wert, Glaubwürdigkeit 1-6, **Pflichtzitat**, 2-4 Beteiligte mit Rollen (vorhandene oder neue Subjekte). Eine neue Person wird mit vollem Namen eingegeben: der Name kommt ins versiegelte Register, in der Datenbank bleibt nur ein Pseudonym. Eine Aussage ist immer »ungeprüft«.
+- **Automatische Subjektsuche.** »Subjekte im Text finden« listet Personen, Organisationen (GmbH »...«) und Registercodes, markiert »in der Datenbank« oder »neu«, mit »Zur Datenbank hinzufügen«. »Neue Subjekte in allen Texten« zeigt die häufigsten unbekannten. Das sind Hinweise: von Hand bestätigen.
+- **Kanäle.** Zeitlinie pro Monat mit Aktivitätsspitzen, im Export fehlende Beitragsnummern (möglicherweise gelöscht), Kanalgraph: woher weitergeleitet wird, worauf verlinkt wird, wer erwähnt wird. Ein Klick auf einen Knoten klappt ihn auf. Um die Analyse eines früher importierten Kanals zu füllen, den Ordner erneut importieren.
+- **Überschneidungen** (mindestens zwei Kanäle): Zeilen mit einem Balken pro Kanal - Weiterleitungsquelle, Kanal, Website, Erwähnung, langer gleicher Text; Filter nach Art; Graph auf Anfrage. Allgemeine Plattformen (YouTube, Facebook usw.) werden ausgelassen.
+- **Überblick.** Eine Schaltfläche schreibt einen Bericht über die ganze Datenbank: Kanäle, Spitzen, Überschneidungen, neue Subjekte und **wahrscheinliche Verbindungen** (Paare im selben Absatz in mindestens 3 Beiträgen, mit Beispielzitat). Als `.md` speichern; in der Befehlszeile: `zanytky overview --home ORDNER --out DATEI`.
+- **Wichtig.** Überschneidungen, Spitzen, Subjektsuche und Überblick sind Hinweise für Hypothesen, keine Fakten. Texte und Dateien werden unanonymisiert nur in der lokalen Datenbank gespeichert; den Datenordner außerhalb von Code-Ordnern halten und Sicherungen machen.
+
 ## Sicherheit
 
 - Bewahren Sie Systemschlüssel, privaten Schlüssel des Ermittlers und Passphrase getrennt auf. Geht der private Schlüssel verloren, lassen sich die Daten nicht mehr offenlegen.

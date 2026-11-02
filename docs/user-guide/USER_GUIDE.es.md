@@ -33,6 +33,17 @@ Esta guía describe la ventana de la aplicación. La versión ucraniana es el te
 - Elija un formato (Word, PDF, Markdown) e introduzca una frase secreta. El informe revela a las personas con su clave privada, por lo que contiene datos personales abiertos. Sin frase secreta, el informe solo se crea tras confirmar expresamente «Sin frase secreta».
 - Un informe protegido tiene la extensión `.age`; ábralo con [age](https://age-encryption.org) y su frase secreta.
 
+## 6. Fuentes y canales de Telegram
+
+- **Importar un canal.** En Telegram Desktop: canal → «Exportar historial del chat» → formato JSON. En la pestaña «Fuentes», «Elegir carpeta e importar» y elija la carpeta con `result.json`. Cada publicación pasa a ser una fuente con su texto completo; fotos, vídeos y archivos pasan a ser adjuntos. La importación puede repetirse: sin duplicados. La fiabilidad de las fuentes es F (desconocida) por defecto.
+- **Fuentes.** Búsqueda por título, texto y dirección (inicios de palabra, cualquier mayúscula, deben estar todas las palabras). En una fuente abierta: el texto (pegar, guardar, copiar), «Añadir archivo», «Mostrar en la carpeta», «Mostrar imagen».
+- **Una afirmación desde una fuente.** Tipo, valor, credibilidad 1-6, **cita obligatoria**, 2-4 partes con roles (sujetos existentes o nuevos). Una persona nueva se introduce con su nombre completo: el nombre va al registro sellado, en la base solo queda un seudónimo. Una afirmación siempre es «sin verificar».
+- **Descubrimiento automático de sujetos.** «Buscar sujetos en el texto» lista personas, organizaciones (S.L. «...») y códigos de registro, marcados «en la base» o «nuevo», con «Añadir a la base». «Sujetos nuevos en todos los textos» da los desconocidos más frecuentes. Son pistas: confirme a mano.
+- **Canales.** Cronología por mes con picos de actividad, números de publicación ausentes en la exportación (quizá borradas), grafo del canal: de dónde reenvía, a qué enlaza, a quién menciona. Un clic en un nodo lo expande. Para rellenar el análisis de un canal importado antes, importe su carpeta otra vez.
+- **Coincidencias** (al menos dos canales): filas con una barra por canal - fuente de reenvíos, canal, sitio, mención, texto largo idéntico; filtro por tipo; grafo a petición. Las plataformas genéricas (YouTube, Facebook...) se omiten.
+- **Resumen.** Un botón escribe un informe de toda la base: canales, picos, coincidencias, sujetos nuevos y **vínculos probables** (pares nombrados en el mismo párrafo en al menos 3 publicaciones, con una cita de ejemplo). Se guarda como `.md`; en la línea de comandos: `zanytky overview --home CARPETA --out ARCHIVO`.
+- **Importante.** Coincidencias, picos, descubrimiento y resumen son pistas para hipótesis, no hechos. Los textos y archivos se guardan sin anonimizar solo en la base local; mantenga la carpeta de datos fuera de las carpetas de código y haga copias de seguridad.
+
 ## Seguridad
 
 - Guarde por separado la clave del sistema, la clave privada del investigador y la frase secreta. Perder la clave privada significa que los datos ya no podrán revelarse.
