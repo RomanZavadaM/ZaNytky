@@ -185,7 +185,11 @@ pub fn overlaps_graph(model: &Model, limit: usize) -> Result<EntityGraph, ModelE
             _ => "channel",
         };
         let short: String = item.value.chars().take(40).collect();
-        builder.node(&path, format!("{short} ({})", item.channels.len()), note_type);
+        builder.node(
+            &path,
+            format!("{short} ({})", item.channels.len()),
+            note_type,
+        );
         for channel in &item.channels {
             let centre = format!("ch:{}", channel.channel_id);
             let count = channel.count.to_string();
