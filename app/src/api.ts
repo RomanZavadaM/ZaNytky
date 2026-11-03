@@ -187,6 +187,18 @@ export interface MonthRow {
   topCount: number;
 }
 
+export interface EvidenceRequest {
+  statementId: number;
+  kind: string;
+  reliability: string;
+  title: string;
+  url?: string;
+  publishedAt?: string;
+  text?: string;
+  note?: string;
+  status?: "confirmed" | "refuted";
+}
+
 export interface TelegramSummary {
   channel: string;
   messages: number;
@@ -313,6 +325,8 @@ export const api = {
     invoke<KnowledgeGraph>("get_channel_graph", { input: { home, id, expanded } }),
   channelTimeline: (home: string, id: number) =>
     invoke<MonthRow[]>("get_channel_timeline", { input: { home, id } }),
+  addEvidence: (home: string, request: EvidenceRequest) =>
+    invoke<number>("add_evidence_cmd", { input: { home, request } }),
   createStatement: (home: string, request: StatementRequest) =>
     invoke<number>("create_statement_cmd", { input: { home, request } }),
   setSourceText: (home: string, sourceId: number, text: string) =>

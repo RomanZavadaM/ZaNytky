@@ -45,7 +45,7 @@ pub use discover::{
 pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};
 pub use import::{import_result, review_with_links, ImportError, ImportSummary, LinkMatch};
-pub use make::{create_statement, PartyRequest, StatementRequest};
+pub use make::{add_evidence, create_statement, EvidenceRequest, PartyRequest, StatementRequest};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use overlap::{channel_overlaps, overlaps_graph, Shared, SharedChannel};
