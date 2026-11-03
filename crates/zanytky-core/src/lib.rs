@@ -1,5 +1,10 @@
 //! ZaNytky core: canonical form of values and keyed one-to-one pseudonyms.
 
+/// A value as indented JSON (for a program that reads the output of the command line).
+pub fn json_pretty<T: serde::Serialize>(value: &T) -> Result<String, String> {
+    serde_json::to_string_pretty(value).map_err(|e| e.to_string())
+}
+
 pub mod b64;
 pub mod backup;
 pub mod card;
@@ -45,7 +50,10 @@ pub use discover::{
 pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};
 pub use import::{import_result, review_with_links, ImportError, ImportSummary, LinkMatch};
-pub use make::{add_evidence, create_statement, EvidenceRequest, PartyRequest, StatementRequest};
+pub use make::{
+    add_evidence, create_statement, parse_statement_requests, EvidenceRequest, PartyRequest,
+    StatementRequest,
+};
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
 pub use overlap::{channel_overlaps, overlaps_graph, Shared, SharedChannel};

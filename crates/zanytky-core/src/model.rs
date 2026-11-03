@@ -374,6 +374,7 @@ pub struct SourceRow {
     pub url: Option<String>,
     pub reliability: Reliability,
     pub parent_id: Option<i64>,
+    pub published_at: Option<String>,
 }
 
 /// A source with what a list and a search need (see `sources.rs`).
@@ -1524,7 +1525,7 @@ impl Model {
         let row = self
             .conn
             .query_row(
-                "SELECT kind, title, url, reliability, parent_id FROM source WHERE id = ?1",
+                "SELECT kind, title, url, reliability, parent_id, published_at FROM source WHERE id = ?1",
                 params![id],
                 |r| {
                     Ok((
@@ -1533,6 +1534,7 @@ impl Model {
                         r.get::<_, Option<String>>(2)?,
                         r.get::<_, String>(3)?,
                         r.get::<_, Option<i64>>(4)?,
+                        r.get::<_, Option<String>>(5)?,
                     ))
                 },
             )
@@ -1547,6 +1549,7 @@ impl Model {
             reliability: Reliability::parse(&row.3)
                 .ok_or(ModelError::Invalid("unknown reliability in the database"))?,
             parent_id: row.4,
+            published_at: row.5,
         })
     }
 

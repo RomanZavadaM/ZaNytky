@@ -20,6 +20,8 @@ use zanytky_core::{
     restore_home, review_markdown, review_with_links, to_docx, to_markdown, wrap::wrap, SourceMeta,
 };
 
+mod analyst;
+
 type Out<'a> = &'a mut dyn Write;
 
 const HELP: &str = "\
@@ -40,6 +42,22 @@ zanytky - команди
                                           експорт каналу Telegram Desktop (JSON): допис = джерело з текстом і файлами (за замовчуванням надійність F)
   report --identity ФАЙЛ --out ФАЙЛ [--format md|docx|pdf] (--passphrase-file ФАЙЛ | --plain)
           [--title НАЗВА]                 звіт розслідувача (з розкриттям осіб)
+  search ЗАПИТ [--limit N] [--offset N] [--json]
+                                          пошук по джерелах (початки слів, будь-який регістр, усі слова)
+  source НОМЕР [--full] [--json]          джерело: дані, файли, у яких твердженнях, текст
+  discover (--source НОМЕР | --all) [--limit N] [--json]
+                                          суб'єкти в тексті джерела або в усіх текстах (нові), з позначкою «є в базі»
+  channels [--channel НОМЕР] [--json]    канали, або хронологія й пропущені номери одного
+  overlaps [--limit N] [--json]           спільне між каналами (пересилання, канали, сайти, згадки, тексти)
+  pairs [--limit N] [--json]              імовірні зв'язки: пари суб'єктів в одному абзаці
+  entity НОМЕР                            картка суб'єкта (JSON): твердження, джерела, власність, сусіди
+  add-entity --kind person|org|group|asset|procurement|market|event|document --name НАЗВА [--code КОД]
+                                          суб'єкт (особа - за ім'ям через реєстр, у базі псевдонім)
+  add-source --title НАЗВА [--kind К] [--reliability A-F] [--url У] [--date Д] (--text-file ФАЙЛ | --text ТЕКСТ)
+                                          документ чи сторінка як джерело з текстом
+  make-statements --file ФАЙЛ.json [--no-verify]
+                                          твердження пакетом (список {sourceId, kind, value, credibility, quote, note,
+                                          parties[{role, entityId | kind, label, publicCode}]}); цитата має бути в тексті джерела
   statements [--grep ТЕКСТ]               список тверджень: номер, вид, статус, сторони, число джерел
   evidence --statement НОМЕР --kind registry|authority|media|testimony|own --title НАЗВА
           [--reliability A-F] [--url АДРЕСА] [--date ДАТА] [--text ТЕКСТ | --text-file ФАЙЛ] [--note ПОЯСНЕННЯ]
@@ -54,7 +72,7 @@ zanytky - команди
 Види значень: name, ipn, edrpou, phone, email, text.
 ";
 
-const SWITCHES: [&str; 2] = ["plain", "not-person"];
+const SWITCHES: [&str; 6] = ["plain", "not-person", "json", "all", "full", "no-verify"];
 
 struct Args {
     positional: Vec<String>,
@@ -84,6 +102,10 @@ impl Args {
             i += 1;
         }
         args
+    }
+
+    fn has(&self, name: &str) -> bool {
+        self.switches.contains(name)
     }
 
     fn flag(&self, name: &str) -> Option<&str> {
@@ -602,6 +624,16 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "import" => cmd_import(&parsed, out),
         "import-telegram" => cmd_import_telegram(&parsed, out),
         "report" => cmd_report(&parsed, out),
+        "search" => analyst::cmd_search(&parsed, out),
+        "source" => analyst::cmd_source(&parsed, out),
+        "discover" => analyst::cmd_discover(&parsed, out),
+        "channels" => analyst::cmd_channels(&parsed, out),
+        "overlaps" => analyst::cmd_overlaps(&parsed, out),
+        "pairs" => analyst::cmd_pairs(&parsed, out),
+        "entity" => analyst::cmd_entity(&parsed, out),
+        "add-entity" => analyst::cmd_add_entity(&parsed, out),
+        "add-source" => analyst::cmd_add_source(&parsed, out),
+        "make-statements" => analyst::cmd_make_statements(&parsed, out),
         "statements" => cmd_statements(&parsed, out),
         "evidence" => cmd_evidence(&parsed, out),
         "overview" => cmd_overview(&parsed, out),
