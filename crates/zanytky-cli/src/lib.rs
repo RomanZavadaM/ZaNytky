@@ -40,6 +40,10 @@ zanytky - команди
                                           експорт каналу Telegram Desktop (JSON): допис = джерело з текстом і файлами (за замовчуванням надійність F)
   report --identity ФАЙЛ --out ФАЙЛ [--format md|docx|pdf] (--passphrase-file ФАЙЛ | --plain)
           [--title НАЗВА]                 звіт розслідувача (з розкриттям осіб)
+  statements [--grep ТЕКСТ]               список тверджень: номер, вид, статус, сторони, число джерел
+  evidence --statement НОМЕР --kind registry|authority|media|testimony|own --title НАЗВА
+          [--reliability A-F] [--url АДРЕСА] [--date ДАТА] [--text ТЕКСТ | --text-file ФАЙЛ] [--note ПОЯСНЕННЯ]
+          [--status confirmed|refuted]    докази до твердження; підтвердити можна лише registry або authority
   overview --out ФАЙЛ                     огляд бази одним звітом Markdown: канали, піки, збіги, нові суб'єкти, імовірні зв'язки
   backup --out ФАЙЛ --passphrase-file ФАЙЛ
                                           зашифрована резервна копія всієї папки даних (закрийте інші програми)
@@ -470,6 +474,74 @@ fn passphrase_from(args: &Args) -> Result<String, String> {
     Ok(passphrase.to_string())
 }
 
+fn cmd_statements(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let filter = args.flag("grep").map(str::to_lowercase);
+    for statement in model.statements().map_err(|e| e.to_string())? {
+        let parties: Vec<String> = statement
+            .parties
+            .iter()
+            .map(|(id, role)| {
+                let label = model
+                    .entity(*id)
+                    .ok()
+                    .and_then(|e| e.label.or(e.token))
+                    .unwrap_or_default();
+                format!("{role}: {label}")
+            })
+            .collect();
+        let line = format!(
+            "#{} {} [{}] {} | {} | джерел {}",
+            statement.id,
+            statement.kind.as_str(),
+            statement.status.as_str(),
+            statement.value.clone().unwrap_or_default(),
+            parties.join("; "),
+            statement.sources.len()
+        );
+        if filter
+            .as_ref()
+            .is_none_or(|needle| line.to_lowercase().contains(needle))
+        {
+            writeln!(out, "{line}").map_err(|e| e.to_string())?;
+        }
+    }
+    Ok(())
+}
+
+fn cmd_evidence(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let statement_id: i64 = args
+        .need("statement")?
+        .parse()
+        .map_err(|_| "--statement: потрібне число (номер твердження)".to_string())?;
+    let text = match args.flag("text-file") {
+        Some(path) => Some(read_text(Path::new(path))?),
+        None => args.flag("text").map(str::to_string),
+    };
+    let request = zanytky_core::EvidenceRequest {
+        statement_id,
+        kind: args.need("kind")?.to_string(),
+        reliability: args.flag("reliability").unwrap_or("C").to_string(),
+        title: args.need("title")?.to_string(),
+        url: args.flag("url").map(str::to_string),
+        published_at: args.flag("date").map(str::to_string),
+        text,
+        note: args.flag("note").map(str::to_string),
+        status: args.flag("status").map(str::to_string),
+    };
+    let source_id = zanytky_core::add_evidence(&model, &request)?;
+    let status = model.status(statement_id).map_err(|e| e.to_string())?;
+    writeln!(
+        out,
+        "Доказ додано: джерело №{source_id} до твердження №{statement_id}; статус: {}",
+        status.as_str()
+    )
+    .map_err(|e| e.to_string())
+}
+
 fn cmd_overview(args: &Args, out: Out) -> Result<(), String> {
     let home = home_dir(args)?;
     let target = PathBuf::from(args.need("out")?);
@@ -530,6 +602,8 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "import" => cmd_import(&parsed, out),
         "import-telegram" => cmd_import_telegram(&parsed, out),
         "report" => cmd_report(&parsed, out),
+        "statements" => cmd_statements(&parsed, out),
+        "evidence" => cmd_evidence(&parsed, out),
         "overview" => cmd_overview(&parsed, out),
         "backup" => cmd_backup(&parsed, out),
         "restore" => cmd_restore(&parsed, out),
