@@ -36,6 +36,11 @@ pub struct StatementRequest {
     pub parties: Vec<PartyRequest>,
 }
 
+/// Statements from a JSON file: a list of requests (the field names are in camelCase).
+pub fn parse_statement_requests(text: &str) -> Result<Vec<StatementRequest>, String> {
+    serde_json::from_str(text).map_err(|e| format!("файл не є коректним списком тверджень: {e}"))
+}
+
 /// An evidence for a statement: a document (a new source) attached to it, and optionally the
 /// new status the evidence settles.
 #[derive(Debug, Clone, Deserialize)]

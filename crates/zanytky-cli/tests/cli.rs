@@ -392,3 +392,97 @@ fn evidence_is_added_to_a_listed_statement_and_only_a_document_confirms() {
     assert!(list.contains("#1 owns [confirmed]"));
     assert!(list.contains("джерел 2"));
 }
+
+#[test]
+fn an_analyst_can_add_a_document_find_subjects_and_record_statements_with_checked_quotes() {
+    let dir = tempfile::tempdir().unwrap();
+    let (home, _) = setup(dir.path());
+    let doc = dir.path().join("doc.txt");
+    fs::write(
+        &doc,
+        "ТОВ «Приклад Плюс» отримало підряд. Директор Олег Гороховський підписав договір.",
+    )
+    .unwrap();
+    let added = cli(&[
+        "add-source",
+        "--home",
+        home.as_str(),
+        "--title",
+        "Документ",
+        "--kind",
+        "registry",
+        "--reliability",
+        "A",
+        "--url",
+        "https://example.org/doc",
+        "--date",
+        "2026-11-03",
+        "--text-file",
+        doc.to_str().unwrap(),
+    ])
+    .unwrap();
+    assert!(added.contains("Джерело №1"));
+
+    let found = cli(&["search", "приклад", "--home", home.as_str()]).unwrap();
+    assert!(found.contains("Знайдено: 1"));
+    assert!(found.contains("#1 2026-11-03 [A] Документ"));
+    let as_json = cli(&["search", "приклад", "--json", "--home", home.as_str()]).unwrap();
+    assert!(as_json.contains("\"total\": 1"));
+    let shown = cli(&["source", "1", "--home", home.as_str()]).unwrap();
+    assert!(shown.contains("надійність A"));
+    assert!(shown.contains("підписав договір"));
+
+    let subjects = cli(&["discover", "--source", "1", "--home", home.as_str()]).unwrap();
+    assert!(subjects.contains("org | ТОВ «Приклад Плюс»"));
+    assert!(subjects.contains("person | Олег Гороховський"));
+
+    for name in ["ТОВ «Приклад Плюс»", "ТОВ Бета"] {
+        cli(&[
+            "add-entity",
+            "--home",
+            home.as_str(),
+            "--kind",
+            "org",
+            "--name",
+            name,
+        ])
+        .unwrap();
+    }
+    let batch = dir.path().join("batch.json");
+    let statement = |quote: &str| {
+        format!(
+            r#"[{{"sourceId": 1, "kind": "supplies", "value": null, "credibility": 3,
+ "quote": "{quote}", "note": null,
+ "parties": [{{"role": "supplier", "entityId": 1}}, {{"role": "customer", "entityId": 2}}]}}]"#
+        )
+    };
+    // a quote that is not in the text writes nothing
+    fs::write(&batch, statement("отримало гроші")).unwrap();
+    let refused = cli(&[
+        "make-statements",
+        "--home",
+        home.as_str(),
+        "--file",
+        batch.to_str().unwrap(),
+    ]);
+    assert!(refused.unwrap_err().contains("цитати немає"));
+    assert!(cli(&["statements", "--home", home.as_str()])
+        .unwrap()
+        .trim()
+        .is_empty());
+    // a verbatim quote is recorded
+    fs::write(&batch, statement("отримало підряд")).unwrap();
+    let made = cli(&[
+        "make-statements",
+        "--home",
+        home.as_str(),
+        "--file",
+        batch.to_str().unwrap(),
+    ])
+    .unwrap();
+    assert!(made.contains("Твердження №1 створено"));
+    let list = cli(&["statements", "--home", home.as_str()]).unwrap();
+    assert!(list.contains("#1 supplies [unverified]"));
+    let card = cli(&["entity", "1", "--home", home.as_str()]).unwrap();
+    assert!(card.contains("Приклад"));
+}
