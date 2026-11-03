@@ -320,3 +320,75 @@ fn restore_with_a_wrong_passphrase_fails() {
     assert!(restore(&file, &target, &bad).is_err());
     assert!(!Path::new(target.as_str()).exists());
 }
+
+#[test]
+fn evidence_is_added_to_a_listed_statement_and_only_a_document_confirms() {
+    let dir = tempfile::tempdir().unwrap();
+    let (home, _) = setup(dir.path());
+    let result = dir.path().join("result.json");
+    fs::write(
+        &result,
+        r#"{"package": "pkg-e",
+ "sources": [{"ref": "s1", "kind": "media", "title": "Стаття", "url": "https://example.org/a",
+   "published_at": null, "reliability": "C", "received_from": null}],
+ "entities": [
+   {"ref": "e1", "kind": "org", "label": "ТОВ Власник", "token": null, "public_code": null},
+   {"ref": "e2", "kind": "org", "label": "ТОВ Об'єкт", "token": null, "public_code": null}],
+ "statements": [{"kind": "owns", "value": "40%", "valid_from": null, "valid_to": null,
+   "as_of": null, "parties": [{"entity": "e1", "role": "owner"}, {"entity": "e2", "role": "owned"}],
+   "sources": ["s1"], "credibility": 3, "quote": "володіє 40%", "note": null}]}"#,
+    )
+    .unwrap();
+    cli(&[
+        "import",
+        result.to_str().unwrap(),
+        "--package",
+        "pkg-e",
+        "--home",
+        home.as_str(),
+    ])
+    .unwrap();
+    let list = cli(&["statements", "--home", home.as_str(), "--grep", "власник"]).unwrap();
+    assert!(list.contains("#1 owns [unverified]"));
+    assert!(list.contains("owner: ТОВ Власник"));
+    // a media article cannot confirm
+    let refused = cli(&[
+        "evidence",
+        "--home",
+        home.as_str(),
+        "--statement",
+        "1",
+        "--kind",
+        "media",
+        "--title",
+        "Стаття 2",
+        "--status",
+        "confirmed",
+    ]);
+    assert!(refused.is_err());
+    // a registry extract can
+    let extract = dir.path().join("extract.txt");
+    fs::write(&extract, "Засновники: ТОВ Власник - 40%").unwrap();
+    let done = cli(&[
+        "evidence",
+        "--home",
+        home.as_str(),
+        "--statement",
+        "1",
+        "--kind",
+        "registry",
+        "--reliability",
+        "A",
+        "--title",
+        "Витяг з ЄДР",
+        "--text-file",
+        extract.to_str().unwrap(),
+        "--status",
+        "confirmed",
+    ])
+    .unwrap();
+    assert!(done.contains("статус: confirmed"));
+    let list = cli(&["statements", "--home", home.as_str()]).unwrap();
+    assert!(list.contains("#1 owns [confirmed]"));
+    assert!(list.contains("джерел 2"));
+}
