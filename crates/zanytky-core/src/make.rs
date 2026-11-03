@@ -6,8 +6,8 @@
 use serde::Deserialize;
 
 use crate::model::{
-    EntityKind, Model, ModelError, NewEntity, NewSource, NewStatement, Reliability, SourceKind, Status,
-    StatementType,
+    EntityKind, Model, ModelError, NewEntity, NewSource, NewStatement, Reliability, SourceKind,
+    StatementType, Status,
 };
 use crate::normalize::Kind;
 use crate::registry::Registry;
@@ -64,7 +64,8 @@ pub fn add_evidence(model: &Model, request: &EvidenceRequest) -> Result<i64, Str
         Some("refuted") => Some(Status::Refuted),
         Some(_) => return Err("невідомий статус".to_string()),
     };
-    if status == Some(Status::Confirmed) && !matches!(kind, SourceKind::Registry | SourceKind::Authority)
+    if status == Some(Status::Confirmed)
+        && !matches!(kind, SourceKind::Registry | SourceKind::Authority)
     {
         return Err("підтвердити можна лише доказом виду «реєстр» або «заява органу»".to_string());
     }
@@ -97,7 +98,10 @@ pub fn add_evidence(model: &Model, request: &EvidenceRequest) -> Result<i64, Str
             }
             model.add_statement_source(request.statement_id, source_id)?;
             if let Some(note) = clean(&request.note) {
-                model.append_statement_note(request.statement_id, &format!("Доказ ({title}): {note}"))?;
+                model.append_statement_note(
+                    request.statement_id,
+                    &format!("Доказ ({title}): {note}"),
+                )?;
             }
             if let Some(status) = status {
                 model.set_status(request.statement_id, status)?;
@@ -435,7 +439,10 @@ mod tests {
         assert_eq!(model.status(id).unwrap(), Status::Confirmed);
         let row = get(&model, id);
         assert!(row.sources.contains(&source_id));
-        assert!(row.note.unwrap().contains("Доказ (Витяг з ЄДР): частка збігається"));
+        assert!(row
+            .note
+            .unwrap()
+            .contains("Доказ (Витяг з ЄДР): частка збігається"));
         assert_eq!(
             model.source_text(source_id).unwrap().as_deref(),
             Some("Засновники: ТОВ А - 100%")
@@ -451,4 +458,3 @@ mod tests {
         assert!(add_evidence(&model, &other).is_err());
     }
 }
-

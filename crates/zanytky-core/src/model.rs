@@ -1322,7 +1322,11 @@ impl Model {
     }
 
     /// Attach one more source (an evidence) to an existing statement; repeating it changes nothing.
-    pub fn add_statement_source(&self, statement_id: i64, source_id: i64) -> Result<(), ModelError> {
+    pub fn add_statement_source(
+        &self,
+        statement_id: i64,
+        source_id: i64,
+    ) -> Result<(), ModelError> {
         if !self.exists("statement", statement_id)? || !self.exists("source", source_id)? {
             return Err(ModelError::NotFound);
         }
