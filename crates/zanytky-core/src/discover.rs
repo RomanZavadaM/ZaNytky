@@ -66,28 +66,86 @@ fn is_initials(word: &str) -> bool {
     word.contains('.')
 }
 
+/// A patronymic ("Сергійович", "Іванівна"): part of a name, never a stray word.
+fn is_patronymic(word: &str) -> bool {
+    let lower = word.to_lowercase();
+    lower.contains("ович")
+        || lower.contains("евич")
+        || lower.contains("євич")
+        || lower.ends_with("івна")
+        || lower.ends_with("ївна")
+        || lower.ends_with("івни")
+        || lower.ends_with("івну")
+}
+
+fn is_name_like(word: &str) -> bool {
+    is_first_name(word) || is_initials(word) || is_surname_form(word) || is_patronymic(word)
+}
+
+/// A word in capitals that is not an initial ("США"): an abbreviation, not a part of a name.
+fn is_capitals(word: &str) -> bool {
+    word.chars().count() >= 2
+        && !word.contains('.')
+        && word.chars().all(|c| c.is_uppercase() || c == '-')
+}
+
 /// The words of a run that make a person's name, or none if it does not look like a name.
+/// Stray words at the edges ("США Дональд Трамп", "Укрбуду Максима Микитася",
+/// "Спринський Іван Львів") are cut off; a name with a patronymic is kept as it is.
 fn person_words(text: &str) -> Option<Vec<String>> {
     let mut words: Vec<String> = text.split_whitespace().map(str::to_string).collect();
     while words.len() > 2 && LEADING_NOISE.contains(&words[0].to_lowercase().as_str()) {
         words.remove(0);
     }
+    while words.len() > 2 && is_capitals(&words[0]) && !is_first_name(&words[0]) {
+        words.remove(0);
+    }
+    while words.len() > 2
+        && !is_name_like(&words[0])
+        && is_name_like(&words[1])
+        && !(words.len() == 3 && is_patronymic(&words[2]))
+    {
+        words.remove(0);
+    }
+    while words.len() > 2
+        && !is_name_like(&words[words.len() - 1])
+        && is_name_like(&words[words.len() - 2])
+        && !is_patronymic(&words[words.len() - 2])
+    {
+        words.pop();
+    }
     if words.len() < 2 || words.len() > 4 {
         return None;
     }
-    let looks_like_a_name = words
-        .iter()
-        .any(|w| is_first_name(w) || is_initials(w) || is_surname_form(w));
+    let looks_like_a_name = words.iter().any(|w| is_name_like(w));
     looks_like_a_name.then_some(words)
 }
 
+/// The stem of a word without its case ending ("Холода" and "Холод" give "холод"), at most
+/// five letters: this joins the case forms of one name.
+fn stem(word: &str) -> String {
+    const ENDINGS: &[&str] = &[
+        "ого", "ому", "ові", "єві", "ами", "ом", "ем", "єм", "ою", "ею", "ої", "а", "я", "у", "ю",
+        "і", "ї", "о", "е", "є", "и", "й", "ь",
+    ];
+    let lower = word.to_lowercase();
+    let length = lower.chars().count();
+    let mut base: &str = &lower;
+    for ending in ENDINGS {
+        if let Some(rest) = lower.strip_suffix(ending) {
+            if length - ending.chars().count() >= 3 {
+                base = rest;
+                break;
+            }
+        }
+    }
+    base.chars().take(5).collect()
+}
+
 /// The key that joins the case forms and the order of a person's name:
-/// the first five letters of every word, sorted.
+/// the stems of the words, sorted.
 fn person_key(words: &[String]) -> String {
-    let mut parts: Vec<String> = words
-        .iter()
-        .map(|w| w.to_lowercase().chars().take(5).collect())
-        .collect();
+    let mut parts: Vec<String> = words.iter().map(|w| stem(w)).collect();
     parts.sort();
     parts.join("|")
 }
@@ -251,10 +309,18 @@ impl Tally {
         let mut ranked: Vec<(String, String, String, u32, u32)> = Vec::new();
         for ((kind, key), forms) in self.forms.iter() {
             let count: u32 = forms.values().sum();
-            // the most frequent form, the shortest among equals
+            // the shortest among the frequent forms (the nominative is the shortest)
+            let top = forms.values().copied().max().unwrap_or(0);
             let text = forms
                 .iter()
-                .max_by(|a, b| a.1.cmp(b.1).then_with(|| b.0.len().cmp(&a.0.len())))
+                .filter(|(_, n)| **n * 2 >= top)
+                .min_by(|a, b| {
+                    a.0.chars()
+                        .count()
+                        .cmp(&b.0.chars().count())
+                        .then_with(|| b.1.cmp(a.1))
+                        .then_with(|| a.0.cmp(b.0))
+                })
                 .map(|(form, _)| form.clone())
                 .unwrap_or_default();
             let sources = self
@@ -565,4 +631,28 @@ mod tests {
         let found = discover_in_text(&model, None, "ТОВ «Приклад» виграло.");
         assert!(found.iter().any(|f| f.kind == "org" && f.known.is_some()));
     }
+
+    #[test]
+    fn case_forms_join_and_stray_words_are_cut_off() {
+        let model = Model::open_in_memory("tester").unwrap();
+        let text = "Олег Синютка зустрівся. Олега Синютки не було. США Дональд Трамп заявив. \
+                    Укрбуду Максима Микитася згадали. Ткач Михайло Сергійович отримувач.";
+        let found = discover_in_text(&model, None, text);
+        let persons: Vec<(&str, u32)> = found
+            .iter()
+            .filter(|f| f.kind == "person")
+            .map(|f| (f.text.as_str(), f.count))
+            .collect();
+        // two case forms are one find, shown in the shorter (nominative) form
+        assert!(persons.contains(&("Олег Синютка", 2)));
+        assert!(!persons.iter().any(|(t, _)| t.contains("Олега")));
+        assert!(persons.iter().any(|(t, _)| *t == "Дональд Трамп"));
+        assert!(persons.iter().any(|(t, _)| *t == "Максима Микитася"));
+        // a name with a patronymic stays whole
+        assert!(persons.iter().any(|(t, _)| *t == "Ткач Михайло Сергійович"));
+        assert_eq!(stem("Холода"), stem("Холод"));
+        assert_eq!(stem("Юрія"), stem("Юрій"));
+        assert_ne!(stem("Іванов"), stem("Іванко"));
+    }
 }
+
