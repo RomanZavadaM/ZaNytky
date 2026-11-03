@@ -655,4 +655,3 @@ mod tests {
         assert_ne!(stem("Іванов"), stem("Іванко"));
     }
 }
-
