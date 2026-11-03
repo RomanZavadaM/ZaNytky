@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { api, type CardSource, type CardStatement, type EntityCardData, type EntityListRow, type PathResultData } from "./api";
 import { fill, type Lang, type Strings } from "./i18n";
 import { kindLabel } from "./kinds";
+import { EvidenceForm } from "./EvidenceForm";
 import { SourceBox } from "./SourceBox";
 
 interface Props {
@@ -317,6 +318,14 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
                         </div>
                       ))}
                       {s.note ? <div className="muted">{s.note}</div> : null}
+                      <EvidenceForm
+                        t={t}
+                        lang={lang}
+                        home={home}
+                        statementId={s.id}
+                        run={run}
+                        onAdded={() => setTick(tick + 1)}
+                      />
                     </td>
                   </tr>
                 ))}

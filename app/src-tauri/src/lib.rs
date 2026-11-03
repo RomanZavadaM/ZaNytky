@@ -796,6 +796,20 @@ fn get_channel_timeline(input: ChannelInput) -> Res<Vec<zanytky_core::MonthRow>>
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
+struct EvidenceInput {
+    home: String,
+    request: zanytky_core::EvidenceRequest,
+}
+
+/// Attaches an evidence (a document) to a statement, optionally confirming or refuting it.
+#[tauri::command]
+fn add_evidence_cmd(input: EvidenceInput) -> Res<i64> {
+    let model = open_model(&home_path(&input.home)?)?;
+    zanytky_core::add_evidence(&model, &input.request)
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
 struct SourceListInput {
     home: String,
     query: String,
@@ -1039,6 +1053,7 @@ pub fn run() {
             get_channel_graph,
             get_channel_timeline,
             create_statement_cmd,
+            add_evidence_cmd,
             get_source,
             import_telegram_cmd,
             set_source_text_cmd,

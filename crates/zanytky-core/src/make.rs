@@ -5,7 +5,10 @@
 
 use serde::Deserialize;
 
-use crate::model::{EntityKind, Model, ModelError, NewEntity, NewStatement, StatementType};
+use crate::model::{
+    EntityKind, Model, ModelError, NewEntity, NewSource, NewStatement, Reliability, SourceKind, Status,
+    StatementType,
+};
 use crate::normalize::Kind;
 use crate::registry::Registry;
 
@@ -31,6 +34,77 @@ pub struct StatementRequest {
     pub quote: String,
     pub note: Option<String>,
     pub parties: Vec<PartyRequest>,
+}
+
+/// An evidence for a statement: a document (a new source) attached to it, and optionally the
+/// new status the evidence settles.
+#[derive(Debug, Clone, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct EvidenceRequest {
+    pub statement_id: i64,
+    pub kind: String,
+    pub reliability: String,
+    pub title: String,
+    pub url: Option<String>,
+    pub published_at: Option<String>,
+    pub text: Option<String>,
+    pub note: Option<String>,
+    /// `confirmed` or `refuted`.
+    pub status: Option<String>,
+}
+
+/// Attach an evidence to a statement; returns the id of its source. A source with the same
+/// address is reused. A statement is confirmed only by a registry or an official statement.
+pub fn add_evidence(model: &Model, request: &EvidenceRequest) -> Result<i64, String> {
+    let kind = SourceKind::parse(&request.kind).ok_or("невідомий вид джерела")?;
+    let reliability = Reliability::parse(&request.reliability).ok_or("невідома надійність")?;
+    let status = match request.status.as_deref() {
+        None | Some("") => None,
+        Some("confirmed") => Some(Status::Confirmed),
+        Some("refuted") => Some(Status::Refuted),
+        Some(_) => return Err("невідомий статус".to_string()),
+    };
+    if status == Some(Status::Confirmed) && !matches!(kind, SourceKind::Registry | SourceKind::Authority)
+    {
+        return Err("підтвердити можна лише доказом виду «реєстр» або «заява органу»".to_string());
+    }
+    let title = request.title.trim();
+    if title.is_empty() {
+        return Err("потрібна назва документа".to_string());
+    }
+    model
+        .in_transaction(|model| {
+            let url = clean(&request.url);
+            let existing = match url {
+                Some(address) => model.find_source_by_url(address)?,
+                None => None,
+            };
+            let source_id = match existing {
+                Some(id) => id,
+                None => model.add_source(&NewSource {
+                    kind,
+                    title,
+                    url,
+                    published_at: clean(&request.published_at),
+                    reliability,
+                    parent_id: None,
+                })?,
+            };
+            if let Some(text) = clean(&request.text) {
+                if model.source_text(source_id)?.is_none() {
+                    model.set_source_text(source_id, text)?;
+                }
+            }
+            model.add_statement_source(request.statement_id, source_id)?;
+            if let Some(note) = clean(&request.note) {
+                model.append_statement_note(request.statement_id, &format!("Доказ ({title}): {note}"))?;
+            }
+            if let Some(status) = status {
+                model.set_status(request.statement_id, status)?;
+            }
+            Ok(source_id)
+        })
+        .map_err(|e: ModelError| e.to_string())
 }
 
 fn clean(text: &Option<String>) -> Option<&str> {
@@ -329,4 +403,52 @@ mod tests {
             .unwrap()
             .is_empty());
     }
+
+    #[test]
+    fn evidence_is_attached_and_only_a_document_confirms() {
+        let (model, source) = setup();
+        let id = create_statement(
+            &model,
+            None,
+            &request(
+                source,
+                vec![party("owner", "ТОВ А", None), party("owned", "ТОВ Б", None)],
+            ),
+        )
+        .unwrap();
+        let evidence = |kind: &str, status: Option<&str>| EvidenceRequest {
+            statement_id: id,
+            kind: kind.to_string(),
+            reliability: "A".to_string(),
+            title: "Витяг з ЄДР".to_string(),
+            url: Some("https://example.org/edr".to_string()),
+            published_at: Some("2026-11-03".to_string()),
+            text: Some("Засновники: ТОВ А - 100%".to_string()),
+            note: Some("частка збігається".to_string()),
+            status: status.map(str::to_string),
+        };
+        // a media article cannot confirm
+        assert!(add_evidence(&model, &evidence("media", Some("confirmed"))).is_err());
+        assert_eq!(model.status(id).unwrap(), Status::Unverified);
+        // a registry extract can
+        let source_id = add_evidence(&model, &evidence("registry", Some("confirmed"))).unwrap();
+        assert_eq!(model.status(id).unwrap(), Status::Confirmed);
+        let row = get(&model, id);
+        assert!(row.sources.contains(&source_id));
+        assert!(row.note.unwrap().contains("Доказ (Витяг з ЄДР): частка збігається"));
+        assert_eq!(
+            model.source_text(source_id).unwrap().as_deref(),
+            Some("Засновники: ТОВ А - 100%")
+        );
+        // the same address is the same source
+        assert_eq!(
+            add_evidence(&model, &evidence("registry", None)).unwrap(),
+            source_id
+        );
+        // an unknown statement is refused
+        let mut other = evidence("registry", None);
+        other.statement_id = 9999;
+        assert!(add_evidence(&model, &other).is_err());
+    }
 }
+

@@ -1321,6 +1321,38 @@ impl Model {
         Ok(())
     }
 
+    /// Attach one more source (an evidence) to an existing statement; repeating it changes nothing.
+    pub fn add_statement_source(&self, statement_id: i64, source_id: i64) -> Result<(), ModelError> {
+        if !self.exists("statement", statement_id)? || !self.exists("source", source_id)? {
+            return Err(ModelError::NotFound);
+        }
+        let added = self.conn.execute(
+            "INSERT OR IGNORE INTO statement_source (statement_id, source_id) VALUES (?1, ?2)",
+            params![statement_id, source_id],
+        )?;
+        if added > 0 {
+            self.log(
+                "add_statement_source",
+                &format!("statement:{statement_id}+source:{source_id}"),
+            )?;
+        }
+        Ok(())
+    }
+
+    /// Add a line to the note of a statement (the earlier text stays).
+    pub fn append_statement_note(&self, statement_id: i64, line: &str) -> Result<(), ModelError> {
+        if !self.exists("statement", statement_id)? {
+            return Err(ModelError::NotFound);
+        }
+        self.conn.execute(
+            "UPDATE statement SET note = CASE WHEN note IS NULL OR note = '' THEN ?1 \
+             ELSE note || char(10) || ?1 END WHERE id = ?2",
+            params![line, statement_id],
+        )?;
+        self.log("append_note", &format!("statement:{statement_id}"))?;
+        Ok(())
+    }
+
     pub fn status(&self, statement_id: i64) -> Result<Status, ModelError> {
         let text: String = self
             .conn
