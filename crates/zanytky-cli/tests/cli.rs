@@ -486,4 +486,3 @@ fn an_analyst_can_add_a_document_find_subjects_and_record_statements_with_checke
     let card = cli(&["entity", "1", "--home", home.as_str()]).unwrap();
     assert!(card.contains("Приклад"));
 }
-

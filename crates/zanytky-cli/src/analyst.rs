@@ -10,8 +10,8 @@ use std::path::Path;
 use zanytky_core::model::{EntityKind, NewSource, Reliability, SourceKind};
 use zanytky_core::{
     channel_gaps, channel_list, channel_overlaps, channel_timeline, discover_everywhere,
-    discover_in_text, entity_card, json_pretty, parse_statement_requests, source_list,
-    source_view, subject_pairs,
+    discover_in_text, entity_card, json_pretty, parse_statement_requests, source_list, source_view,
+    subject_pairs,
 };
 
 use super::{home_dir, open_model, open_registry, read_text, Args, Out};
@@ -37,14 +37,20 @@ fn normalized(text: &str) -> String {
 pub(crate) fn cmd_search(args: &Args, out: Out) -> Result<(), String> {
     let home = home_dir(args)?;
     let model = open_model(&home)?;
-    let query = args.pos(0, "запит (слова через пробіл; початки слів, будь-який регістр)")?;
+    let query = args.pos(
+        0,
+        "запит (слова через пробіл; початки слів, будь-який регістр)",
+    )?;
     let limit: u32 = number(args, "limit", 20)?;
     let offset: u32 = number(args, "offset", 0)?;
     let page = source_list(&model, query, offset, limit).map_err(|e| e.to_string())?;
     if args.has("json") {
         return line(out, &json_pretty(&page)?);
     }
-    line(out, &format!("Знайдено: {} (показано з {})", page.total, offset))?;
+    line(
+        out,
+        &format!("Знайдено: {} (показано з {})", page.total, offset),
+    )?;
     for row in &page.rows {
         line(
             out,
@@ -103,12 +109,18 @@ pub(crate) fn cmd_source(args: &Args, out: Out) -> Result<(), String> {
     }
     if !used.is_empty() {
         let list: Vec<String> = used.iter().map(|n| format!("#{n}")).collect();
-        line(out, &format!("використано в твердженнях: {}", list.join(", ")))?;
+        line(
+            out,
+            &format!("використано в твердженнях: {}", list.join(", ")),
+        )?;
     }
     for file in &view.files {
         line(
             out,
-            &format!("файл: {} ({} байт, {})", file.name, file.size, file.rel_path),
+            &format!(
+                "файл: {} ({} байт, {})",
+                file.name, file.size, file.rel_path
+            ),
         )?;
     }
     match &view.text {
@@ -185,7 +197,10 @@ pub(crate) fn cmd_channels(args: &Args, out: Out) -> Result<(), String> {
                 .unwrap_or_default();
             line(
                 out,
-                &format!("{} дописів {}, пересланих {}{origin}", m.month, m.posts, m.forwarded),
+                &format!(
+                    "{} дописів {}, пересланих {}{origin}",
+                    m.month, m.posts, m.forwarded
+                ),
             )?;
         }
         let ranges: Vec<String> = gaps
@@ -195,7 +210,11 @@ pub(crate) fn cmd_channels(args: &Args, out: Out) -> Result<(), String> {
             .collect();
         return line(
             out,
-            &format!("немає в експорті номерів: {} ({})", gaps.missing, ranges.join(", ")),
+            &format!(
+                "немає в експорті номерів: {} ({})",
+                gaps.missing,
+                ranges.join(", ")
+            ),
         );
     }
     let channels = channel_list(&model).map_err(|e| e.to_string())?;
@@ -233,7 +252,10 @@ pub(crate) fn cmd_overlaps(args: &Args, out: Out) -> Result<(), String> {
             .iter()
             .map(|c| format!("{} ({})", c.name, c.count))
             .collect();
-        line(out, &format!("{} | {} | {}", item.kind, item.value, who.join(", ")))?;
+        line(
+            out,
+            &format!("{} | {} | {}", item.kind, item.value, who.join(", ")),
+        )?;
     }
     Ok(())
 }
@@ -293,12 +315,15 @@ pub(crate) fn cmd_add_entity(args: &Args, out: Out) -> Result<(), String> {
 pub(crate) fn cmd_add_source(args: &Args, out: Out) -> Result<(), String> {
     let home = home_dir(args)?;
     let model = open_model(&home)?;
-    let kind = SourceKind::parse(args.flag("kind").unwrap_or("media")).ok_or("невідомий вид джерела")?;
+    let kind =
+        SourceKind::parse(args.flag("kind").unwrap_or("media")).ok_or("невідомий вид джерела")?;
     let reliability =
         Reliability::parse(args.flag("reliability").unwrap_or("C")).ok_or("невідома надійність")?;
     let url = args.flag("url");
     let existing = match url {
-        Some(address) => model.find_source_by_url(address).map_err(|e| e.to_string())?,
+        Some(address) => model
+            .find_source_by_url(address)
+            .map_err(|e| e.to_string())?,
         None => None,
     };
     let id = match existing {
@@ -320,7 +345,9 @@ pub(crate) fn cmd_add_source(args: &Args, out: Out) -> Result<(), String> {
     };
     if let Some(text) = text {
         if model.source_text(id).map_err(|e| e.to_string())?.is_none() {
-            model.set_source_text(id, &text).map_err(|e| e.to_string())?;
+            model
+                .set_source_text(id, &text)
+                .map_err(|e| e.to_string())?;
         }
     }
     line(out, &format!("Джерело №{id}"))
