@@ -4,7 +4,6 @@
 //! print JSON (`--json`) for a program to read.
 
 use std::collections::HashMap;
-use std::io::Write;
 use std::path::Path;
 
 use zanytky_core::model::{EntityKind, NewSource, Reliability, SourceKind};
