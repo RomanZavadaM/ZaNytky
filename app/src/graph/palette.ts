@@ -92,6 +92,20 @@ export const KIND_COLORS: Record<string, string> = {
   supplies: "#c43c6e",
 };
 
+const ENTITY_FILL: Record<string, string> = {
+  person: "#e8c547",
+  org: "#7fb6e8",
+  company: "#7fb6e8",
+  event: "#c9a0dc",
+  asset: "#8fd19e",
+  group: "#e59fb8",
+};
+
+/** Fill of a node by what it is (a person, an organisation...), for the graph that is read by kind; reliability stays in the outline. */
+export function entityFill(type: string | null | undefined): string {
+  return (type && ENTITY_FILL[type]) || "#bdbdbd";
+}
+
 export function kindColor(kind: string | undefined): string {
   return (kind && KIND_COLORS[kind]) || "#888888";
 }

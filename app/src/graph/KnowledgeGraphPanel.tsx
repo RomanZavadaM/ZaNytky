@@ -5,7 +5,7 @@ import Sigma from "sigma";
 import type { KnowledgeGraph } from "./types";
 import { DEFAULT_FORCES, LiveLayout, type Forces } from "./liveLayout";
 import { attachOverlay, type EdgeHit } from "./overlay";
-import { chipColors, edgeStyle, gradeDigit, glyphFor, isDarkBackground, kindColor, kindEdgeStyle, nodeSize, stateColor, stateOf, typeColor, type NodeState } from "./palette";
+import { chipColors, edgeStyle, entityFill, gradeDigit, glyphFor, isDarkBackground, kindColor, kindEdgeStyle, nodeSize, stateColor, stateOf, typeColor, type NodeState } from "./palette";
 import { useI18n } from "./lang";
 import { GRAPH_STRINGS } from "./graphStrings";
 import { linkCount } from "./linkCount";
@@ -170,6 +170,10 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
   const [shapes, setShapes] = useState<boolean>(readShapes);
   const [maxDigit, setMaxDigit] = useState<number | null>(null);
   const forcesRef = useRef(forces);
+  // In the readable look the nodes get more room, so the labels do not print over each other.
+  const spread = (value: Forces): Forces =>
+    lookByKind ? { ...value, repel: value.repel * 1.8, distance: value.distance * 1.25 } : value;
+  const fillOf = (type: string) => (lookByKind ? entityFill(type) : typeColor(type));
   const floatRef = useRef(false);
   const pausedRef = useRef(false);
   const [snapshot, setSnapshot] = useState<KnowledgeGraph | null>(null);
@@ -307,7 +311,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
       pairs.push([indexOf.get(edge.source) ?? 0, indexOf.get(edge.target) ?? 0]);
     });
 
-    const sim = new LiveLayout(snapshot.nodes.length, pairs, forcesRef.current);
+    const sim = new LiveLayout(snapshot.nodes.length, pairs, spread(forcesRef.current));
     // Keep the positions of nodes that were already on the screen (a refresh must not scramble the picture).
     let known = 0;
     snapshot.nodes.forEach((node, index) => {
@@ -327,11 +331,11 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
       const type = node.noteType ?? "";
       const size = nodeSize(degree.get(node.path) ?? 0) * fit;
       graph.addNode(node.path, {
-        label: node.title,
+        label: lookByKind && node.title.length > 30 ? `${node.title.slice(0, 29)}\u2026` : node.title,
         x: sim.x[index],
         y: sim.y[index],
         size: isFocus ? size + 4 * fit : size,
-        color: typeColor(type),
+        color: fillOf(type),
         typeKey: type,
         fullTitle: node.title,
         isFocus,
@@ -359,8 +363,8 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
     const renderer = new Sigma(graph, container, {
       renderEdgeLabels: false,
       // Fewer, larger labels: on a dense graph the names of neighbours no longer overprint each other.
-      labelDensity: lookByKind ? 2 : plain ? 1 : 0.6,
-      labelGridCellSize: lookByKind ? 70 : plain ? 90 : 130,
+      labelDensity: lookByKind ? 1 : plain ? 1 : 0.6,
+      labelGridCellSize: lookByKind ? 120 : plain ? 90 : 130,
       labelRenderedSizeThreshold: lookByKind ? 0 : plain ? 3 : 8,
       labelColor: { color: labelColor },
       labelSize: 12,
@@ -368,7 +372,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
       zIndex: true,
       nodeReducer: (node, data) => {
         const result = { ...data };
-        if (view.shapes) result.color = stateColor(stateOf(data.evidence as number | undefined), dark);
+        if (view.shapes && !view.kindStyle) result.color = stateColor(stateOf(data.evidence as number | undefined), dark);
         if (view.hidden.has(String(data.typeKey))) {
           result.hidden = true;
           return result;
@@ -525,7 +529,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
   // Force sliders, drift and pause act on the running simulation without rebuilding the graph.
   useEffect(() => {
     forcesRef.current = forces;
-    simRef.current?.setForces(forces);
+    simRef.current?.setForces(spread(forces));
     wakeRef.current();
     try {
       localStorage.setItem(FORCES_KEY, JSON.stringify(forces));
@@ -767,7 +771,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
                   aria-pressed={!hiddenTypes.has(type)}
                   onClick={() => toggleType(type)}
                 >
-                  {shapes ? <GlyphIcon type={type} color={stateColor("none", isDarkBackground())} /> : <span className="dot" style={{ background: typeColor(type) }} />}
+                  {shapes && !lookByKind ? <GlyphIcon type={type} color={stateColor("none", isDarkBackground())} /> : <span className="dot" style={{ background: fillOf(type) }} />}
                   {typeLabel ? typeLabel(type) : type || strings.noType} <small>{count}</small>
                 </button>
               </li>
@@ -826,7 +830,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
           <div className="knowledge-graph-card" style={{ left: hover.x + 14, top: hover.y + 14 }}>
             <strong>{hover.title}</strong>
             <span>
-              <i className="dot" style={{ background: typeColor(hover.type) }} />
+              <i className="dot" style={{ background: fillOf(hover.type) }} />
               {hover.type || strings.noType} · {strings.connections(hover.degree)}
             </span>
           </div>
