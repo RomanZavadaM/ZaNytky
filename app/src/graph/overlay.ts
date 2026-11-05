@@ -200,7 +200,7 @@ export function attachOverlay(
         rings.translate(point.x, point.y);
         const scale = (radius * 0.62) / 10;
         rings.scale(scale, scale);
-        rings.fillStyle = glyphColor(dark);
+        rings.fillStyle = view.kindStyle ? "#1f2937" : glyphColor(dark);
         rings.fill(new Path2D(attributes.glyph));
         rings.restore();
       }
