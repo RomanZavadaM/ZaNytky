@@ -4,7 +4,7 @@
 
 ## Download
 
-**Latest version: [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (pre-release)**
+**Latest version: [ZaNytky v0.0.23](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (pre-release)**
 
 | Platform | File |
 |---|---|
@@ -21,7 +21,7 @@
 
 An application for organising relationships between subjects from open sources: sources with full text and files, statements with quotes, a relationship graph, shortest-path search between subjects. Personal data is replaced with keyed pseudonyms.
 
-Status: **early development** (pre-release 0.0.8). ZaNytky is **proprietary software**: a public repository does not grant an open-source licence (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). No user data is stored in the repository.
+Status: **early development** (pre-release 0.0.23). ZaNytky is **proprietary software**: a public repository does not grant an open-source licence (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). No user data is stored in the repository.
 
 > This translation is machine-made and has not been reviewed by native speakers; the Ukrainian text is authoritative.
 
@@ -33,6 +33,9 @@ Status: **early development** (pre-release 0.0.8). ZaNytky is **proprietary soft
 - **Subjects:** a card with statements, sources, ownership chain and shared signs (address, phone, plate, account); merging duplicates; relationship graph; shortest path between two subjects.
 - **Pseudonymisation:** one-to-one codes under a system key; originals only sealed (age) to the investigator's key; de-identification of text and a package for AI; checking and importing the AI's answer.
 - **Report** in Markdown, Word and PDF with a passphrase; encrypted backup of the data folder. 7 interface languages.
+- **Evidence and checking:** a document is attached to a statement ("Add evidence": registry, official statement, media, testimony, own); "confirmed" is set only by a registry or official-statement document, any kind can refute.
+- **Analysis of the base:** quick search over sources, the Overview, pairs of subjects in one paragraph, overlaps between channels, automatic discovery of subjects; the graph (all of it or a part) is saved as one standalone HTML file.
+- **Command line for automated analysis** (search, source, discover, channels, overlaps, pairs, entity, statements, add-entity, add-source, make-statements, evidence, detach, delete-statement, delete-source, merge, unmerge, graph): reading with `--json`; `make-statements` writes a batch of statements only if the quote of each is in the text of its source; mistakes are fixed with commands, not by hand.
 
 ## Quick start
 
@@ -54,6 +57,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 ```
+
+Analysis and fixing mistakes by command:
+
+```bash
+zanytky search "Приклад" --home ./home
+zanytky source 123 --full --home ./home
+zanytky discover --source 123 --home ./home
+zanytky make-statements --file statements.json --home ./home
+zanytky evidence --statement 5 --kind registry --title "Витяг" --url https://example.org/x --status confirmed --home ./home
+zanytky graph --out graph.html --entity 32 --depth 2 --home ./home
+```
+
+`--expect` in `evidence` stops an evidence from going to a wrong statement; `detach`, `delete-statement`, `delete-source` and `merge` fix mistakes (deletion is irreversible, run `backup` before bulk changes).
 
 ## Principles
 

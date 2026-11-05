@@ -4,7 +4,7 @@
 
 ## Download
 
-**Neueste Version: [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (Vorabversion)**
+**Neueste Version: [ZaNytky v0.0.23](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (Vorabversion)**
 
 | Plattform | Datei |
 |---|---|
@@ -21,7 +21,7 @@
 
 Anwendung zur Ordnung von Beziehungen zwischen Subjekten aus offenen Quellen: Quellen mit Volltext und Dateien, Aussagen mit Zitaten, Beziehungsgraph, Suche des kürzesten Wegs zwischen Subjekten. Personenbezogene Daten werden durch schlüsselbasierte Pseudonyme ersetzt.
 
-Status: **frühe Entwicklung** (Vorabversion 0.0.8). ZaNytky ist **proprietäre Software**: ein öffentliches Repository gewährt keine Open-Source-Lizenz (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Im Repository werden keine Nutzerdaten gespeichert.
+Status: **frühe Entwicklung** (Vorabversion 0.0.23). ZaNytky ist **proprietäre Software**: ein öffentliches Repository gewährt keine Open-Source-Lizenz (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Im Repository werden keine Nutzerdaten gespeichert.
 
 > Diese Übersetzung ist maschinell erstellt und nicht von Muttersprachlern geprüft; maßgeblich ist der ukrainische Text.
 
@@ -33,6 +33,9 @@ Status: **frühe Entwicklung** (Vorabversion 0.0.8). ZaNytky ist **proprietäre 
 - **Subjekte:** Karte mit Aussagen, Quellen, Eigentumskette und gemeinsamen Merkmalen (Adresse, Telefon, Kennzeichen, Konto); Zusammenführen von Dubletten; Graph; kürzester Weg zwischen zwei Subjekten.
 - **Pseudonymisierung:** eindeutige Codes mit Systemschlüssel; Originale nur versiegelt (age) für den Schlüssel des Ermittlers; Anonymisierung des Textes und KI-Paket; Prüfung und Import der KI-Antwort.
 - **Bericht** als Markdown, Word und PDF mit Passphrase; verschlüsselte Sicherung des Datenordners. 7 Sprachen.
+- **Belege und Prüfung:** einer Aussage wird ein Dokument beigefügt („Beleg hinzufügen“: Register, amtliche Erklärung, Medien, Zeugenaussage, eigenes); „bestätigt“ setzt nur ein Register- oder Behördendokument, widerlegen kann jede Art.
+- **Analyse der Datenbank:** Schnellsuche in den Quellen, die Übersicht, Paare von Subjekten in einem Absatz, Überschneidungen zwischen Kanälen, automatische Subjektsuche; der Graph (ganz oder teilweise) wird als eine eigenständige HTML-Datei gespeichert.
+- **Kommandozeile für automatisierte Analyse** (search, source, discover, channels, overlaps, pairs, entity, statements, add-entity, add-source, make-statements, evidence, detach, delete-statement, delete-source, merge, unmerge, graph): Lesen mit `--json`; `make-statements` schreibt einen Satz Aussagen nur, wenn das Zitat jeder Aussage im Text ihrer Quelle steht; Fehler werden per Befehl behoben, nicht von Hand.
 
 ## Schnellstart
 
@@ -54,6 +57,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 ```
+
+Analyse und Fehlerkorrektur per Befehl:
+
+```bash
+zanytky search "Приклад" --home ./home
+zanytky source 123 --full --home ./home
+zanytky discover --source 123 --home ./home
+zanytky make-statements --file statements.json --home ./home
+zanytky evidence --statement 5 --kind registry --title "Витяг" --url https://example.org/x --status confirmed --home ./home
+zanytky graph --out graph.html --entity 32 --depth 2 --home ./home
+```
+
+`--expect` bei `evidence` verhindert, dass ein Beleg an die falsche Aussage geht; `detach`, `delete-statement`, `delete-source` und `merge` beheben Fehler (Löschen ist unumkehrbar, vor Massenänderungen `backup` ausführen).
 
 ## Grundsätze
 

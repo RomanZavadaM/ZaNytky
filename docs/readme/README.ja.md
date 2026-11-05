@@ -4,7 +4,7 @@
 
 ## ダウンロード
 
-**最新版：[ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23)（プレリリース）**
+**最新版：[ZaNytky v0.0.23](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23)（プレリリース）**
 
 | プラットフォーム | ファイル |
 |---|---|
@@ -21,7 +21,7 @@
 
 公開情報源から対象間の関係を整理するアプリケーション：全文とファイルを持つ情報源、引用付きの主張、関係グラフ、対象間の最短経路検索。個人データはキーに基づく仮名に置き換えられます。
 
-ステータス：**初期開発段階**（プレリリース 0.0.8）。ZaNytky は**プロプライエタリソフトウェア**です。リポジトリが公開されていてもオープンソースライセンスは付与されません（LICENSE.md、COPYRIGHT.md、THIRD_PARTY_NOTICES.md）。リポジトリにユーザーデータは保存されません。
+ステータス：**初期開発段階**（プレリリース 0.0.23）。ZaNytky は**プロプライエタリソフトウェア**です。リポジトリが公開されていてもオープンソースライセンスは付与されません（LICENSE.md、COPYRIGHT.md、THIRD_PARTY_NOTICES.md）。リポジトリにユーザーデータは保存されません。
 
 > この翻訳は機械翻訳で、ネイティブによる確認を受けていません。正文はウクライナ語です。
 
@@ -33,6 +33,9 @@
 - **対象：**主張、情報源、所有の連鎖、共通の特徴（住所、電話、車両番号、口座）を持つカード。重複の統合、関係グラフ、2 つの対象間の最短経路。
 - **仮名化：**システムキーによる一対一のコード。原本は調査者のキーでのみ封印（age）。テキストの匿名化と AI 用パッケージ、AI 回答の検査と取り込み。
 - **レポート：**Markdown、Word、PDF（パスフレーズ保護）。データフォルダーの暗号化バックアップ。7 言語。
+- **証拠と検証：**主張に文書を添付します（「証拠を追加」：登記、機関の声明、メディア、証言、自前）。「確認済み」は登記または機関の文書でのみ設定され、反証はどの種類でも可能です。
+- **データベースの分析：**情報源の高速検索、概要、同じ段落に出る主体のペア、チャンネル間の重なり、主体の自動検出。グラフ（全体または一部）は単独で開ける HTML ファイル 1 つとして保存できます。
+- **自動分析用のコマンドライン**（search, source, discover, channels, overlaps, pairs, entity, statements, add-entity, add-source, make-statements, evidence, detach, delete-statement, delete-source, merge, unmerge, graph）：`--json` で読み取り。`make-statements` は各主張の引用が情報源の本文にある場合にのみ主張の一括を書き込みます。誤りは手作業ではなくコマンドで直します。
 
 ## クイックスタート
 
@@ -54,6 +57,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 ```
+
+コマンドでの分析と誤りの修正：
+
+```bash
+zanytky search "Приклад" --home ./home
+zanytky source 123 --full --home ./home
+zanytky discover --source 123 --home ./home
+zanytky make-statements --file statements.json --home ./home
+zanytky evidence --statement 5 --kind registry --title "Витяг" --url https://example.org/x --status confirmed --home ./home
+zanytky graph --out graph.html --entity 32 --depth 2 --home ./home
+```
+
+`evidence` の `--expect` は証拠が誤った主張に付くのを防ぎます。`detach`、`delete-statement`、`delete-source`、`merge` で誤りを直します（削除は元に戻せないため、大量変更の前に `backup`）。
 
 ## 原則
 

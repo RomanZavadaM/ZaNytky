@@ -44,6 +44,13 @@ Ce guide décrit la fenêtre de l'application. La version ukrainienne fait foi.
 - **Aperçu.** Un bouton écrit un rapport sur toute la base : canaux, pics, recoupements, nouveaux sujets et **liens probables** (paires de sujets nommés dans le même paragraphe dans au moins 3 messages, avec une citation). Enregistrement en `.md` ; en ligne de commande : `zanytky overview --home DOSSIER --out FICHIER`.
 - **Important.** Recoupements, pics, découverte et aperçu sont des indices pour des hypothèses, pas des faits. Les textes et fichiers sont conservés sans anonymisation, uniquement dans la base locale ; gardez le dossier de données hors des dossiers de code et faites des sauvegardes.
 
+## 7. Preuves, graphe et ligne de commande
+
+- **Ajouter une preuve.** Dans la fiche d'un sujet, à côté d'une déclaration : type de document (registre, déclaration officielle, média, témoignage, propre), fiabilité A-F, titre, adresse, date, texte ou extrait, note. « Ajouter et confirmer » n'existe que pour « registre » et « déclaration officielle » ; « Ajouter et réfuter » pour tout type. Une même adresse n'est pas dupliquée.
+- **Graphe.** Onglet « Graphe » : la couleur du trait est le type de lien (propriété, poste, lien rapporté...), trait épais plein = confirmé par un document, pointillés = pas encore vérifié ; les nœuds sont étiquetés, les noms des personnes s'affichent si la clé de l'enquêteur est indiquée. « Enregistrer le graphe en HTML... » écrit un fichier autonome (sans internet, avec recherche) : tout le graphe ou seulement autour du sujet n° (1 à 3 pas), éventuellement les confirmés seuls.
+- **Ligne de commande pour l'analyse.** `search REQUÊTE`, `source NUMÉRO --full`, `discover --source N`, `channels`, `overlaps`, `pairs`, `entity N`, `statements --grep`, `add-source`, `add-entity`, `make-statements --file FICHIER.json` (la citation de chaque déclaration doit figurer mot pour mot dans le texte de la source, sinon rien n'est écrit), `evidence`, `graph --out FICHIER.html [--entity N --depth K] [--confirmed]`. Chaque commande de lecture accepte `--json`.
+- **Corriger les erreurs.** `detach --statement N --source M [--drop-source]` détache une preuve ajoutée par erreur ; `delete-statement N` et `delete-source N` suppriment une mauvaise déclaration ou une source inutilisée ; `merge --keep A --drop B` fusionne des doublons (pas des personnes), `unmerge --drop B` l'annule ; `evidence --expect MOTS` empêche d'écrire vers un mauvais numéro. La suppression est irréversible (journalisée) : faites d'abord `backup`.
+
 ## Sécurité
 
 - Conservez séparément la clé système, la clé privée de l'enquêteur et la phrase secrète. Perdre la clé privée signifie que les données ne pourront plus être révélées.
