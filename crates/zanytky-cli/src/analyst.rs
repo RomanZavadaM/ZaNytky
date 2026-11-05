@@ -499,4 +499,3 @@ pub fn cmd_graph(args: &Args, out: Out) -> Result<(), String> {
         &format!("Граф записано: {} ({} байт)", target.display(), html.len()),
     )
 }
-

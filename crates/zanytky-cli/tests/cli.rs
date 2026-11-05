@@ -589,7 +589,11 @@ fn the_graph_is_written_as_one_standalone_page_whole_or_in_part() {
         cli(&["add-entity", "--home", h, "--kind", "org", "--name", name]).unwrap();
     }
     let doc = dir.path().join("doc.txt");
-    fs::write(&doc, "ТОВ Альфа володіє ТОВ Бета. ТОВ Бета володіє ТОВ Гама.").unwrap();
+    fs::write(
+        &doc,
+        "ТОВ Альфа володіє ТОВ Бета. ТОВ Бета володіє ТОВ Гама.",
+    )
+    .unwrap();
     cli(&[
         "add-source",
         "--home",
@@ -645,4 +649,3 @@ fn the_graph_is_written_as_one_standalone_page_whole_or_in_part() {
     // an existing file is not replaced
     assert!(cli(&["graph", "--home", h, "--out", all.to_str().unwrap()]).is_err());
 }
-
