@@ -44,6 +44,13 @@ This guide describes the application window. The Ukrainian version is the refere
 - **Overview.** One button writes a report over the whole base: channels, peaks, overlaps, new subjects and **likely links** (pairs of subjects named in the same paragraph in at least 3 posts, with an example quote). Save it as `.md` with the button; the same on the command line: `zanytky overview --home FOLDER --out FILE`.
 - **Important.** Overlaps, peaks, discovery and the Overview are hints for hypotheses, not facts. Texts and files of sources are stored without de-identification in the local database only; keep the data folder outside code folders and make backups.
 
+## 7. Evidence, graph and the command line
+
+- **Add evidence.** In a subject card next to a statement: kind of document (registry, official statement, media, testimony, own), reliability A-F, title, address, date, text or extract, note. "Add and confirm" is available only for the kinds "registry" and "official statement"; "Add and refute" for any kind. The same address is not duplicated.
+- **Graph.** The "Graph" tab: line colour is the kind of link (ownership, position, reported link...), a thick solid line is confirmed by a document, dashed is not checked yet; nodes are labelled, names of persons are shown when the investigator's key is set. "Save graph as HTML..." writes one standalone file (no internet, with search): the whole graph or only around subject no. (1-3 steps), optionally only confirmed.
+- **Command line for analysis.** `search QUERY`, `source NUMBER --full`, `discover --source N`, `channels`, `overlaps`, `pairs`, `entity N`, `statements --grep`, `add-source`, `add-entity`, `make-statements --file FILE.json` (the quote of each statement must be verbatim in its source text, otherwise nothing is written), `evidence`, `graph --out FILE.html [--entity N --depth K] [--confirmed]`. Every reading command has `--json`.
+- **Fixing mistakes.** `detach --statement N --source M [--drop-source]` detaches a wrongly added evidence; `delete-statement N` and `delete-source N` delete a wrong statement or an unused source; `merge --keep A --drop B` merges duplicates (not persons), `unmerge --drop B` undoes it; `evidence --expect WORDS` stops an evidence from going to a wrong number. Deletion is irreversible (it is logged): run `backup` first.
+
 ## Security
 
 - Keep the system key, the investigator's private key and the passphrase separately. Losing the private key means the data can no longer be revealed.

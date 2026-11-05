@@ -4,7 +4,7 @@
 
 ## 다운로드
 
-**최신 버전: [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (사전 릴리스)**
+**최신 버전: [ZaNytky v0.0.23](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (사전 릴리스)**
 
 | 플랫폼 | 파일 |
 |---|---|
@@ -21,7 +21,7 @@
 
 공개 출처에서 대상 간의 관계를 정리하는 애플리케이션: 전체 본문과 파일이 있는 출처, 인용문이 있는 진술, 관계 그래프, 대상 간 최단 경로 검색. 개인정보는 키 기반 가명으로 대체됩니다.
 
-상태: **초기 개발 단계** (사전 릴리스 0.0.8). ZaNytky는 **독점 소프트웨어**입니다. 공개 저장소라고 해서 오픈소스 라이선스가 부여되지 않습니다 (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). 저장소에는 사용자 데이터가 저장되지 않습니다.
+상태: **초기 개발 단계** (사전 릴리스 0.0.23). ZaNytky는 **독점 소프트웨어**입니다. 공개 저장소라고 해서 오픈소스 라이선스가 부여되지 않습니다 (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). 저장소에는 사용자 데이터가 저장되지 않습니다.
 
 > 이 번역은 기계 번역이며 원어민 검토를 거치지 않았습니다. 우크라이나어 텍스트가 기준입니다.
 
@@ -33,6 +33,9 @@
 - **대상:** 진술, 출처, 소유 체인, 공통 표지(주소, 전화, 차량 번호, 계좌)가 있는 카드. 중복 병합, 관계 그래프, 두 대상 간 최단 경로.
 - **가명화:** 시스템 키 기반의 일대일 코드. 원본은 조사자 키로만 봉인(age). 텍스트 비식별화와 AI용 패키지, AI 응답 검사 및 가져오기.
 - **보고서:** Markdown, Word, PDF(암호문 보호). 데이터 폴더의 암호화 백업. 7개 언어.
+- **증거와 검증:** 진술에 문서를 첨부합니다(“증거 추가”: 등기·공적 기록, 기관 발표, 언론, 증언, 자체). “확인됨”은 등기 또는 기관 문서로만 지정되며, 반박은 모든 종류로 가능합니다.
+- **데이터베이스 분석:** 출처 빠른 검색, 개요, 한 문단에 함께 나온 주체 쌍, 채널 간 겹침, 주체 자동 탐색. 그래프(전체 또는 일부)는 독립 실행형 HTML 파일 하나로 저장됩니다.
+- **자동 분석용 명령줄** (search, source, discover, channels, overlaps, pairs, entity, statements, add-entity, add-source, make-statements, evidence, detach, delete-statement, delete-source, merge, unmerge, graph): `--json` 읽기. `make-statements`는 각 진술의 인용이 출처 본문에 있을 때만 진술 묶음을 기록합니다. 오류는 손이 아니라 명령으로 고칩니다.
 
 ## 빠른 시작
 
@@ -54,6 +57,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 ```
+
+명령으로 분석하고 오류 고치기:
+
+```bash
+zanytky search "Приклад" --home ./home
+zanytky source 123 --full --home ./home
+zanytky discover --source 123 --home ./home
+zanytky make-statements --file statements.json --home ./home
+zanytky evidence --statement 5 --kind registry --title "Витяг" --url https://example.org/x --status confirmed --home ./home
+zanytky graph --out graph.html --entity 32 --depth 2 --home ./home
+```
+
+`evidence`의 `--expect`는 증거가 잘못된 진술에 붙는 것을 막습니다. `detach`, `delete-statement`, `delete-source`, `merge`로 오류를 고칩니다(삭제는 되돌릴 수 없으므로 대량 변경 전 `backup`).
 
 ## 원칙
 

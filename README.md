@@ -4,7 +4,7 @@
 
 ## Завантажити
 
-**Остання версія: [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (пререліз)**
+**Остання версія: [ZaNytky v0.0.23](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (пререліз)**
 
 | Платформа | Файл |
 |---|---|
@@ -21,7 +21,7 @@
 
 Застосунок для впорядкування зв'язків між суб'єктами з відкритих джерел: джерела з повним текстом і файлами, твердження з цитатами, граф зв'язків, пошук шляху між суб'єктами. Персональні дані замінюються псевдонімами за ключем.
 
-Статус: **ранній етап розробки** (пререліз 0.0.8). ZaNytky - **proprietary software**: публічність репозиторію не надає open-source ліцензії (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Дані користувача в репозиторії не зберігаються.
+Статус: **ранній етап розробки** (пререліз 0.0.23). ZaNytky - **proprietary software**: публічність репозиторію не надає open-source ліцензії (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Дані користувача в репозиторії не зберігаються.
 
 ## Що вміє
 
@@ -31,6 +31,9 @@
 - **Суб'єкти:** картка з тверджень, джерел, ланцюжка власності й спільних ознак (адреса, телефон, номер авто, рахунок); злиття дублікатів; граф зв'язків; пошук найкоротшого зв'язку між двома суб'єктами.
 - **Псевдонімізація:** однозначні коди за системним ключем; оригінали лише запечатані (age) на ключ розслідувача; знеособлення тексту й пакет для ШІ; перевірка відповіді ШІ й імпорт.
 - **Звіт** у Markdown, Word і PDF з парольною фразою; зашифрована резервна копія папки даних. 7 мов інтерфейсу.
+- **Докази й перевірка:** до твердження додається документ («Додати доказ»: реєстр, заява органу, медіа, свідчення, власне); «підтверджено» ставиться лише за документом реєстру чи органу, спростувати можна будь-яким видом.
+- **Аналіз бази:** швидкий пошук по джерелах, «Огляд», пари суб'єктів в одному абзаці, збіги між каналами, автопошук суб'єктів; граф (уся база або частина) зберігається одним автономним HTML-файлом.
+- **Командний рядок для автоматизації розбору** (search, source, discover, channels, overlaps, pairs, entity, statements, add-entity, add-source, make-statements, evidence, detach, delete-statement, delete-source, merge, unmerge, graph): читання з `--json`; `make-statements` записує пакет тверджень лише якщо цитата кожного є в тексті його джерела; помилки виправляються командами, а не вручну.
 
 ## Швидкий початок
 
@@ -52,6 +55,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 ```
+
+Розбір і виправлення командами:
+
+```bash
+zanytky search "Приклад" --home ./home
+zanytky source 123 --full --home ./home
+zanytky discover --source 123 --home ./home
+zanytky make-statements --file statements.json --home ./home
+zanytky evidence --statement 5 --kind registry --title "Витяг" --url https://example.org/x --status confirmed --home ./home
+zanytky graph --out graph.html --entity 32 --depth 2 --home ./home
+```
+
+`--expect` у `evidence` не дає записати доказ до хибного твердження; `detach`, `delete-statement`, `delete-source` і `merge` виправляють помилки (видалення незворотне, перед масовими змінами зробіть `backup`).
 
 ## Принципи
 

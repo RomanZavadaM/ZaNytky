@@ -4,7 +4,7 @@
 
 ## Téléchargement
 
-**Dernière version : [ZaNytky v0.0.8](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (préversion)**
+**Dernière version : [ZaNytky v0.0.23](https://github.com/RomanZavadaM/ZaNytky/releases/tag/v0.0.23) (préversion)**
 
 | Plateforme | Fichier |
 |---|---|
@@ -21,7 +21,7 @@
 
 Application pour organiser les liens entre sujets à partir de sources ouvertes : sources avec texte intégral et fichiers, déclarations avec citations, graphe des liens, recherche du chemin le plus court entre sujets. Les données personnelles sont remplacées par des pseudonymes à clé.
 
-Statut : **développement précoce** (préversion 0.0.8). ZaNytky est un **logiciel propriétaire** : un dépôt public n'accorde pas de licence open source (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Aucune donnée utilisateur n'est stockée dans le dépôt.
+Statut : **développement précoce** (préversion 0.0.23). ZaNytky est un **logiciel propriétaire** : un dépôt public n'accorde pas de licence open source (LICENSE.md, COPYRIGHT.md, THIRD_PARTY_NOTICES.md). Aucune donnée utilisateur n'est stockée dans le dépôt.
 
 > Cette traduction est automatique et n'a pas été relue par des locuteurs natifs ; le texte ukrainien fait foi.
 
@@ -33,6 +33,9 @@ Statut : **développement précoce** (préversion 0.0.8). ZaNytky est un **logic
 - **Sujets :** fiche avec déclarations, sources, chaîne de propriété et signes communs (adresse, téléphone, plaque, compte) ; fusion des doublons ; graphe ; chemin le plus court entre deux sujets.
 - **Pseudonymisation :** codes uniques à clé système ; originaux uniquement scellés (age) pour la clé de l'enquêteur ; anonymisation du texte et paquet pour l'IA ; contrôle et import de la réponse.
 - **Rapport** Markdown, Word et PDF avec phrase secrète ; sauvegarde chiffrée du dossier de données. 7 langues.
+- **Preuves et vérification :** un document est joint à une déclaration (« Ajouter une preuve » : registre, déclaration officielle, média, témoignage, propre) ; « confirmé » n'est posé que par un document de registre ou de déclaration officielle, tout type peut réfuter.
+- **Analyse de la base :** recherche rapide dans les sources, l'aperçu, paires de sujets dans un même paragraphe, recoupements entre canaux, découverte automatique de sujets ; le graphe (entier ou en partie) s'enregistre en un fichier HTML autonome.
+- **Ligne de commande pour l'analyse automatisée** (search, source, discover, channels, overlaps, pairs, entity, statements, add-entity, add-source, make-statements, evidence, detach, delete-statement, delete-source, merge, unmerge, graph) : lecture avec `--json` ; `make-statements` n'écrit un lot de déclarations que si la citation de chacune figure dans le texte de sa source ; les erreurs se corrigent par commandes, pas à la main.
 
 ## Démarrage rapide
 
@@ -54,6 +57,19 @@ zanytky import result.json --package pkg-1 --home ./home
 zanytky report --home ./home --identity ./investigator.txt --out report.docx --format docx --passphrase-file ./pass.txt
 zanytky backup --home ./home --out copy.znbak --passphrase-file ./pass.txt
 ```
+
+Analyse et correction des erreurs par commande :
+
+```bash
+zanytky search "Приклад" --home ./home
+zanytky source 123 --full --home ./home
+zanytky discover --source 123 --home ./home
+zanytky make-statements --file statements.json --home ./home
+zanytky evidence --statement 5 --kind registry --title "Витяг" --url https://example.org/x --status confirmed --home ./home
+zanytky graph --out graph.html --entity 32 --depth 2 --home ./home
+```
+
+`--expect` dans `evidence` empêche d'attacher une preuve à une mauvaise déclaration ; `detach`, `delete-statement`, `delete-source` et `merge` corrigent les erreurs (la suppression est irréversible, faites `backup` avant les changements en masse).
 
 ## Principes
 

@@ -44,6 +44,13 @@ Dieses Handbuch beschreibt das Anwendungsfenster. Maßgeblich ist die ukrainisch
 - **Überblick.** Eine Schaltfläche schreibt einen Bericht über die ganze Datenbank: Kanäle, Spitzen, Überschneidungen, neue Subjekte und **wahrscheinliche Verbindungen** (Paare im selben Absatz in mindestens 3 Beiträgen, mit Beispielzitat). Als `.md` speichern; in der Befehlszeile: `zanytky overview --home ORDNER --out DATEI`.
 - **Wichtig.** Überschneidungen, Spitzen, Subjektsuche und Überblick sind Hinweise für Hypothesen, keine Fakten. Texte und Dateien werden unanonymisiert nur in der lokalen Datenbank gespeichert; den Datenordner außerhalb von Code-Ordnern halten und Sicherungen machen.
 
+## 7. Belege, Graph und Kommandozeile
+
+- **Beleg hinzufügen.** In der Karte eines Subjekts neben einer Aussage: Art des Dokuments (Register, amtliche Erklärung, Medien, Zeugenaussage, eigenes), Zuverlässigkeit A-F, Titel, Adresse, Datum, Text oder Auszug, Anmerkung. „Hinzufügen und bestätigen“ gibt es nur für „Register“ und „amtliche Erklärung“; „Hinzufügen und widerlegen“ für jede Art. Dieselbe Adresse wird nicht doppelt gespeichert.
+- **Graph.** Registerkarte „Graph“: Linienfarbe ist die Art der Verbindung (Eigentum, Amt, berichtete Verbindung ...), dicke durchgezogene Linie = durch ein Dokument bestätigt, gestrichelt = noch nicht geprüft; Knoten sind beschriftet, Namen von Personen erscheinen, wenn der Schlüssel des Ermittlers angegeben ist. „Graph als HTML speichern...“ schreibt eine eigenständige Datei (ohne Internet, mit Suche): den ganzen Graphen oder nur um Subjekt Nr. (1-3 Schritte), auf Wunsch nur Bestätigtes.
+- **Kommandozeile für die Analyse.** `search ANFRAGE`, `source NUMMER --full`, `discover --source N`, `channels`, `overlaps`, `pairs`, `entity N`, `statements --grep`, `add-source`, `add-entity`, `make-statements --file DATEI.json` (das Zitat jeder Aussage muss wörtlich im Text der Quelle stehen, sonst wird nichts geschrieben), `evidence`, `graph --out DATEI.html [--entity N --depth K] [--confirmed]`. Jeder lesende Befehl hat `--json`.
+- **Fehler beheben.** `detach --statement N --source M [--drop-source]` löst einen versehentlich hinzugefügten Beleg; `delete-statement N` und `delete-source N` löschen eine falsche Aussage oder eine ungenutzte Quelle; `merge --keep A --drop B` führt Dubletten zusammen (keine Personen), `unmerge --drop B` macht es rückgängig; `evidence --expect WÖRTER` verhindert das Schreiben an eine falsche Nummer. Löschen ist unumkehrbar (wird protokolliert): zuerst `backup`.
+
 ## Sicherheit
 
 - Bewahren Sie Systemschlüssel, privaten Schlüssel des Ermittlers und Passphrase getrennt auf. Geht der private Schlüssel verloren, lassen sich die Daten nicht mehr offenlegen.

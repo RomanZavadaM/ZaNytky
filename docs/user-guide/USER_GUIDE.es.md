@@ -44,6 +44,13 @@ Esta guía describe la ventana de la aplicación. La versión ucraniana es el te
 - **Resumen.** Un botón escribe un informe de toda la base: canales, picos, coincidencias, sujetos nuevos y **vínculos probables** (pares nombrados en el mismo párrafo en al menos 3 publicaciones, con una cita de ejemplo). Se guarda como `.md`; en la línea de comandos: `zanytky overview --home CARPETA --out ARCHIVO`.
 - **Importante.** Coincidencias, picos, descubrimiento y resumen son pistas para hipótesis, no hechos. Los textos y archivos se guardan sin anonimizar solo en la base local; mantenga la carpeta de datos fuera de las carpetas de código y haga copias de seguridad.
 
+## 7. Pruebas, grafo y línea de comandos
+
+- **Añadir prueba.** En la ficha de un sujeto junto a una afirmación: tipo de documento (registro, declaración oficial, medios, testimonio, propio), fiabilidad A-F, título, dirección, fecha, texto o extracto, nota. «Añadir y confirmar» solo existe para «registro» y «declaración oficial»; «Añadir y refutar» para cualquier tipo. La misma dirección no se duplica.
+- **Grafo.** Pestaña «Grafo»: el color de la línea es el tipo de vínculo (propiedad, cargo, vínculo informado...), línea gruesa continua = confirmado por un documento, discontinua = aún sin verificar; los nodos llevan etiqueta y los nombres de las personas se muestran si se indica la clave del investigador. «Guardar el grafo como HTML...» escribe un archivo autónomo (sin internet, con búsqueda): todo el grafo o solo alrededor del sujeto n.º (1-3 pasos), opcionalmente solo los confirmados.
+- **Línea de comandos para el análisis.** `search CONSULTA`, `source NÚMERO --full`, `discover --source N`, `channels`, `overlaps`, `pairs`, `entity N`, `statements --grep`, `add-source`, `add-entity`, `make-statements --file ARCHIVO.json` (la cita de cada afirmación debe estar literalmente en el texto de su fuente; si no, no se escribe nada), `evidence`, `graph --out ARCHIVO.html [--entity N --depth K] [--confirmed]`. Todo comando de lectura admite `--json`.
+- **Corregir errores.** `detach --statement N --source M [--drop-source]` separa una prueba añadida por error; `delete-statement N` y `delete-source N` borran una afirmación equivocada o una fuente sin uso; `merge --keep A --drop B` fusiona duplicados (no personas), `unmerge --drop B` lo deshace; `evidence --expect PALABRAS` impide escribir en un número equivocado. Borrar es irreversible (queda en el registro): haga antes `backup`.
+
 ## Seguridad
 
 - Guarde por separado la clave del sistema, la clave privada del investigador y la frase secreta. Perder la clave privada significa que los datos ya no podrán revelarse.
