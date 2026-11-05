@@ -521,7 +521,14 @@ fn a_mistake_can_be_fixed_from_the_command_line() {
  "parties": [{"role": "owner", "entityId": 1}, {"role": "owned", "entityId": 2}]}]"#,
     )
     .unwrap();
-    cli(&["make-statements", "--home", h, "--file", batch.to_str().unwrap()]).unwrap();
+    cli(&[
+        "make-statements",
+        "--home",
+        h,
+        "--file",
+        batch.to_str().unwrap(),
+    ])
+    .unwrap();
     let evidence = |expect: &str, url: &str| {
         cli(&[
             "evidence",

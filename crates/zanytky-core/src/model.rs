@@ -1405,7 +1405,10 @@ impl Model {
                     "UPDATE statement SET status = 'unverified' WHERE id = ?1",
                     params![statement_id],
                 )?;
-                self.log("set_status:unverified", &format!("statement:{statement_id}"))?;
+                self.log(
+                    "set_status:unverified",
+                    &format!("statement:{statement_id}"),
+                )?;
             }
         }
         Ok(())
@@ -1448,8 +1451,10 @@ impl Model {
             "DELETE FROM source_text WHERE source_id = ?1",
             params![source_id],
         )?;
-        self.conn
-            .execute("DELETE FROM source_fts WHERE rowid = ?1", params![source_id])?;
+        self.conn.execute(
+            "DELETE FROM source_fts WHERE rowid = ?1",
+            params![source_id],
+        )?;
         self.conn
             .execute("DELETE FROM source WHERE id = ?1", params![source_id])?;
         self.log("delete_source", &format!("source:{source_id}"))
