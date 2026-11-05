@@ -486,3 +486,96 @@ fn an_analyst_can_add_a_document_find_subjects_and_record_statements_with_checke
     let card = cli(&["entity", "1", "--home", home.as_str()]).unwrap();
     assert!(card.contains("Приклад"));
 }
+
+#[test]
+fn a_mistake_can_be_fixed_from_the_command_line() {
+    let dir = tempfile::tempdir().unwrap();
+    let (home, _) = setup(dir.path());
+    let h = home.as_str();
+    let doc = dir.path().join("doc.txt");
+    fs::write(&doc, "ТОВ Альфа володіє ТОВ Бета.").unwrap();
+    cli(&[
+        "add-source",
+        "--home",
+        h,
+        "--title",
+        "Документ",
+        "--kind",
+        "registry",
+        "--reliability",
+        "A",
+        "--url",
+        "https://example.org/d",
+        "--text-file",
+        doc.to_str().unwrap(),
+    ])
+    .unwrap();
+    for name in ["ТОВ Альфа", "ТОВ Бета", "ТОВ Бета Копія"] {
+        cli(&["add-entity", "--home", h, "--kind", "org", "--name", name]).unwrap();
+    }
+    let batch = dir.path().join("b.json");
+    fs::write(
+        &batch,
+        r#"[{"sourceId": 1, "kind": "owns", "value": "володіє", "credibility": 3,
+ "quote": "володіє ТОВ Бета", "note": null,
+ "parties": [{"role": "owner", "entityId": 1}, {"role": "owned", "entityId": 2}]}]"#,
+    )
+    .unwrap();
+    cli(&[
+        "make-statements",
+        "--home",
+        h,
+        "--file",
+        batch.to_str().unwrap(),
+    ])
+    .unwrap();
+    let evidence = |expect: &str, url: &str| {
+        cli(&[
+            "evidence",
+            "--home",
+            h,
+            "--statement",
+            "1",
+            "--kind",
+            "media",
+            "--title",
+            "Стаття",
+            "--url",
+            url,
+            "--expect",
+            expect,
+        ])
+    };
+    // a wrong number is stopped by --expect and nothing is written
+    let guarded = evidence("ціна", "https://example.org/x");
+    assert!(guarded.unwrap_err().contains("нічого не записано"));
+    assert!(cli(&["source", "2", "--home", h]).is_err());
+    // an evidence attached by mistake is detached and its source dropped
+    let done = evidence("володіє", "https://example.org/y").unwrap();
+    assert!(done.contains("(володіє)"));
+    let fixed = cli(&[
+        "detach",
+        "--home",
+        h,
+        "--statement",
+        "1",
+        "--source",
+        "2",
+        "--drop-source",
+    ])
+    .unwrap();
+    assert!(fixed.contains("Джерело №2 видалено"));
+    assert!(cli(&["source", "2", "--home", h]).is_err());
+    // the only source of a statement cannot be detached
+    let only = ["detach", "--home", h, "--statement", "1", "--source", "1"];
+    assert!(cli(&only).is_err());
+    // two entities of one organization are merged, and the merge is undone
+    let merge = ["merge", "--home", h, "--keep", "2", "--drop", "3"];
+    cli(&merge).unwrap();
+    assert!(cli(&merge).is_err());
+    cli(&["unmerge", "--home", h, "--drop", "3"]).unwrap();
+    // a wrong statement and then its source are deleted
+    cli(&["delete-statement", "1", "--home", h]).unwrap();
+    assert!(cli(&["statements", "--home", h]).unwrap().trim().is_empty());
+    cli(&["delete-source", "1", "--home", h]).unwrap();
+}

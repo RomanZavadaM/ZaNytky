@@ -1358,6 +1358,108 @@ impl Model {
         Ok(())
     }
 
+    /// Detach a source from a statement (a wrongly attached evidence). The statement keeps at
+    /// least one source; a confirmed statement with no document left goes back to unverified.
+    pub fn detach_statement_source(
+        &self,
+        statement_id: i64,
+        source_id: i64,
+    ) -> Result<(), ModelError> {
+        let linked: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM statement_source WHERE statement_id = ?1 AND source_id = ?2",
+            params![statement_id, source_id],
+            |r| r.get(0),
+        )?;
+        if linked == 0 {
+            return Err(ModelError::NotFound);
+        }
+        let total: i64 = self.conn.query_row(
+            "SELECT COUNT(*) FROM statement_source WHERE statement_id = ?1",
+            params![statement_id],
+            |r| r.get(0),
+        )?;
+        if total < 2 {
+            return Err(ModelError::Invalid(
+                "a statement keeps at least one source; delete the statement instead",
+            ));
+        }
+        self.conn.execute(
+            "DELETE FROM statement_source WHERE statement_id = ?1 AND source_id = ?2",
+            params![statement_id, source_id],
+        )?;
+        self.log(
+            "detach_statement_source",
+            &format!("statement:{statement_id}-source:{source_id}"),
+        )?;
+        if self.status(statement_id)? == Status::Confirmed {
+            let documents: i64 = self.conn.query_row(
+                "SELECT COUNT(*) FROM statement_source ss \
+                 JOIN source s ON s.id = ss.source_id \
+                 JOIN source r ON r.id = s.root_id \
+                 WHERE ss.statement_id = ?1 AND r.kind NOT IN ('rumor', 'testimony')",
+                params![statement_id],
+                |r| r.get(0),
+            )?;
+            if documents == 0 {
+                self.conn.execute(
+                    "UPDATE statement SET status = 'unverified' WHERE id = ?1",
+                    params![statement_id],
+                )?;
+                self.log(
+                    "set_status:unverified",
+                    &format!("statement:{statement_id}"),
+                )?;
+            }
+        }
+        Ok(())
+    }
+
+    /// Delete a wrong statement with its parties and source links. The sources stay.
+    pub fn delete_statement(&self, statement_id: i64) -> Result<(), ModelError> {
+        if !self.exists("statement", statement_id)? {
+            return Err(ModelError::NotFound);
+        }
+        for table in ["statement_party", "statement_source", "entity_merge_party"] {
+            self.conn.execute(
+                &format!("DELETE FROM {table} WHERE statement_id = ?1"),
+                params![statement_id],
+            )?;
+        }
+        self.conn
+            .execute("DELETE FROM statement WHERE id = ?1", params![statement_id])?;
+        self.log("delete_statement", &format!("statement:{statement_id}"))
+    }
+
+    /// Delete a source that no statement uses and that has no files and no copies.
+    pub fn delete_source(&self, source_id: i64) -> Result<(), ModelError> {
+        if !self.exists("source", source_id)? {
+            return Err(ModelError::NotFound);
+        }
+        let busy: i64 = self.conn.query_row(
+            "SELECT (SELECT COUNT(*) FROM statement_source WHERE source_id = ?1) \
+                  + (SELECT COUNT(*) FROM source_file WHERE source_id = ?1) \
+                  + (SELECT COUNT(*) FROM source WHERE parent_id = ?1)",
+            params![source_id],
+            |r| r.get(0),
+        )?;
+        if busy > 0 {
+            return Err(ModelError::Invalid(
+                "the source is used by a statement, has files or copies",
+            ));
+        }
+        self.conn.execute(
+            "DELETE FROM source_text WHERE source_id = ?1",
+            params![source_id],
+        )?;
+        self.conn.execute(
+            "DELETE FROM source_fts WHERE rowid = ?1",
+            params![source_id],
+        )?;
+        self.conn
+            .execute("DELETE FROM source WHERE id = ?1", params![source_id])?;
+        self.log("delete_source", &format!("source:{source_id}"))
+    }
+
     pub fn status(&self, statement_id: i64) -> Result<Status, ModelError> {
         let text: String = self
             .conn

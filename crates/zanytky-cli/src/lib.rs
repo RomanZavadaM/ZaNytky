@@ -58,6 +58,12 @@ zanytky - команди
   make-statements --file ФАЙЛ.json [--no-verify]
                                           твердження пакетом (список {sourceId, kind, value, credibility, quote, note,
                                           parties[{role, entityId | kind, label, publicCode}]}); цитата має бути в тексті джерела
+  detach --statement НОМЕР --source НОМЕР [--drop-source]
+                                          відкріпити помилково додане джерело від твердження (--drop-source: видалити його, якщо ніде не використане)
+  delete-statement НОМЕР                  видалити хибне твердження (джерела лишаються)
+  delete-source НОМЕР                     видалити джерело без тверджень, файлів і копій
+  merge --keep НОМЕР --drop НОМЕР         звести два суб'єкти одного виду (не особи) в один; unmerge --drop НОМЕР скасовує
+  evidence ... [--expect СЛОВА]           перед записом перевірити, що в значенні твердження є ці слова (захист від хибного номера)
   statements [--grep ТЕКСТ]               список тверджень: номер, вид, статус, сторони, число джерел
   evidence --statement НОМЕР --kind registry|authority|media|testimony|own --title НАЗВА
           [--reliability A-F] [--url АДРЕСА] [--date ДАТА] [--text ТЕКСТ | --text-file ФАЙЛ] [--note ПОЯСНЕННЯ]
@@ -72,7 +78,15 @@ zanytky - команди
 Види значень: name, ipn, edrpou, phone, email, text.
 ";
 
-const SWITCHES: [&str; 6] = ["plain", "not-person", "json", "all", "full", "no-verify"];
+const SWITCHES: [&str; 7] = [
+    "plain",
+    "not-person",
+    "json",
+    "all",
+    "full",
+    "no-verify",
+    "drop-source",
+];
 
 struct Args {
     positional: Vec<String>,
@@ -543,6 +557,20 @@ fn cmd_evidence(args: &Args, out: Out) -> Result<(), String> {
         Some(path) => Some(read_text(Path::new(path))?),
         None => args.flag("text").map(str::to_string),
     };
+    if let Some(expect) = args.flag("expect") {
+        let statement = model
+            .statements()
+            .map_err(|e| e.to_string())?
+            .into_iter()
+            .find(|s| s.id == statement_id)
+            .ok_or("немає такого твердження")?;
+        let value = statement.value.unwrap_or_default().to_lowercase();
+        if !value.contains(&expect.to_lowercase()) {
+            return Err(format!(
+                "--expect: у значенні твердження №{statement_id} немає слів «{expect}» ({value}); нічого не записано"
+            ));
+        }
+    }
     let request = zanytky_core::EvidenceRequest {
         statement_id,
         kind: args.need("kind")?.to_string(),
@@ -556,9 +584,17 @@ fn cmd_evidence(args: &Args, out: Out) -> Result<(), String> {
     };
     let source_id = zanytky_core::add_evidence(&model, &request)?;
     let status = model.status(statement_id).map_err(|e| e.to_string())?;
+    let value = model
+        .statements()
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .find(|s| s.id == statement_id)
+        .and_then(|s| s.value)
+        .unwrap_or_default();
     writeln!(
         out,
-        "Доказ додано: джерело №{source_id} до твердження №{statement_id}; статус: {}",
+        "Доказ додано: джерело №{source_id} до твердження №{statement_id} ({}); статус: {}",
+        value.chars().take(70).collect::<String>(),
         status.as_str()
     )
     .map_err(|e| e.to_string())
@@ -634,6 +670,11 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "add-entity" => analyst::cmd_add_entity(&parsed, out),
         "add-source" => analyst::cmd_add_source(&parsed, out),
         "make-statements" => analyst::cmd_make_statements(&parsed, out),
+        "detach" => analyst::cmd_detach(&parsed, out),
+        "delete-statement" => analyst::cmd_delete_statement(&parsed, out),
+        "delete-source" => analyst::cmd_delete_source(&parsed, out),
+        "merge" => analyst::cmd_merge(&parsed, out),
+        "unmerge" => analyst::cmd_unmerge(&parsed, out),
         "statements" => cmd_statements(&parsed, out),
         "evidence" => cmd_evidence(&parsed, out),
         "overview" => cmd_overview(&parsed, out),

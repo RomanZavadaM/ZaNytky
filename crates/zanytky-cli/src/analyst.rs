@@ -387,3 +387,69 @@ pub(crate) fn cmd_make_statements(args: &Args, out: Out) -> Result<(), String> {
     }
     Ok(())
 }
+
+fn id_flag(args: &Args, name: &str) -> Result<i64, String> {
+    args.need(name)?
+        .parse()
+        .map_err(|_| format!("--{name}: потрібне число"))
+}
+
+fn id_pos(args: &Args, what: &str) -> Result<i64, String> {
+    args.pos(0, what)?
+        .parse()
+        .map_err(|_| format!("{what}: потрібне число"))
+}
+
+pub fn cmd_detach(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let (statement, source) = (id_flag(args, "statement")?, id_flag(args, "source")?);
+    model
+        .detach_statement_source(statement, source)
+        .map_err(|e| e.to_string())?;
+    line(
+        out,
+        &format!("Джерело №{source} відкріплено від твердження №{statement}"),
+    )?;
+    if args.has("drop-source") {
+        match model.delete_source(source) {
+            Ok(()) => line(out, &format!("Джерело №{source} видалено"))?,
+            Err(e) => line(out, &format!("Джерело №{source} лишилось: {e}"))?,
+        }
+    }
+    Ok(())
+}
+
+pub fn cmd_delete_statement(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let id = id_pos(args, "номер твердження")?;
+    model.delete_statement(id).map_err(|e| e.to_string())?;
+    line(out, &format!("Твердження №{id} видалено"))
+}
+
+pub fn cmd_delete_source(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let id = id_pos(args, "номер джерела")?;
+    model.delete_source(id).map_err(|e| e.to_string())?;
+    line(out, &format!("Джерело №{id} видалено"))
+}
+
+pub fn cmd_merge(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let (keep, drop) = (id_flag(args, "keep")?, id_flag(args, "drop")?);
+    model
+        .merge_entities(keep, drop)
+        .map_err(|e| e.to_string())?;
+    line(out, &format!("Суб'єкт №{drop} зведено в №{keep}"))
+}
+
+pub fn cmd_unmerge(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let drop = id_flag(args, "drop")?;
+    model.unmerge_entity(drop).map_err(|e| e.to_string())?;
+    line(out, &format!("Зведення суб'єкта №{drop} скасовано"))
+}
