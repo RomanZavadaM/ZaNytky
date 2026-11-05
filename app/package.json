@@ -2,7 +2,7 @@
   "name": "zanytky-app",
   "private": true,
   "license": "UNLICENSED",
-  "version": "0.0.21",
+  "version": "0.0.22",
   "type": "module",
   "scripts": {
     "dev": "vite",
