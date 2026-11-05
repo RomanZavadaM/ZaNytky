@@ -8,6 +8,7 @@ import { attachOverlay, type EdgeHit } from "./overlay";
 import { chipColors, edgeStyle, gradeDigit, glyphFor, isDarkBackground, nodeSize, stateColor, stateOf, typeColor, type NodeState } from "./palette";
 import { useI18n } from "./lang";
 import { GRAPH_STRINGS } from "./graphStrings";
+import { linkCount } from "./linkCount";
 import { RelationCard, type RelationCardData, type RelationItem } from "./RelationCard";
 import "./KnowledgeGraphPanel.css";
 
@@ -547,6 +548,23 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
     }
   }, [shapes, snapshot]);
 
+  // The canvas changes size when the panel is expanded or collapsed: the renderer must follow it.
+  useEffect(() => {
+    const element = containerRef.current;
+    const redraw = () => {
+      rendererRef.current?.resize();
+      rendererRef.current?.refresh();
+    };
+    const frame = requestAnimationFrame(() => requestAnimationFrame(redraw));
+    if (!element || typeof ResizeObserver === "undefined") return () => cancelAnimationFrame(frame);
+    const observer = new ResizeObserver(redraw);
+    observer.observe(element);
+    return () => {
+      cancelAnimationFrame(frame);
+      observer.disconnect();
+    };
+  }, [expanded, snapshot]);
+
   // The reliability filter only changes which lines the overlay draws.
   useEffect(() => {
     viewRef.current.maxDigit = maxDigit;
@@ -603,7 +621,7 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
         </div>
         {snapshot && (
           <span>
-            {strings.nodes(snapshot.nodes.length)} · {strings.edges(snapshot.edges.length)}
+            {strings.nodes(snapshot.nodes.length)} · {strings.edges(linkCount(snapshot))}
           </span>
         )}
       </div>
