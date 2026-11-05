@@ -80,6 +80,27 @@ export function edgeStyle(grade: string | undefined, dark: boolean): EdgeStyle {
   return { color: dark ? "#FF7A70" : "#C62828", width: 1.6, dash: [2, 4] };
 }
 
+/** Colours of the kinds of links, for the graph that tells what a line says (not how reliable it is). */
+export const KIND_COLORS: Record<string, string> = {
+  owns: "#2a7ae2",
+  director: "#8a5cc2",
+  reported_link: "#d9822b",
+  beneficiary: "#1b9e77",
+  founder: "#1b9e77",
+  won: "#c43c6e",
+  customer: "#c43c6e",
+  supplies: "#c43c6e",
+};
+
+export function kindColor(kind: string | undefined): string {
+  return (kind && KIND_COLORS[kind]) || "#888888";
+}
+
+/** A line by its kind: thick and solid when a document confirmed it, dashed when it is not checked yet. */
+export function kindEdgeStyle(kind: string | undefined, confirmed: boolean): EdgeStyle {
+  return { color: kindColor(kind), width: confirmed ? 3.4 : 1.8, dash: confirmed ? [] : [6, 4] };
+}
+
 export interface EvidenceStyle {
   dash: number[];
   rumour: boolean;

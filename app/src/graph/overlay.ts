@@ -1,7 +1,7 @@
 // Copied from MD Notes (app/src); ZaNytky modules stay independent of it.
 import type Graph from "graphology";
 import type Sigma from "sigma";
-import { edgeStyle, evidenceStyle, glyphColor } from "./palette";
+import { edgeStyle, evidenceStyle, glyphColor, kindEdgeStyle } from "./palette";
 
 /** Parts of the panel state the overlay needs to draw. */
 export interface OverlayView {
@@ -15,6 +15,8 @@ export interface OverlayView {
   shapes: boolean;
   /** Show only lines whose best credibility digit is at most this (1-6); `null` shows every line. */
   maxDigit: number | null;
+  /** Colour lines by the kind of the link (thick = confirmed, dashed = not checked) instead of by reliability. */
+  kindStyle: boolean;
 }
 
 /** A line under the pointer (graph edge key and pointer position in the container). */
@@ -105,7 +107,9 @@ export function attachOverlay(
         const digit = attributes.digit as number | undefined;
         if (digit === undefined || digit > view.maxDigit) return;
       }
-      const style = edgeStyle(attributes.grade as string | undefined, dark);
+      const style = view.kindStyle
+        ? kindEdgeStyle(attributes.kind as string | undefined, attributes.confirmed === true)
+        : edgeStyle(attributes.grade as string | undefined, dark);
       const from = renderer.graphToViewport({ x: sourceData.x, y: sourceData.y });
       const to = renderer.graphToViewport({ x: targetData.x, y: targetData.y });
       if (attributes.hasItems === true) {
