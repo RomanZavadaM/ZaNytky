@@ -453,3 +453,50 @@ pub fn cmd_unmerge(args: &Args, out: Out) -> Result<(), String> {
     model.unmerge_entity(drop).map_err(|e| e.to_string())?;
     line(out, &format!("Зведення суб'єкта №{drop} скасовано"))
 }
+
+pub fn cmd_graph(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let target = std::path::PathBuf::from(args.need("out")?);
+    if target.exists() {
+        return Err("файл графа вже існує, він не перезаписується".to_string());
+    }
+    let names = match args.flag("identity") {
+        Some(path) => {
+            let identity = super::read_identity(path)?;
+            let registry = open_registry(&home)?;
+            let mut map: HashMap<String, String> = registry
+                .dictionary(&identity)
+                .map_err(|e| e.to_string())?
+                .into_iter()
+                .filter_map(|entry| entry.token.map(|token| (token, entry.text)))
+                .collect();
+            map.extend(
+                registry
+                    .identifier_values(&identity)
+                    .map_err(|e| e.to_string())?,
+            );
+            map
+        }
+        None => HashMap::new(),
+    };
+    let scope = zanytky_core::GraphScope {
+        around: match args.flag("entity") {
+            Some(text) => Some(
+                text.parse()
+                    .map_err(|_| "--entity: потрібне число".to_string())?,
+            ),
+            None => None,
+        },
+        depth: number(args, "depth", 1usize)?,
+        grep: args.flag("grep").map(str::to_string),
+        confirmed_only: args.has("confirmed"),
+    };
+    let html = zanytky_core::graph_html(&model, &names, &scope).map_err(|e| e.to_string())?;
+    super::write_file(&target, html.as_bytes())?;
+    line(
+        out,
+        &format!("Граф записано: {} ({} байт)", target.display(), html.len()),
+    )
+}
+

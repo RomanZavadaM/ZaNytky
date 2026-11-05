@@ -15,7 +15,7 @@ use zanytky_core::seal::{generate_identity, parse_identity, parse_recipient, Ide
 use zanytky_core::wrap::wrap;
 use zanytky_core::{
     backup_home, build_package_with_links, build_report, create_demo, docx_to_text, entity_card,
-    entity_graph, entity_list, find_paths, import_result, parse_result, pdf, restore_home, review_with_links,
+    entity_graph, entity_list, find_paths, graph_html, GraphScope, import_result, parse_result, pdf, restore_home, review_with_links,
     to_docx, to_markdown, EntityCard, EntityGraph, EntityListRow, PathResult, SourceMeta,
 };
 
@@ -513,6 +513,31 @@ fn get_entity_graph(input: CardInput) -> Res<EntityGraph> {
     let home = home_path(&input.home)?;
     let names = names_for(&home, &input.identity_path)?;
     entity_graph(&open_model(&home)?, &names).map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct GraphHtmlInput {
+    home: String,
+    identity_path: Option<String>,
+    around: Option<i64>,
+    depth: Option<usize>,
+    grep: Option<String>,
+    confirmed_only: Option<bool>,
+}
+
+/// The graph (all of it or a part) as one standalone HTML page, for the user to save.
+#[tauri::command]
+fn get_graph_html(input: GraphHtmlInput) -> Res<String> {
+    let home = home_path(&input.home)?;
+    let names = names_for(&home, &input.identity_path)?;
+    let scope = GraphScope {
+        around: input.around,
+        depth: input.depth.unwrap_or(1),
+        grep: input.grep,
+        confirmed_only: input.confirmed_only.unwrap_or(false),
+    };
+    graph_html(&open_model(&home)?, &names, &scope).map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -1035,6 +1060,7 @@ pub fn run() {
             list_entities,
             get_entity_card,
             get_entity_graph,
+            get_graph_html,
             merge_two_entities,
             unmerge_one_entity,
             find_entity_paths,
