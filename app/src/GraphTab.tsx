@@ -1,8 +1,9 @@
-import { useCallback, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { api, pickSavePath } from "./api";
 import { KnowledgeGraphPanel } from "./graph/KnowledgeGraphPanel";
 import { LanguageContext, type LanguageCode } from "./graph/lang";
 import type { Lang, Strings } from "./i18n";
+import { kindLabel } from "./kinds";
 
 interface Props {
   t: Strings;
@@ -16,6 +17,11 @@ interface Props {
 /** The whole base as a floating graph (the MD Notes graph code, fed by the base). */
 export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
   const [reveal, setReveal] = useState(false);
+  // Names are shown by default as soon as the investigator's key is there (the user can switch them off).
+  const nameChoice = useRef(false);
+  useEffect(() => {
+    if (identity && !nameChoice.current) setReveal(true);
+  }, [identity]);
   const [refresh, setRefresh] = useState(0);
   const [around, setAround] = useState("");
   const [depth, setDepth] = useState("1");
@@ -48,7 +54,10 @@ export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
     <div>
       <div className="row">
         <label className="check">
-          <input type="checkbox" checked={reveal} disabled={!identity} onChange={(e) => setReveal(e.target.checked)} />
+          <input type="checkbox" checked={reveal} disabled={!identity} onChange={(e) => {
+              nameChoice.current = true;
+              setReveal(e.target.checked);
+            }} />
           {t.revealNames}
         </label>
         <button onClick={() => setRefresh(refresh + 1)}>{t.graphRefresh}</button>
@@ -82,6 +91,8 @@ export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
           notePath=""
           refreshKey={refresh}
           load={load}
+          lookByKind
+          kindName={(kind) => (kind.startsWith("shared:") ? kind.slice(7) : kindLabel(lang, kind))}
           onOpen={(id) => onOpen(Number(id))}
         />
       </LanguageContext.Provider>

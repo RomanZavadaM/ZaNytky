@@ -5,7 +5,7 @@ import Sigma from "sigma";
 import type { KnowledgeGraph } from "./types";
 import { DEFAULT_FORCES, LiveLayout, type Forces } from "./liveLayout";
 import { attachOverlay, type EdgeHit } from "./overlay";
-import { chipColors, edgeStyle, gradeDigit, glyphFor, isDarkBackground, nodeSize, stateColor, stateOf, typeColor, type NodeState } from "./palette";
+import { chipColors, edgeStyle, gradeDigit, glyphFor, isDarkBackground, kindColor, kindEdgeStyle, nodeSize, stateColor, stateOf, typeColor, type NodeState } from "./palette";
 import { useI18n } from "./lang";
 import { GRAPH_STRINGS } from "./graphStrings";
 import { linkCount } from "./linkCount";
@@ -24,6 +24,10 @@ interface Props {
   hint?: string | null;
   /** A plain graph: no reliability scales or shapes, more labels. */
   plain?: boolean;
+  /** Lines coloured by the kind of the link, every node labelled (the readable look). */
+  lookByKind?: boolean;
+  /** Readable name of a kind of link for the key under the graph. */
+  kindName?: (kind: string) => string;
 }
 
 // v2: the defaults changed (more room between nodes), so older saved values are not reused.
@@ -91,6 +95,7 @@ interface ViewState {
   trace: { nodes: Set<string>; edges: Set<string> } | null;
   shapes: boolean;
   maxDigit: number | null;
+  kindStyle: boolean;
 }
 
 interface TraceNode {
@@ -148,12 +153,12 @@ function buildTrace(graph: Graph, root: string) {
   return { tree, nodes, edges, materials: [...materials] };
 }
 
-export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, typeLabel, hint, plain }: Props) {
+export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, typeLabel, hint, plain, lookByKind, kindName }: Props) {
   const { language } = useI18n();
   const strings = GRAPH_STRINGS[language];
   const containerRef = useRef<HTMLDivElement | null>(null);
   const rendererRef = useRef<Sigma | null>(null);
-  const viewRef = useRef<ViewState>({ hovered: null, neighbours: new Set(), search: "", hidden: new Set(), trace: null, shapes: false, maxDigit: null });
+  const viewRef = useRef<ViewState>({ hovered: null, neighbours: new Set(), search: "", hidden: new Set(), trace: null, shapes: false, maxDigit: null, kindStyle: false });
   const graphRef = useRef<Graph | null>(null);
   const traceModeRef = useRef(false);
   const simRef = useRef<LiveLayout | null>(null);
@@ -236,6 +241,8 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
     interface PairEdge {
       source: string;
       target: string;
+      kind?: string;
+      confirmed?: boolean;
       grade?: string;
       items: RelationItem[];
       digit?: number;
@@ -263,12 +270,15 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
         pairEdges.set(key, {
           source: relation.source,
           target: relation.target,
+          kind: relation.kind,
+          confirmed: relation.status === "confirmed",
           grade: relation.grade ?? undefined,
           items: [item],
           digit,
         });
       } else {
         current.items.push(item);
+        if (relation.status === "confirmed") current.confirmed = true;
         if (digit !== undefined && (current.digit === undefined || digit < current.digit)) {
           current.digit = digit;
           current.grade = relation.grade ?? undefined;
@@ -333,6 +343,8 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
       graph.addDirectedEdgeWithKey(`pair:${key}`, edge.source, edge.target, {
         size: 1,
         grade: edge.grade,
+        kind: edge.kind,
+        confirmed: edge.confirmed === true,
         digit: edge.digit,
         arrow: edge.items.length > 0,
         hasItems: edge.items.length > 0,
@@ -347,9 +359,9 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
     const renderer = new Sigma(graph, container, {
       renderEdgeLabels: false,
       // Fewer, larger labels: on a dense graph the names of neighbours no longer overprint each other.
-      labelDensity: plain ? 1 : 0.6,
-      labelGridCellSize: plain ? 90 : 130,
-      labelRenderedSizeThreshold: plain ? 3 : 8,
+      labelDensity: lookByKind ? 2 : plain ? 1 : 0.6,
+      labelGridCellSize: lookByKind ? 70 : plain ? 90 : 130,
+      labelRenderedSizeThreshold: lookByKind ? 0 : plain ? 3 : 8,
       labelColor: { color: labelColor },
       labelSize: 12,
       defaultEdgeColor: edgeColor,
@@ -564,6 +576,12 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
       observer.disconnect();
     };
   }, [expanded, snapshot]);
+
+  // The look of the lines (by kind or by reliability) only changes how the overlay draws.
+  useEffect(() => {
+    viewRef.current.kindStyle = lookByKind === true;
+    rendererRef.current?.refresh();
+  }, [lookByKind, snapshot]);
 
   // The reliability filter only changes which lines the overlay draws.
   useEffect(() => {
@@ -814,6 +832,30 @@ export function KnowledgeGraphPanel({ mode, notePath, refreshKey, load, onOpen, 
           </div>
         )}
       </div>
+      {hasGraph && lookByKind && snapshot && (
+        <p className="knowledge-graph-key">
+          {[...new Set((snapshot.relations ?? []).map((relation) => relation.kind))].sort().map((kind) => (
+            <span key={kind} className="knowledge-graph-key-item">
+              <svg width="34" height="8" aria-hidden="true">
+                <line x1="1" y1="4" x2="33" y2="4" stroke={kindColor(kind)} strokeWidth={2.4} />
+              </svg>
+              {kindName ? kindName(kind) : kind}
+            </span>
+          ))}
+          <span className="knowledge-graph-key-item">
+            <svg width="34" height="8" aria-hidden="true">
+              <line x1="1" y1="4" x2="33" y2="4" stroke="#888" strokeWidth={kindEdgeStyle(undefined, true).width} />
+            </svg>
+            {strings.keyConfirmed}
+          </span>
+          <span className="knowledge-graph-key-item">
+            <svg width="34" height="8" aria-hidden="true">
+              <line x1="1" y1="4" x2="33" y2="4" stroke="#888" strokeWidth={1.8} strokeDasharray="6 4" />
+            </svg>
+            {strings.keyUnchecked}
+          </span>
+        </p>
+      )}
       {hasGraph && hint !== null && <p className="knowledge-graph-hint">{hint ?? strings.openHint}</p>}
     </section>
   );
