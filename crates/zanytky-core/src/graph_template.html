@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="uk"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>ZaNytky: граф</title>
+<style>
+:root{--bg:#fff;--fg:#1a1a1a;--mut:#666;--line:#ccc;--pane:#f6f6f4}
+@media(prefers-color-scheme:dark){:root{--bg:#161616;--fg:#eee;--mut:#999;--line:#444;--pane:#202020}}
+body{margin:0;background:var(--bg);color:var(--fg);font:14px system-ui,sans-serif;display:flex;height:100vh}
+#g{flex:1;min-width:0}svg#s{width:100%;height:100%;display:block;cursor:grab}
+#p{width:340px;background:var(--pane);border-left:1px solid var(--line);padding:14px;overflow:auto;box-sizing:border-box}
+h1{font-size:16px;margin:0 0 6px}.m{color:var(--mut);font-size:12px}
+.lg span{display:inline-block;margin:2px 8px 2px 0;font-size:12px}.lg i{display:inline-block;width:18px;height:0;border-top:3px solid;vertical-align:middle;margin-right:4px}
+.card{border:1px solid var(--line);border-radius:6px;padding:8px;margin:8px 0;background:var(--bg)}
+text{font-size:11px;fill:var(--fg);paint-order:stroke;stroke:var(--bg);stroke-width:3px;pointer-events:none}
+.e{stroke-width:1.6;fill:none;cursor:pointer}.e.u{stroke-dasharray:5 4}.e.c{stroke-width:3.4}
+.e:hover{stroke-width:5}.dim{opacity:.12}
+input{width:100%;box-sizing:border-box;margin:6px 0;padding:4px}
+@media(max-width:700px){body{flex-direction:column}#p{width:auto;height:38vh;border-left:0;border-top:1px solid var(--line)}}
+</style></head><body><div id="g"><svg id="s"></svg></div>
+<div id="p"><h1 id="ttl"></h1><div class="m" id="cnt"></div>
+<input id="q" placeholder="Пошук за назвою або текстом зв'язку">
+<div class="lg" id="lg"></div><div class="m" style="margin-top:8px">Суцільна товста лінія: підтверджене; пунктир: ще не перевірене. Клік по лінії: текст твердження; клік по вузлу: підсвітити його зв'язки; колесо: масштаб; перетягування: зсув.</div><div id="info"></div></div>
+<script>
+const D=__DATA__;
+const col={owns:'#2a7ae2',director:'#8a5cc2',reported_link:'#d9822b',beneficiary:'#1b9e77',founder:'#1b9e77',won:'#c43c6e',customer:'#c43c6e',supplies:'#c43c6e'};
+const kn={owns:'власність',director:'посада',reported_link:'повідомлений зв’язок',beneficiary:'бенефіціар',founder:'засновник',won:'виграв',customer:'замовник',supplies:'постачає',coordinated:'узгоджені дії',member_of_group:'у групі',uses:'використовує',operates_in_market:'на ринку'};
+const kname=k=>kn[k]||(k.indexOf('shared:')===0?'спільна ознака ('+k.slice(7)+')':k);
+const kcol=k=>col[k]||'#888';
+const ent={};D.nodes.forEach(e=>ent[e.id]=e);
+const edges=D.relations.map((r,i)=>({a:r.source,b:r.target,r,i}));
+const used=new Set();edges.forEach(e=>{used.add(e.a);used.add(e.b)});
+if(D.focus!==null&&D.focus!==undefined)used.add(String(D.focus));
+const nodes=[...used].filter(id=>ent[id]).map(id=>({id,...ent[id],x:300+Math.random()*400,y:300+Math.random()*400,vx:0,vy:0,deg:0}));
+const nm={};nodes.forEach(n=>nm[n.id]=n);edges.forEach(e=>{if(nm[e.a])nm[e.a].deg++;if(nm[e.b])nm[e.b].deg++});
+const svg=document.getElementById('s'),NS='http://www.w3.org/2000/svg';
+const root=document.createElementNS(NS,'g');svg.appendChild(root);
+function mk(t,a,p){const x=document.createElementNS(NS,t);for(const k in a)x.setAttribute(k,a[k]);(p||root).appendChild(x);return x}
+const W=()=>svg.clientWidth||800,H=()=>svg.clientHeight||600;
+function esc(t){return String(t==null?'':t).replace(/[&<>]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;'}[c]))}
+function card(r){return '<div class="card"><b>'+esc(nm[r.source]?nm[r.source].title:r.source)+' → '+esc(nm[r.target]?nm[r.target].title:r.target)+'</b><br>'+esc(kname(r.kind))+' • '+(r.status==='confirmed'?'<b style="color:#1b7f3a">підтверджено</b>':(r.status?'ще не перевірено':'збіг ознаки'))+(r.grade?' • оцінка '+esc(r.grade):'')+'<br>'+esc(r.evidence||'')+'</div>'}
+edges.forEach(e=>{const c=e.r.status==='confirmed';e.el=mk('path',{class:'e '+(c?'c':'u'),stroke:kcol(e.r.kind)});e.el.onclick=ev=>{ev.stopPropagation();document.getElementById('info').innerHTML=card(e.r)}});
+nodes.forEach(n=>{n.r=5+Math.min(10,n.deg*1.2);n.g=mk('g',{style:'cursor:pointer'});
+ n.sh=n.kind==='person'?mk('circle',{r:n.r,fill:'#e8c547',stroke:'#7a6200'},n.g):mk('rect',{x:-n.r,y:-n.r,width:2*n.r,height:2*n.r,rx:3,fill:'#7fb6e8',stroke:'#1f4f80'},n.g);
+ n.tx=mk('text',{y:-n.r-4,'text-anchor':'middle'},n.g);n.tx.textContent=n.title.length>28?n.title.slice(0,27)+'…':n.title;
+ n.g.onclick=ev=>{ev.stopPropagation();focus(n.id)};});
+function reset(){nodes.forEach(n=>n.g.classList.remove('dim'));edges.forEach(e=>e.el.classList.remove('dim'));document.getElementById('info').innerHTML=''}
+function focus(id){const rel=new Set([id]);edges.forEach(e=>{if(e.a===id||e.b===id){rel.add(e.a);rel.add(e.b)}});
+ nodes.forEach(n=>n.g.classList.toggle('dim',!rel.has(n.id)));edges.forEach(e=>e.el.classList.toggle('dim',!(e.a===id||e.b===id)));
+ const rs=edges.filter(e=>e.a===id||e.b===id).map(e=>e.r);document.getElementById('info').innerHTML='<h1>'+esc(nm[id].title)+'</h1><div class="m">'+rs.length+' зв’язків</div>'+rs.map(card).join('')}
+svg.onclick=reset;
+document.getElementById('q').oninput=ev=>{const q=ev.target.value.trim().toLowerCase();if(!q){reset();return}
+ const hit=new Set(nodes.filter(n=>n.title.toLowerCase().indexOf(q)>=0).map(n=>n.id));
+ edges.forEach(e=>{if((e.r.evidence||'').toLowerCase().indexOf(q)>=0){hit.add(e.a);hit.add(e.b)}});
+ nodes.forEach(n=>n.g.classList.toggle('dim',!hit.has(n.id)));edges.forEach(e=>e.el.classList.toggle('dim',!(hit.has(e.a)&&hit.has(e.b))))};
+const ks={};D.relations.forEach(r=>ks[r.kind]=1);
+document.getElementById('lg').innerHTML=Object.keys(ks).map(k=>'<span><i style="border-color:'+kcol(k)+'"></i>'+esc(kname(k))+'</span>').join('')+'<span><svg width="12" height="12"><circle cx="6" cy="6" r="5" fill="#e8c547" stroke="#7a6200"/></svg> особа</span><span><svg width="12" height="12"><rect x="1" y="1" width="10" height="10" fill="#7fb6e8" stroke="#1f4f80"/></svg> інше</span>';
+document.getElementById('ttl').textContent=D.title;
+document.getElementById('cnt').textContent=nodes.length+' суб’єктів, '+edges.length+' зв’язків, з них підтверджених '+edges.filter(e=>e.r.status==='confirmed').length+'. '+D.scope;
+let alpha=1;
+function tick(){const w=W(),h=H();
+ for(const a of nodes)for(const b of nodes){if(a===b)continue;let dx=a.x-b.x,dy=a.y-b.y,d2=dx*dx+dy*dy+0.01,d=Math.sqrt(d2),f=1800/d2;a.vx+=dx/d*f;a.vy+=dy/d*f}
+ for(const e of edges){const a=nm[e.a],b=nm[e.b];if(!a||!b)continue;let dx=b.x-a.x,dy=b.y-a.y,d=Math.sqrt(dx*dx+dy*dy)+0.01,f=(d-90)*0.04;a.vx+=dx/d*f;a.vy+=dy/d*f;b.vx-=dx/d*f;b.vy-=dy/d*f}
+ for(const n of nodes){n.vx+=(w/2-n.x)*0.004;n.vy+=(h/2-n.y)*0.004;n.x+=n.vx*alpha*0.5;n.y+=n.vy*alpha*0.5;n.vx*=0.6;n.vy*=0.6}
+ alpha=Math.max(0.03,alpha*0.992);draw();requestAnimationFrame(tick)}
+function draw(){nodes.forEach(n=>n.g.setAttribute('transform','translate('+n.x+','+n.y+')'));
+ const cnt={};edges.forEach(e=>{const key=e.a<e.b?e.a+'-'+e.b:e.b+'-'+e.a;e.k=cnt[key]=(cnt[key]||0)+1});
+ edges.forEach(e=>{const a=nm[e.a],b=nm[e.b];if(!a||!b)return;const off=(e.k-1)*14;const mx=(a.x+b.x)/2,my=(a.y+b.y)/2,dx=b.x-a.x,dy=b.y-a.y,l=Math.sqrt(dx*dx+dy*dy)+0.01;
+  e.el.setAttribute('d','M'+a.x+','+a.y+' Q'+(mx-dy/l*off)+','+(my+dx/l*off)+' '+b.x+','+b.y)})}
+let vb={x:0,y:0,z:1},drag=null;
+function upd(){root.setAttribute('transform','translate('+vb.x+','+vb.y+') scale('+vb.z+')')}
+svg.onwheel=ev=>{ev.preventDefault();vb.z*=ev.deltaY<0?1.1:0.9;upd()};
+svg.onmousedown=ev=>{drag={x:ev.clientX,y:ev.clientY}};window.onmouseup=()=>{drag=null};
+window.onmousemove=ev=>{if(drag){vb.x+=ev.clientX-drag.x;vb.y+=ev.clientY-drag.y;drag={x:ev.clientX,y:ev.clientY};upd()}};
+tick();
+</script></body></html>

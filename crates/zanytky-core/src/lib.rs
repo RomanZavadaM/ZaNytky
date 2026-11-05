@@ -35,7 +35,8 @@ pub mod wrap;
 pub use b64::base64_encode;
 pub use backup::{backup_home, restore_home, BackupError};
 pub use card::{
-    entity_card, entity_graph, entity_list, EntityCard, EntityGraph, EntityListRow, SharedSign,
+    entity_card, entity_graph, entity_list, graph_html, EntityCard, EntityGraph, EntityListRow,
+    GraphScope, SharedSign,
 };
 pub use channel::{
     channel_gaps, channel_graph, channel_list, channel_timeline, ChannelGaps, ChannelRow, MonthRow,

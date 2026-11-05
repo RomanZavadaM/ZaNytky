@@ -579,3 +579,73 @@ fn a_mistake_can_be_fixed_from_the_command_line() {
     assert!(cli(&["statements", "--home", h]).unwrap().trim().is_empty());
     cli(&["delete-source", "1", "--home", h]).unwrap();
 }
+
+#[test]
+fn the_graph_is_written_as_one_standalone_page_whole_or_in_part() {
+    let dir = tempfile::tempdir().unwrap();
+    let (home, _) = setup(dir.path());
+    let h = home.as_str();
+    for name in ["ТОВ Альфа", "ТОВ Бета", "ТОВ Гама"] {
+        cli(&["add-entity", "--home", h, "--kind", "org", "--name", name]).unwrap();
+    }
+    let doc = dir.path().join("doc.txt");
+    fs::write(
+        &doc,
+        "ТОВ Альфа володіє ТОВ Бета. ТОВ Бета володіє ТОВ Гама.",
+    )
+    .unwrap();
+    cli(&[
+        "add-source",
+        "--home",
+        h,
+        "--title",
+        "Документ",
+        "--kind",
+        "registry",
+        "--reliability",
+        "A",
+        "--text-file",
+        doc.to_str().unwrap(),
+    ])
+    .unwrap();
+    let batch = dir.path().join("b.json");
+    fs::write(
+        &batch,
+        r#"[{"sourceId": 1, "kind": "owns", "value": "перше", "credibility": 2,
+ "quote": "ТОВ Альфа володіє ТОВ Бета", "note": null,
+ "parties": [{"role": "owner", "entityId": 1}, {"role": "owned", "entityId": 2}]},
+ {"sourceId": 1, "kind": "owns", "value": "друге", "credibility": 2,
+ "quote": "ТОВ Бета володіє ТОВ Гама", "note": null,
+ "parties": [{"role": "owner", "entityId": 2}, {"role": "owned", "entityId": 3}]}]"#,
+    )
+    .unwrap();
+    cli(&[
+        "make-statements",
+        "--home",
+        h,
+        "--file",
+        batch.to_str().unwrap(),
+    ])
+    .unwrap();
+    let all = dir.path().join("all.html");
+    let done = cli(&["graph", "--home", h, "--out", all.to_str().unwrap()]).unwrap();
+    assert!(done.contains("Граф записано"));
+    let page = fs::read_to_string(&all).unwrap();
+    assert!(page.contains("ТОВ Гама") && page.contains("ТОВ Альфа"));
+    // a part: only around the first company, one step
+    let part_file = dir.path().join("part.html");
+    cli(&[
+        "graph",
+        "--home",
+        h,
+        "--out",
+        part_file.to_str().unwrap(),
+        "--entity",
+        "1",
+    ])
+    .unwrap();
+    let part = fs::read_to_string(&part_file).unwrap();
+    assert!(part.contains("ТОВ Бета") && !part.contains("\"title\":\"ТОВ Гама\""));
+    // an existing file is not replaced
+    assert!(cli(&["graph", "--home", h, "--out", all.to_str().unwrap()]).is_err());
+}

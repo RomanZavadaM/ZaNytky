@@ -58,6 +58,8 @@ zanytky - команди
   make-statements --file ФАЙЛ.json [--no-verify]
                                           твердження пакетом (список {sourceId, kind, value, credibility, quote, note,
                                           parties[{role, entityId | kind, label, publicCode}]}); цитата має бути в тексті джерела
+  graph --out ФАЙЛ.html [--entity НОМЕР [--depth N]] [--grep ТЕКСТ] [--confirmed] [--identity ФАЙЛ]
+                                          граф усієї бази або її частини одним автономним HTML-файлом (без інтернету); --identity показує імена осіб
   detach --statement НОМЕР --source НОМЕР [--drop-source]
                                           відкріпити помилково додане джерело від твердження (--drop-source: видалити його, якщо ніде не використане)
   delete-statement НОМЕР                  видалити хибне твердження (джерела лишаються)
@@ -78,7 +80,7 @@ zanytky - команди
 Види значень: name, ipn, edrpou, phone, email, text.
 ";
 
-const SWITCHES: [&str; 7] = [
+const SWITCHES: [&str; 8] = [
     "plain",
     "not-person",
     "json",
@@ -86,6 +88,7 @@ const SWITCHES: [&str; 7] = [
     "full",
     "no-verify",
     "drop-source",
+    "confirmed",
 ];
 
 struct Args {
@@ -670,6 +673,7 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "add-entity" => analyst::cmd_add_entity(&parsed, out),
         "add-source" => analyst::cmd_add_source(&parsed, out),
         "make-statements" => analyst::cmd_make_statements(&parsed, out),
+        "graph" => analyst::cmd_graph(&parsed, out),
         "detach" => analyst::cmd_detach(&parsed, out),
         "delete-statement" => analyst::cmd_delete_statement(&parsed, out),
         "delete-source" => analyst::cmd_delete_source(&parsed, out),

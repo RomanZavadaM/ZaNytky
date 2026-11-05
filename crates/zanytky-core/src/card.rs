@@ -429,10 +429,172 @@ pub fn entity_graph(
     })
 }
 
+/// What part of the base goes into a standalone graph file.
+#[derive(Debug, Clone, Default)]
+pub struct GraphScope {
+    /// Only the entity and what is linked to it within `depth` steps.
+    pub around: Option<i64>,
+    /// How many steps from `around` (at least 1).
+    pub depth: usize,
+    /// Only the links whose text, kind or parties contain this text.
+    pub grep: Option<String>,
+    /// Only the statements confirmed by a document.
+    pub confirmed_only: bool,
+}
+
+const GRAPH_TEMPLATE: &str = include_str!("graph_template.html");
+
+/// The graph (all of it or a part) as one self-contained HTML page: no network, no files.
+/// Persons are shown by pseudonym unless `names` is given.
+pub fn graph_html(
+    model: &Model,
+    names: &HashMap<String, String>,
+    scope: &GraphScope,
+) -> Result<String, ModelError> {
+    let graph = entity_graph(model, names)?;
+    let titles: HashMap<&str, &str> = graph
+        .nodes
+        .iter()
+        .map(|n| (n.path.as_str(), n.title.as_str()))
+        .collect();
+    let needle = scope
+        .grep
+        .as_deref()
+        .map(str::trim)
+        .filter(|t| !t.is_empty())
+        .map(str::to_lowercase);
+    let mut relations: Vec<&GraphRelationOut> = graph
+        .relations
+        .iter()
+        .filter(|r| !scope.confirmed_only || r.status.as_deref() == Some("confirmed"))
+        .filter(|r| {
+            needle.as_ref().is_none_or(|n| {
+                let text = format!(
+                    "{} {} {} {}",
+                    r.evidence.clone().unwrap_or_default(),
+                    r.kind,
+                    titles.get(r.source.as_str()).unwrap_or(&""),
+                    titles.get(r.target.as_str()).unwrap_or(&"")
+                )
+                .to_lowercase();
+                text.contains(n.as_str())
+            })
+        })
+        .collect();
+    let mut note = String::from("Весь граф.");
+    if let Some(center) = scope.around {
+        let start = center.to_string();
+        let mut reached: HashSet<String> = HashSet::from([start.clone()]);
+        let mut frontier = vec![start];
+        for _ in 0..scope.depth.max(1) {
+            let mut next = Vec::new();
+            for r in &relations {
+                for (from, to) in [(&r.source, &r.target), (&r.target, &r.source)] {
+                    if frontier.contains(from) && reached.insert(to.clone()) {
+                        next.push(to.clone());
+                    }
+                }
+            }
+            frontier = next;
+        }
+        relations.retain(|r| reached.contains(&r.source) && reached.contains(&r.target));
+        note = format!(
+            "Лише навколо суб'єкта «{}» ({} крок.).",
+            titles.get(center.to_string().as_str()).unwrap_or(&"?"),
+            scope.depth.max(1)
+        );
+    }
+    if let Some(text) = scope.grep.as_deref().filter(|t| !t.trim().is_empty()) {
+        note.push_str(&format!(" Зв'язки з текстом «{}».", text.trim()));
+    }
+    if scope.confirmed_only {
+        note.push_str(" Лише підтверджені.");
+    }
+    let mut keep: HashSet<&str> = HashSet::new();
+    for r in &relations {
+        keep.insert(r.source.as_str());
+        keep.insert(r.target.as_str());
+    }
+    let center = scope.around.map(|c| c.to_string());
+    if let Some(c) = &center {
+        keep.insert(c.as_str());
+    }
+    let nodes: Vec<serde_json::Value> = graph
+        .nodes
+        .iter()
+        .filter(|n| keep.contains(n.path.as_str()))
+        .map(|n| {
+            serde_json::json!({
+                "id": n.path,
+                "title": n.title,
+                "kind": n.note_type.clone().unwrap_or_default(),
+            })
+        })
+        .collect();
+    let rels: Vec<serde_json::Value> = relations
+        .iter()
+        .map(|r| {
+            serde_json::json!({
+                "source": r.source, "target": r.target, "kind": r.kind,
+                "grade": r.grade, "status": r.status, "evidence": r.evidence,
+            })
+        })
+        .collect();
+    let data = serde_json::json!({
+        "title": "Граф бази ZaNytky",
+        "scope": note,
+        "focus": center,
+        "nodes": nodes,
+        "relations": rels,
+    });
+    let json = serde_json::to_string(&data)
+        .map_err(|_| ModelError::Invalid("graph data cannot be written"))?
+        .replace("</", "<\\/");
+    Ok(GRAPH_TEMPLATE.replace("__DATA__", &json))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use crate::demo::create_demo;
+
+    #[test]
+    fn a_standalone_graph_page_has_the_data_and_can_be_cut_down() {
+        let (_dir, model) = demo_model();
+        let all = graph_html(&model, &HashMap::new(), &GraphScope::default()).unwrap();
+        assert!(all.contains("Приклад") && all.contains("\"relations\""));
+        assert!(!all.contains("__DATA__"));
+        // no network: the page loads nothing from outside
+        assert!(!all.contains("https://") && !all.contains("<link") && !all.contains("src="));
+        let company = entity_list(&model, &HashMap::new())
+            .unwrap()
+            .into_iter()
+            .find(|r| r.label == "ТОВ «Приклад»")
+            .unwrap()
+            .id;
+        let part = graph_html(
+            &model,
+            &HashMap::new(),
+            &GraphScope {
+                around: Some(company),
+                depth: 1,
+                ..GraphScope::default()
+            },
+        )
+        .unwrap();
+        assert!(part.contains("Лише навколо суб'єкта"));
+        assert!(part.len() <= all.len());
+        let none = graph_html(
+            &model,
+            &HashMap::new(),
+            &GraphScope {
+                grep: Some("такого-тексту-немає".into()),
+                ..GraphScope::default()
+            },
+        )
+        .unwrap();
+        assert!(none.contains("\"relations\":[]"));
+    }
 
     fn demo_model() -> (tempfile::TempDir, Model) {
         let dir = tempfile::tempdir().unwrap();

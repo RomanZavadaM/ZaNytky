@@ -303,6 +303,10 @@ export const api = {
     invoke<void>("unmerge_one_entity", { input: { home, keep, drop } }),
   graph: (home: string, identityPath?: string) =>
     invoke<KnowledgeGraph>("get_entity_graph", { input: { home, identityPath } }),
+  graphHtml: (
+    home: string,
+    scope: { identityPath?: string; around?: number; depth?: number; grep?: string; confirmedOnly?: boolean },
+  ) => invoke<string>("get_graph_html", { input: { home, ...scope } }),
   sources: (home: string, query: string, offset: number, limit: number) =>
     invoke<SourceListPage>("list_sources", { input: { home, query, offset, limit } }),
   source: (home: string, id: number) => invoke<CardSource>("get_source", { input: { home, id } }),
