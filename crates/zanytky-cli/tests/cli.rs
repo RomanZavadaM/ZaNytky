@@ -485,6 +485,28 @@ fn an_analyst_can_add_a_document_find_subjects_and_record_statements_with_checke
     assert!(list.contains("#1 supplies [unverified]"));
     let card = cli(&["entity", "1", "--home", home.as_str()]).unwrap();
     assert!(card.contains("Приклад"));
+    // a late mistake in the batch (one party only) stops the whole file before anything is written
+    fs::write(
+        &batch,
+        r#"[{"sourceId": 1, "kind": "supplies", "value": null, "credibility": 3,
+ "quote": "отримало підряд", "note": null,
+ "parties": [{"role": "supplier", "entityId": 1}, {"role": "customer", "entityId": 2}]},
+ {"sourceId": 1, "kind": "supplies", "value": null, "credibility": 3,
+ "quote": "отримало підряд", "note": null,
+ "parties": [{"role": "supplier", "entityId": 1}]}]"#,
+    )
+    .unwrap();
+    let refused = cli(&[
+        "make-statements",
+        "--home",
+        home.as_str(),
+        "--file",
+        batch.to_str().unwrap(),
+    ])
+    .unwrap_err();
+    assert!(refused.contains("запис 2") && refused.contains("щонайменше дві сторони"));
+    let list = cli(&["statements", "--home", home.as_str()]).unwrap();
+    assert_eq!(list.matches("supplies").count(), 1, "{list}");
 }
 
 #[test]

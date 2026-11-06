@@ -133,6 +133,35 @@ enum Prepared {
     },
 }
 
+/// Everything about a request that can be checked without writing anything: the kind, the quote,
+/// at least two parties, a role for each, and an existing or well described entity behind it.
+/// A batch is checked with this before the first statement is created.
+pub fn check_statement_request(model: &Model, request: &StatementRequest) -> Result<(), String> {
+    StatementType::parse(&request.kind).ok_or("невідомий вид твердження")?;
+    if request.quote.trim().is_empty() {
+        return Err("потрібна цитата з джерела".to_string());
+    }
+    if request.parties.len() < 2 {
+        return Err("потрібні щонайменше дві сторони".to_string());
+    }
+    for party in &request.parties {
+        if party.role.trim().is_empty() {
+            return Err("у кожної сторони має бути роль".to_string());
+        }
+        if let Some(id) = party.entity_id {
+            model.entity(id).map_err(|e| e.to_string())?;
+            continue;
+        }
+        party
+            .kind
+            .as_deref()
+            .and_then(EntityKind::parse)
+            .ok_or("невідомий вид суб'єкта")?;
+        clean(&party.label).ok_or("потрібна назва або ім'я суб'єкта")?;
+    }
+    Ok(())
+}
+
 /// Create the statement; returns its id. `registry` is needed only when a new person is named.
 pub fn create_statement(
     model: &Model,

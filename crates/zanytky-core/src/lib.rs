@@ -52,8 +52,8 @@ pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};
 pub use import::{import_result, review_with_links, ImportError, ImportSummary, LinkMatch};
 pub use make::{
-    add_evidence, create_statement, parse_statement_requests, EvidenceRequest, PartyRequest,
-    StatementRequest,
+    add_evidence, check_statement_request, create_statement, parse_statement_requests,
+    EvidenceRequest, PartyRequest, StatementRequest,
 };
 pub use model::{Grade, Model, ModelError};
 pub use normalize::{normalize, Kind, NormalizeError, NORM_VERSION};
