@@ -354,12 +354,18 @@ pub(crate) fn cmd_add_source(args: &Args, out: Out) -> Result<(), String> {
 
 /// `make-statements --file ФАЙЛ.json [--no-verify]`: statements in a batch. The file is a list
 /// of `{sourceId, kind, value, credibility, quote, note, parties: [{role, entityId} or
-/// {role, kind, label, publicCode}]}`. Every quote must be in the text of its source.
+/// {role, kind, label, publicCode}]}`. Parties are checked first and every quote must be in the
+/// text of its source; if anything is wrong nothing is written.
 pub(crate) fn cmd_make_statements(args: &Args, out: Out) -> Result<(), String> {
     let home = home_dir(args)?;
     let model = open_model(&home)?;
     let registry = open_registry(&home).ok();
     let requests = parse_statement_requests(&read_text(Path::new(args.need("file")?))?)?;
+    // the whole batch is checked first, so that a late mistake does not leave half of it written
+    for (index, request) in requests.iter().enumerate() {
+        zanytky_core::check_statement_request(&model, request)
+            .map_err(|e| format!("запис {}: {e} (нічого не записано)", index + 1))?;
+    }
     if !args.has("no-verify") {
         for (index, request) in requests.iter().enumerate() {
             let text = source_view(&model, request.source_id)
