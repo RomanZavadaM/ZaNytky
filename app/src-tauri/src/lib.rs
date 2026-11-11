@@ -536,6 +536,7 @@ fn get_graph_html(input: GraphHtmlInput) -> Res<String> {
         depth: input.depth.unwrap_or(1),
         grep: input.grep,
         confirmed_only: input.confirmed_only.unwrap_or(false),
+        ..GraphScope::default()
     };
     graph_html(&open_model(&home)?, &names, &scope).map_err(|e| e.to_string())
 }

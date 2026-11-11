@@ -12,6 +12,7 @@ pub mod channel;
 pub mod deidentify;
 pub mod demo;
 pub mod discover;
+pub mod dossier;
 pub mod docx_text;
 pub mod export;
 pub mod import;
@@ -47,6 +48,10 @@ pub use deidentify::{
 pub use demo::{create_demo, DemoInfo};
 pub use discover::{
     add_found, discover_everywhere, discover_in_text, subject_pairs, Found, SubjectPair,
+};
+pub use dossier::{
+    analyze_article, article_markdown, dossier_markdown, word_uk, ArticleAnalysis, ArticleDoc,
+    ArticleLink, ArticleSubject,
 };
 pub use docx_text::{docx_to_text, DocxError};
 pub use export::{markdown_table, markdown_table_protected};

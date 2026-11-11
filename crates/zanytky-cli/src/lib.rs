@@ -60,6 +60,10 @@ zanytky - команди
                                           parties[{role, entityId | kind, label, publicCode}]}); цитата має бути в тексті джерела
   graph --out ФАЙЛ.html [--entity НОМЕР [--depth N]] [--grep ТЕКСТ] [--confirmed] [--identity ФАЙЛ]
                                           граф усієї бази або її частини одним автономним HTML-файлом (без інтернету); --identity показує імена осіб
+  dossier --entities 5,8,12 [--identity ФАЙЛ] [--out ФАЙЛ.md]
+                                          досьє одного чи кількох суб'єктів читабельним текстом (твердження за видами, джерела, зв'язки)
+  article (--file ТЕКСТ.md | --text ТЕКСТ) --out ЗВІТ.md [--graph ГРАФ.html] [--title НАЗВА] [--identity ФАЙЛ]
+                                          аналіз статті розслідувача: кого з бази названо, як вони пов'язані, які документи за ними, хто новий; граф із документами
   detach --statement НОМЕР --source НОМЕР [--drop-source]
                                           відкріпити помилково додане джерело від твердження (--drop-source: видалити його, якщо ніде не використане)
   delete-statement НОМЕР                  видалити хибне твердження (джерела лишаються)
@@ -674,6 +678,8 @@ pub fn run(args: &[String], out: &mut dyn Write) -> Result<(), String> {
         "add-source" => analyst::cmd_add_source(&parsed, out),
         "make-statements" => analyst::cmd_make_statements(&parsed, out),
         "graph" => analyst::cmd_graph(&parsed, out),
+        "dossier" => analyst::cmd_dossier(&parsed, out),
+        "article" => analyst::cmd_article(&parsed, out),
         "detach" => analyst::cmd_detach(&parsed, out),
         "delete-statement" => analyst::cmd_delete_statement(&parsed, out),
         "delete-source" => analyst::cmd_delete_source(&parsed, out),
