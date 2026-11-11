@@ -412,7 +412,7 @@ fn make_report(input: ReportInput) -> Res<String> {
             wrap(&bytes, &passphrase).map_err(|e| e.to_string())?
         }
         None if input.plain => bytes,
-        None => return Err("a passphrase is required (or confirm a report without protection)".to_string()),
+        None => return Err("потрібна парольна фраза: впишіть її або поставте галочку «Без пароля»".to_string()),
     };
     write_bytes(&target, &bytes)?;
     Ok(target.display().to_string())
