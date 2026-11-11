@@ -510,11 +510,7 @@ mod tests {
     fn a_dossier_is_readable_ukrainian_text() {
         let (_dir, model) = demo_model();
         let list = crate::card::entity_list(&model, &HashMap::new()).unwrap();
-        let company = list
-            .iter()
-            .find(|r| r.label == "ТОВ «Приклад»")
-            .unwrap()
-            .id;
+        let company = list.iter().find(|r| r.label == "ТОВ «Приклад»").unwrap().id;
         let text = dossier_markdown(&model, &HashMap::new(), &[company]).unwrap();
         assert!(text.starts_with("# ТОВ «Приклад»"));
         assert!(text.contains("Що відомо") && text.contains("Джерело №"));

@@ -530,7 +530,10 @@ fn names_map(args: &Args, home: &Path) -> Result<HashMap<String, String>, String
 
 fn write_new(out: Out, target: &Path, text: &str, what: &str) -> Result<(), String> {
     if target.exists() {
-        return Err(format!("файл {} уже існує, він не перезаписується", target.display()));
+        return Err(format!(
+            "файл {} уже існує, він не перезаписується",
+            target.display()
+        ));
     }
     super::write_file(target, text.as_bytes())?;
     line(out, &format!("{what}: {}", target.display()))
@@ -574,7 +577,12 @@ pub fn cmd_article(args: &Args, out: Out) -> Result<(), String> {
         .map_err(|e| e.to_string())?;
     let title = args.flag("title").unwrap_or("без назви");
     let report = zanytky_core::article_markdown(&analysis, title);
-    write_new(out, Path::new(args.need("out")?), &report, "Аналіз записано")?;
+    write_new(
+        out,
+        Path::new(args.need("out")?),
+        &report,
+        "Аналіз записано",
+    )?;
     if let Some(path) = args.flag("graph") {
         let scope = zanytky_core::GraphScope {
             ids: analysis.known_ids(),
