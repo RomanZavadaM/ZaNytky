@@ -15,7 +15,7 @@ import "./KnowledgeGraphPanel.css";
 interface Props {
   mode: "local" | "global";
   notePath: string;
-  refreshKey: number;
+  refreshKey: number | string;
   load: () => Promise<KnowledgeGraph>;
   onOpen: (path: string) => void;
   /** Names of node types for the legend (otherwise the raw type). */
