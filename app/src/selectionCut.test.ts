@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { cutGraph } from "./SelectionGraph";
+import { cutGraph } from "./selectionCut";
 
 const rel = (source: string, target: string) => ({
   source,
