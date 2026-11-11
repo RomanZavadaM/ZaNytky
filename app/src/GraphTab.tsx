@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from "react";
 import { api, pickSavePath } from "./api";
 import { KnowledgeGraphPanel } from "./graph/KnowledgeGraphPanel";
+import { graphReloadKey } from "./graphReload";
 import { LanguageContext, type LanguageCode } from "./graph/lang";
 import type { Lang, Strings } from "./i18n";
 import { kindLabel } from "./kinds";
@@ -16,7 +17,7 @@ interface Props {
 
 /** The whole base as a floating graph (the MD Notes graph code, fed by the base). */
 export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
-  const [reveal, setReveal] = useState(false);
+  const [reveal, setReveal] = useState(Boolean(identity));
   // Names are shown by default as soon as the investigator's key is there (the user can switch them off).
   const nameChoice = useRef(false);
   useEffect(() => {
@@ -89,7 +90,7 @@ export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
         <KnowledgeGraphPanel
           mode="global"
           notePath=""
-          refreshKey={refresh}
+          refreshKey={graphReloadKey(refresh, identityPath)}
           load={load}
           lookByKind
           kindName={(kind) => (kind.startsWith("shared:") ? kind.slice(7) : kindLabel(lang, kind))}
