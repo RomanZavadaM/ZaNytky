@@ -1,5 +1,5 @@
-import { useEffect, useState } from "react";
-import { api, type CardSource, type CardStatement, type EntityCardData, type EntityListRow, type PathResultData } from "./api";
+import { useEffect, useRef, useState } from "react";
+import { api, pickSavePath, type CardSource, type CardStatement, type EntityCardData, type EntityListRow, type PathResultData } from "./api";
 import { fill, type Lang, type Strings } from "./i18n";
 import { kindLabel } from "./kinds";
 import { EvidenceForm } from "./EvidenceForm";
@@ -24,7 +24,14 @@ function period(statement: CardStatement): string {
 export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
   const [rows, setRows] = useState<EntityListRow[]>([]);
   const [filter, setFilter] = useState("");
-  const [reveal, setReveal] = useState(false);
+  const [reveal, setReveal] = useState(Boolean(identity));
+  // Names are shown by default as soon as the investigator's key is there (the user can switch them off).
+  const nameChoice = useRef(false);
+  useEffect(() => {
+    if (identity && !nameChoice.current) setReveal(true);
+  }, [identity]);
+  const [picked, setPicked] = useState<number[]>([]);
+  const [savedPath, setSavedPath] = useState("");
   const [trail, setTrail] = useState<number[]>([]);
   const [card, setCard] = useState<EntityCardData | null>(null);
   const [tick, setTick] = useState(0);
@@ -71,6 +78,32 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
     if (found) setPathResult(found);
   };
 
+  const togglePick = (id: number) =>
+    setPicked((now) => (now.includes(id) ? now.filter((x) => x !== id) : [...now, id]));
+
+  const saveDossier = async (ids: number[]) => {
+    if (ids.length === 0) return;
+    const path = await pickSavePath(ids.length === 1 ? "dosie.md" : "dosie-dobirky.md");
+    if (!path) return;
+    const ok = await run(async () => {
+      await api.writeText(path, await api.dossier(home, ids, identityPath));
+      return true;
+    });
+    if (ok) setSavedPath(path);
+  };
+
+  const saveSelectionGraph = async () => {
+    if (picked.length === 0) return;
+    const path = await pickSavePath("graf-dobirky.html");
+    if (!path) return;
+    const ok = await run(async () => {
+      const html = await api.graphHtml(home, { identityPath, ids: picked, depth: 1, withSources: true });
+      await api.writeText(path, html);
+      return true;
+    });
+    if (ok) setSavedPath(path);
+  };
+
   const doMerge = async () => {
     if (current === null || !mergeWith) return;
     await run(() => api.mergeEntities(home, current, Number(mergeWith)));
@@ -104,14 +137,23 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
   );
 
   const needle = filter.trim().toLowerCase();
-  const shown = rows.filter(
-    (row) => !needle || row.label.toLowerCase().includes(needle) || (row.code ?? "").includes(needle),
-  );
+  // Those about whom the base knows most come first.
+  const shown = rows
+    .filter((row) => !needle || row.label.toLowerCase().includes(needle) || (row.code ?? "").includes(needle))
+    .sort((a, b) => b.statements - a.statements || a.label.localeCompare(b.label));
 
   return (
     <section>
       <label className="check">
-        <input type="checkbox" checked={reveal} onChange={(e) => setReveal(e.target.checked)} disabled={!identity} />
+        <input
+          type="checkbox"
+          checked={reveal}
+          onChange={(e) => {
+            nameChoice.current = true;
+            setReveal(e.target.checked);
+          }}
+          disabled={!identity}
+        />
         {t.revealNames}
       </label>
       <p className="muted">{t.revealNote}</p>
@@ -186,12 +228,22 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
               style={{ flex: 1 }}
             />
           </div>
+          {picked.length > 0 && (
+            <div className="row">
+              <span>{fill(t.dossierSelected, { count: picked.length })}</span>
+              <button onClick={() => void saveDossier(picked)}>{t.dossierMany}</button>
+              <button onClick={() => void saveSelectionGraph()}>{t.dossierGraph}</button>
+              <button onClick={() => setPicked([])}>{t.dossierClear}</button>
+            </div>
+          )}
+          {savedPath && <p className="ok">{savedPath}</p>}
           {rows.length === 0 ? (
             <p className="muted">{t.entitiesNone}</p>
           ) : (
             <table className="grid">
               <thead>
                 <tr>
+                  <th title={t.dossierPick}>✓</th>
                   <th>{t.entityCol}</th>
                   <th>{t.colType}</th>
                   <th>{t.cardCode}</th>
@@ -202,6 +254,14 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
               <tbody>
                 {shown.map((row) => (
                   <tr key={row.id}>
+                    <td>
+                      <input
+                        type="checkbox"
+                        checked={picked.includes(row.id)}
+                        onChange={() => togglePick(row.id)}
+                        aria-label={t.dossierPick}
+                      />
+                    </td>
                     <td>{chip(row.id, row.label)}</td>
                     <td>{kindLabel(lang, row.kind)}</td>
                     <td>{row.code ?? ""}</td>
@@ -224,7 +284,9 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
         <>
           <div className="row">
             <button onClick={back}>{t.cardBack}</button>
+            <button onClick={() => void saveDossier([card.id])}>{t.dossierOne}</button>
           </div>
+          {savedPath && <p className="ok">{savedPath}</p>}
           <h3>{card.label}</h3>
           <p className="muted">
             {kindLabel(lang, card.kind)}

@@ -11,6 +11,7 @@ import {
 } from "./api";
 import { fill, LANGS, PACKS, type Lang, type Strings } from "./i18n";
 import { EntitiesTab } from "./EntitiesTab";
+import { ArticleTab } from "./ArticleTab";
 import { GraphTab } from "./GraphTab";
 import { ChannelsTab } from "./ChannelsTab";
 import { OverlapsTab } from "./OverlapsTab";
@@ -19,7 +20,7 @@ import { SourcesTab } from "./SourcesTab";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { notifyDataChanged, onDataChanged, openSectionWindow, windowSection } from "./windowApi";
 
-type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "overview" | "graph" | "report";
+type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "overview" | "graph" | "article" | "report";
 
 /** True when any text box in this window still holds unsaved text. */
 function hasUnsavedText(): boolean {
@@ -590,6 +591,7 @@ export function App() {
     ["overlaps", t.tabOverlaps],
     ["overview", t.tabOverview],
     ["graph", t.tabGraph],
+    ["article", t.tabArticle],
     ["report", t.tabReport],
   ];
   const tabTitle = (id: Tab) => tabs.find(([key]) => key === id)?.[1] ?? "";
@@ -672,6 +674,18 @@ export function App() {
           <OverlapsTab t={t} lang={(lang in PACKS ? lang : "uk") as Lang} home={home} run={run} />
         )}
         {tab === "overview" && <OverviewTab t={t} home={home} run={run} />}
+        {tab === "article" && (
+          <ArticleTab
+            t={t}
+            home={home}
+            identity={identity}
+            run={run}
+            onOpen={(id) => {
+              setFocusId(id);
+              setTab("entities");
+            }}
+          />
+        )}
         {tab === "graph" && (
           <GraphTab
             t={t}
