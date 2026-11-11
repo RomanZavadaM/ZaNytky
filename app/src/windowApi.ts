@@ -1,11 +1,13 @@
 import { emit, listen, type UnlistenFn } from "@tauri-apps/api/event";
 import { WebviewWindow } from "@tauri-apps/api/webviewWindow";
 
-export type Section = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "overview" | "graph" | "article" | "report";
+export type Section = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "overview" | "graph" | "article" | "report" | "selection";
 
-const SECTIONS: Section[] = ["setup", "prepare", "result", "database", "entities", "sources", "channels", "overlaps", "overview", "graph", "article", "report"];
+const SECTIONS: Section[] = ["setup", "prepare", "result", "database", "entities", "sources", "channels", "overlaps", "overview", "graph", "article", "report", "selection"];
 const LABEL_PREFIX = "section-";
 const DATA_CHANGED = "zn-data-changed";
+const SELECTION_CHANGED = "zn-selection-changed";
+const SELECTION_KEY = "zn-selection";
 
 export function sectionLabel(section: Section): string {
   return `${LABEL_PREFIX}${section}`;
@@ -63,6 +65,43 @@ export async function notifyDataChanged(): Promise<void> {
 export async function onDataChanged(handler: () => void): Promise<UnlistenFn> {
   try {
     return await listen(DATA_CHANGED, handler);
+  } catch {
+    return () => undefined;
+  }
+}
+
+/** The ids of the subjects ticked in the list (kept for the selection window; ids only). */
+export function saveSelection(ids: number[]): void {
+  try {
+    localStorage.setItem(SELECTION_KEY, JSON.stringify(ids));
+  } catch {
+    // storage unavailable: the window then shows an empty selection
+  }
+}
+
+export function loadSelection(): number[] {
+  try {
+    const parsed: unknown = JSON.parse(localStorage.getItem(SELECTION_KEY) ?? "[]");
+    return Array.isArray(parsed) ? parsed.filter((x): x is number => typeof x === "number") : [];
+  } catch {
+    return [];
+  }
+}
+
+/** Opens (or refreshes) the window with the graph of the selection. */
+export async function openSelectionWindow(title: string, ids: number[]): Promise<void> {
+  saveSelection(ids);
+  await openSectionWindow("selection", title);
+  try {
+    await emit(SELECTION_CHANGED);
+  } catch {
+    // not running inside the desktop shell
+  }
+}
+
+export async function onSelectionChanged(handler: () => void): Promise<UnlistenFn> {
+  try {
+    return await listen(SELECTION_CHANGED, handler);
   } catch {
     return () => undefined;
   }

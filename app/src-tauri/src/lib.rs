@@ -528,6 +528,10 @@ struct GraphHtmlInput {
     ids: Option<Vec<i64>>,
     /// Put the documents (sources) into the graph as nodes.
     with_sources: Option<bool>,
+    /// Only these kinds of subjects (empty = all).
+    kinds: Option<Vec<String>>,
+    /// Subjects left out.
+    exclude: Option<Vec<i64>>,
 }
 
 /// The graph (all of it or a part) as one standalone HTML page, for the user to save.
@@ -542,6 +546,8 @@ fn get_graph_html(input: GraphHtmlInput) -> Res<String> {
         confirmed_only: input.confirmed_only.unwrap_or(false),
         ids: input.ids.unwrap_or_default(),
         with_sources: input.with_sources.unwrap_or(false),
+        kinds: input.kinds.unwrap_or_default(),
+        exclude: input.exclude.unwrap_or_default(),
     };
     graph_html(&open_model(&home)?, &names, &scope).map_err(|e| e.to_string())
 }

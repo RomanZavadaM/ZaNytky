@@ -4,6 +4,7 @@ import { fill, type Lang, type Strings } from "./i18n";
 import { kindLabel } from "./kinds";
 import { EvidenceForm } from "./EvidenceForm";
 import { SourceBox } from "./SourceBox";
+import { openSelectionWindow } from "./windowApi";
 
 interface Props {
   t: Strings;
@@ -233,6 +234,9 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
               <span>{fill(t.dossierSelected, { count: picked.length })}</span>
               <button onClick={() => void saveDossier(picked)}>{t.dossierMany}</button>
               <button onClick={() => void saveSelectionGraph()}>{t.dossierGraph}</button>
+              <button onClick={() => void openSelectionWindow(t.selectionTitle, picked).catch(() => undefined)}>
+                {t.selectionWindow}
+              </button>
               <button onClick={() => setPicked([])}>{t.dossierClear}</button>
             </div>
           )}
@@ -332,67 +336,66 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
               </button>
             </div>
           )}
+          {card.neighbors.length > 0 && (
+            <>
+              <h3>{t.cardNeighbors}</h3>
+              <p>
+                {card.neighbors.map((n) => (
+                  <span key={n.id}>
+                    {chip(n.id, n.label)} <span className="muted">×{n.count}</span>{" "}
+                  </span>
+                ))}
+              </p>
+            </>
+          )}
           <h3>{t.cardRelations}</h3>
           {card.statements.length === 0 ? (
             <p className="muted">{t.cardEmpty}</p>
           ) : (
-            <table className="grid">
-              <thead>
-                <tr>
-                  <th>№</th>
-                  <th>{t.colType}</th>
-                  <th>{t.cardRoleHere}</th>
-                  <th>{t.colParties}</th>
-                  <th>{t.colValue}</th>
-                  <th>{t.colGrade}</th>
-                  <th>{t.colStatus}</th>
-                  <th>{t.cardSources}</th>
-                </tr>
-              </thead>
-              <tbody>
-                {card.statements.map((s) => (
-                  <tr key={s.id}>
-                    <td>{s.id}</td>
-                    <td>{kindLabel(lang, s.kind)}</td>
-                    <td>{s.role.split(", ").map((r) => kindLabel(lang, r)).join(", ")}</td>
-                    <td>
+            <div className="stmts">
+              {card.statements.map((s) => (
+                <div key={s.id} className={`stmt stmt-${s.status}`}>
+                  <div className="stmt-head">
+                    <b>{kindLabel(lang, s.kind)}</b>
+                    <span className="muted">{s.role.split(", ").map((r) => kindLabel(lang, r)).join(", ")}</span>
+                    <span className="stmt-status">{statusLabel(s.status)}</span>
+                  </div>
+                  {s.value && <p className="stmt-value">{s.value}</p>}
+                  {s.parties.length > 0 && (
+                    <p className="stmt-parties">
                       {s.parties.map((p) => (
                         <span key={`${p.id}-${p.role}`}>
-                          {chip(p.id, p.label)} <span className="muted">({kindLabel(lang, p.role)})</span>{" "}
+                          {chip(p.id, p.label)} <span className="muted">{kindLabel(lang, p.role)}</span>{" "}
                         </span>
                       ))}
-                    </td>
-                    <td>
-                      {s.value}
-                      {period(s) ? <div className="muted">{period(s)}</div> : null}
-                    </td>
-                    <td>
-                      {s.grade}
-                      <div className="muted">
-                        {s.independent} {t.cardIndependent}
-                      </div>
-                    </td>
-                    <td>{statusLabel(s.status)}</td>
-                    <td className="note">
-                      {s.sources.map((source, index) => (
-                        <div key={index}>
-                          [{source.reliability}] {source.title}
-                        </div>
-                      ))}
-                      {s.note ? <div className="muted">{s.note}</div> : null}
-                      <EvidenceForm
-                        t={t}
-                        lang={lang}
-                        home={home}
-                        statementId={s.id}
-                        run={run}
-                        onAdded={() => setTick(tick + 1)}
-                      />
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+                    </p>
+                  )}
+                  <p className="muted">
+                    #{s.id} · {s.grade} · {s.independent} {t.cardIndependent}
+                    {period(s) ? ` · ${period(s)}` : ""}
+                  </p>
+                  <details>
+                    <summary>
+                      {t.cardMoreSources} ({s.sources.length})
+                    </summary>
+                    {s.sources.map((source, index) => (
+                      <p key={index} className="stmt-source">
+                        [{source.reliability}] {source.title}
+                      </p>
+                    ))}
+                    {s.note ? <p className="muted stmt-source">{s.note}</p> : null}
+                    <EvidenceForm
+                      t={t}
+                      lang={lang}
+                      home={home}
+                      statementId={s.id}
+                      run={run}
+                      onAdded={() => setTick(tick + 1)}
+                    />
+                  </details>
+                </div>
+              ))}
+            </div>
           )}
           {sourcesOf(card).length > 0 && (
             <>
@@ -421,18 +424,6 @@ export function EntitiesTab({ t, lang, home, identity, run, focusId }: Props) {
                   </li>
                 ))}
               </ul>
-            </>
-          )}
-          {card.neighbors.length > 0 && (
-            <>
-              <h3>{t.cardNeighbors}</h3>
-              <p>
-                {card.neighbors.map((n) => (
-                  <span key={n.id}>
-                    {chip(n.id, n.label)} <span className="muted">×{n.count}</span>{" "}
-                  </span>
-                ))}
-              </p>
             </>
           )}
         </>

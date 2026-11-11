@@ -324,3 +324,50 @@ span.tab {
   font-size: 0.78rem;
   font-weight: 500;
 }
+
+.stmts {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-width: 100%;
+}
+
+.stmt {
+  border: 1px solid var(--border);
+  border-left-width: 4px;
+  border-radius: 6px;
+  padding: 8px 12px;
+  max-width: 100%;
+  overflow-wrap: anywhere;
+}
+
+.stmt-confirmed {
+  border-left-color: #2e8b57;
+}
+
+.stmt-head {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 10px;
+  align-items: baseline;
+}
+
+.stmt-status {
+  margin-left: auto;
+  font-size: 12px;
+}
+
+.stmt-value,
+.stmt-parties {
+  margin: 6px 0;
+}
+
+.stmt details {
+  margin-top: 4px;
+}
+
+.stmt-source {
+  margin: 4px 0;
+  max-width: 70ch;
+  white-space: pre-wrap;
+}

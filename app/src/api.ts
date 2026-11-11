@@ -313,6 +313,8 @@ export const api = {
       confirmedOnly?: boolean;
       ids?: number[];
       withSources?: boolean;
+      kinds?: string[];
+      exclude?: number[];
     },
   ) => invoke<string>("get_graph_html", { input: { home, ...scope } }),
   dossier: (home: string, ids: number[], identityPath?: string) =>

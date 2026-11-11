@@ -28,9 +28,16 @@ export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
   const [depth, setDepth] = useState("1");
   const [confirmedOnly, setConfirmedOnly] = useState(false);
   const [saved, setSaved] = useState("");
+  const [kindsAvailable, setKindsAvailable] = useState<string[]>([]);
+  const [kinds, setKinds] = useState<string[]>([]);
+  const [exclude, setExclude] = useState("");
   const identityPath = reveal && identity ? identity : undefined;
   const load = useCallback(
-    async () => (await run(() => api.graph(home, identityPath))) ?? { nodes: [], edges: [], relations: [] },
+    async () => {
+      const graph = (await run(() => api.graph(home, identityPath))) ?? { nodes: [], edges: [], relations: [] };
+      setKindsAvailable(Array.from(new Set(graph.nodes.map((n) => n.noteType ?? "").filter(Boolean))).sort());
+      return graph;
+    },
     // the graph is rebuilt when the folder or the names switch changes
     // eslint-disable-next-line react-hooks/exhaustive-deps
     [home, identityPath, refresh],
@@ -45,6 +52,11 @@ export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
         around: around.trim() && Number.isFinite(id) ? id : undefined,
         depth: Number(depth),
         confirmedOnly,
+        kinds,
+        exclude: exclude
+          .split(/[^0-9]+/)
+          .filter(Boolean)
+          .map(Number),
       });
       await api.writeText(path, html);
       return true;
@@ -81,11 +93,32 @@ export function GraphTab({ t, lang, home, identity, run, onOpen }: Props) {
           <input type="checkbox" checked={confirmedOnly} onChange={(e) => setConfirmedOnly(e.target.checked)} />
           {t.graphConfirmedOnly}
         </label>
+        <input
+          style={{ width: "16em" }}
+          placeholder={t.graphExclude}
+          value={exclude}
+          onChange={(e) => setExclude(e.target.value)}
+        />
         <button disabled={!home} onClick={() => void saveHtml()}>
           {t.graphSaveHtml}
         </button>
         {saved && <span className="ok"> {saved}</span>}
       </div>
+      {kindsAvailable.length > 0 && (
+        <div className="row">
+          <span className="muted">{t.graphKinds}:</span>
+          {kindsAvailable.map((kind) => (
+            <label key={kind} className="check">
+              <input
+                type="checkbox"
+                checked={kinds.includes(kind)}
+                onChange={(e) => setKinds(e.target.checked ? [...kinds, kind] : kinds.filter((k) => k !== kind))}
+              />
+              {kindLabel(lang, kind)}
+            </label>
+          ))}
+        </div>
+      )}
       <LanguageContext.Provider value={(lang as LanguageCode) ?? "uk"}>
         <KnowledgeGraphPanel
           mode="global"
