@@ -13,6 +13,7 @@ pub mod deidentify;
 pub mod demo;
 pub mod discover;
 pub mod docx_text;
+pub mod dossier;
 pub mod export;
 pub mod import;
 pub mod make;
@@ -49,6 +50,10 @@ pub use discover::{
     add_found, discover_everywhere, discover_in_text, subject_pairs, Found, SubjectPair,
 };
 pub use docx_text::{docx_to_text, DocxError};
+pub use dossier::{
+    analyze_article, article_markdown, dossier_markdown, word_uk, ArticleAnalysis, ArticleDoc,
+    ArticleLink, ArticleSubject,
+};
 pub use export::{markdown_table, markdown_table_protected};
 pub use import::{import_result, review_with_links, ImportError, ImportSummary, LinkMatch};
 pub use make::{

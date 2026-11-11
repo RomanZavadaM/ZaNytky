@@ -440,6 +440,10 @@ pub struct GraphScope {
     pub grep: Option<String>,
     /// Only the statements confirmed by a document.
     pub confirmed_only: bool,
+    /// A selection of subjects (for example those of an article): they and what is linked to them.
+    pub ids: Vec<i64>,
+    /// Put the documents (sources) of the statements into the graph as nodes.
+    pub with_sources: bool,
 }
 
 const GRAPH_TEMPLATE: &str = include_str!("graph_template.html");
@@ -482,10 +486,13 @@ pub fn graph_html(
         })
         .collect();
     let mut note = String::from("Весь граф.");
+    let mut starts: Vec<String> = scope.ids.iter().map(|i| i.to_string()).collect();
     if let Some(center) = scope.around {
-        let start = center.to_string();
-        let mut reached: HashSet<String> = HashSet::from([start.clone()]);
-        let mut frontier = vec![start];
+        starts.push(center.to_string());
+    }
+    if !starts.is_empty() {
+        let mut reached: HashSet<String> = starts.iter().cloned().collect();
+        let mut frontier = starts.clone();
         for _ in 0..scope.depth.max(1) {
             let mut next = Vec::new();
             for r in &relations {
@@ -498,11 +505,18 @@ pub fn graph_html(
             frontier = next;
         }
         relations.retain(|r| reached.contains(&r.source) && reached.contains(&r.target));
-        note = format!(
-            "Лише навколо суб'єкта «{}» ({} крок.).",
-            titles.get(center.to_string().as_str()).unwrap_or(&"?"),
-            scope.depth.max(1)
-        );
+        note = match scope.around {
+            Some(center) if scope.ids.is_empty() => format!(
+                "Лише навколо суб'єкта «{}» ({} крок.).",
+                titles.get(center.to_string().as_str()).unwrap_or(&"?"),
+                scope.depth.max(1)
+            ),
+            _ => format!(
+                "Вибрані суб'єкти ({}) і їхнє оточення ({} крок.).",
+                starts.len(),
+                scope.depth.max(1)
+            ),
+        };
     }
     if let Some(text) = scope.grep.as_deref().filter(|t| !t.trim().is_empty()) {
         note.push_str(&format!(" Зв'язки з текстом «{}».", text.trim()));
@@ -516,10 +530,10 @@ pub fn graph_html(
         keep.insert(r.target.as_str());
     }
     let center = scope.around.map(|c| c.to_string());
-    if let Some(c) = &center {
-        keep.insert(c.as_str());
+    for start in &starts {
+        keep.insert(start.as_str());
     }
-    let nodes: Vec<serde_json::Value> = graph
+    let mut nodes: Vec<serde_json::Value> = graph
         .nodes
         .iter()
         .filter(|n| keep.contains(n.path.as_str()))
@@ -531,7 +545,7 @@ pub fn graph_html(
             })
         })
         .collect();
-    let rels: Vec<serde_json::Value> = relations
+    let mut rels: Vec<serde_json::Value> = relations
         .iter()
         .map(|r| {
             serde_json::json!({
@@ -540,6 +554,42 @@ pub fn graph_html(
             })
         })
         .collect();
+    if scope.with_sources {
+        let mut added: HashSet<i64> = HashSet::new();
+        for statement in model.statements()? {
+            let present: Vec<String> = statement
+                .parties
+                .iter()
+                .map(|(entity, _)| entity.to_string())
+                .filter(|id| keep.contains(id.as_str()))
+                .collect();
+            if present.is_empty() {
+                continue;
+            }
+            for source_id in &statement.sources {
+                if added.len() >= 250 && !added.contains(source_id) {
+                    continue;
+                }
+                if added.insert(*source_id) {
+                    let source = model.source(*source_id)?;
+                    let title: String = source.title.chars().take(70).collect();
+                    nodes.push(serde_json::json!({
+                        "id": format!("s{source_id}"),
+                        "title": title,
+                        "kind": "document",
+                    }));
+                }
+                for party in &present {
+                    rels.push(serde_json::json!({
+                        "source": format!("s{source_id}"), "target": party, "kind": "source",
+                        "grade": serde_json::Value::Null,
+                        "status": statement.status.as_str(),
+                        "evidence": statement.value,
+                    }));
+                }
+            }
+        }
+    }
     let data = serde_json::json!({
         "title": "Граф бази ZaNytky",
         "scope": note,

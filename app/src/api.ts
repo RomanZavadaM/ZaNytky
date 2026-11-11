@@ -305,8 +305,20 @@ export const api = {
     invoke<KnowledgeGraph>("get_entity_graph", { input: { home, identityPath } }),
   graphHtml: (
     home: string,
-    scope: { identityPath?: string; around?: number; depth?: number; grep?: string; confirmedOnly?: boolean },
+    scope: {
+      identityPath?: string;
+      around?: number;
+      depth?: number;
+      grep?: string;
+      confirmedOnly?: boolean;
+      ids?: number[];
+      withSources?: boolean;
+    },
   ) => invoke<string>("get_graph_html", { input: { home, ...scope } }),
+  dossier: (home: string, ids: number[], identityPath?: string) =>
+    invoke<string>("get_dossier_markdown", { input: { home, ids, identityPath } }),
+  article: (home: string, text: string, title: string, identityPath?: string) =>
+    invoke<ArticleOutput>("analyze_article_cmd", { input: { home, text, title, identityPath } }),
   sources: (home: string, query: string, offset: number, limit: number) =>
     invoke<SourceListPage>("list_sources", { input: { home, query, offset, limit } }),
   source: (home: string, id: number) => invoke<CardSource>("get_source", { input: { home, id } }),
@@ -378,6 +390,28 @@ export async function pickFile(extensions: string[]): Promise<string | null> {
 export async function pickAnyFile(): Promise<string | null> {
   const chosen = await open({ multiple: false });
   return typeof chosen === "string" ? chosen : null;
+}
+
+export interface ArticleSubject {
+  id: number;
+  label: string;
+  kind: string;
+  mentions: number;
+  statements: number;
+  confirmed: number;
+}
+
+export interface ArticleAnalysis {
+  words: number;
+  known: ArticleSubject[];
+  unknown: { kind: string; text: string; count: number; sources: number; known: number | null }[];
+  links: { from: string; to: string; steps: string[] }[];
+  documents: { id: number; title: string; kind: string; url: string | null; subjects: string[] }[];
+}
+
+export interface ArticleOutput {
+  analysis: ArticleAnalysis;
+  markdown: string;
 }
 
 export async function pickSavePath(defaultPath: string): Promise<string | null> {

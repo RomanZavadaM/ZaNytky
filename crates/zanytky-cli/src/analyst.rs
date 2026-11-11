@@ -497,6 +497,7 @@ pub fn cmd_graph(args: &Args, out: Out) -> Result<(), String> {
         depth: number(args, "depth", 1usize)?,
         grep: args.flag("grep").map(str::to_string),
         confirmed_only: args.has("confirmed"),
+        ..zanytky_core::GraphScope::default()
     };
     let html = zanytky_core::graph_html(&model, &names, &scope).map_err(|e| e.to_string())?;
     super::write_file(&target, html.as_bytes())?;
@@ -504,4 +505,93 @@ pub fn cmd_graph(args: &Args, out: Out) -> Result<(), String> {
         out,
         &format!("Граф записано: {} ({} байт)", target.display(), html.len()),
     )
+}
+
+/// The names of persons opened with the investigator's key (`--identity`), or nothing.
+fn names_map(args: &Args, home: &Path) -> Result<HashMap<String, String>, String> {
+    let Some(path) = args.flag("identity") else {
+        return Ok(HashMap::new());
+    };
+    let identity = super::read_identity(path)?;
+    let registry = open_registry(home)?;
+    let mut map: HashMap<String, String> = registry
+        .dictionary(&identity)
+        .map_err(|e| e.to_string())?
+        .into_iter()
+        .filter_map(|entry| entry.token.map(|token| (token, entry.text)))
+        .collect();
+    map.extend(
+        registry
+            .identifier_values(&identity)
+            .map_err(|e| e.to_string())?,
+    );
+    Ok(map)
+}
+
+fn write_new(out: Out, target: &Path, text: &str, what: &str) -> Result<(), String> {
+    if target.exists() {
+        return Err(format!(
+            "файл {} уже існує, він не перезаписується",
+            target.display()
+        ));
+    }
+    super::write_file(target, text.as_bytes())?;
+    line(out, &format!("{what}: {}", target.display()))
+}
+
+/// `dossier --entities 5,8,12 [--identity ФАЙЛ] [--out ФАЙЛ.md]`: a readable dossier of one or
+/// several subjects (to the screen when there is no `--out`).
+pub fn cmd_dossier(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let ids: Vec<i64> = args
+        .need("entities")?
+        .split(',')
+        .map(|t| {
+            t.trim()
+                .parse::<i64>()
+                .map_err(|_| "--entities: номери суб'єктів через кому".to_string())
+        })
+        .collect::<Result<_, _>>()?;
+    let names = names_map(args, &home)?;
+    let text = zanytky_core::dossier_markdown(&model, &names, &ids).map_err(|e| e.to_string())?;
+    match args.flag("out") {
+        Some(path) => write_new(out, Path::new(path), &text, "Досьє записано"),
+        None => line(out, &text),
+    }
+}
+
+/// `article (--file ТЕКСТ | --text ТЕКСТ) --out ЗВІТ.md [--graph ГРАФ.html] [--title НАЗВА]
+/// [--identity ФАЙЛ]`: the analysis of an article: who the base knows in it, how they are
+/// linked, which documents stand behind them, who is new; and a graph of them with the documents.
+pub fn cmd_article(args: &Args, out: Out) -> Result<(), String> {
+    let home = home_dir(args)?;
+    let model = open_model(&home)?;
+    let registry = open_registry(&home).ok();
+    let names = names_map(args, &home)?;
+    let text = match args.flag("file") {
+        Some(path) => read_text(Path::new(path))?,
+        None => args.need("text")?.to_string(),
+    };
+    let analysis = zanytky_core::analyze_article(&model, registry.as_ref(), &names, &text)
+        .map_err(|e| e.to_string())?;
+    let title = args.flag("title").unwrap_or("без назви");
+    let report = zanytky_core::article_markdown(&analysis, title);
+    write_new(
+        out,
+        Path::new(args.need("out")?),
+        &report,
+        "Аналіз записано",
+    )?;
+    if let Some(path) = args.flag("graph") {
+        let scope = zanytky_core::GraphScope {
+            ids: analysis.known_ids(),
+            depth: 1,
+            with_sources: true,
+            ..zanytky_core::GraphScope::default()
+        };
+        let html = zanytky_core::graph_html(&model, &names, &scope).map_err(|e| e.to_string())?;
+        write_new(out, Path::new(path), &html, "Граф записано")?;
+    }
+    Ok(())
 }

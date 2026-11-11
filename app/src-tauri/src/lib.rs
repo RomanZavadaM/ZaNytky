@@ -524,6 +524,10 @@ struct GraphHtmlInput {
     depth: Option<usize>,
     grep: Option<String>,
     confirmed_only: Option<bool>,
+    /// A selection of subjects: they and what is linked to them.
+    ids: Option<Vec<i64>>,
+    /// Put the documents (sources) into the graph as nodes.
+    with_sources: Option<bool>,
 }
 
 /// The graph (all of it or a part) as one standalone HTML page, for the user to save.
@@ -536,8 +540,58 @@ fn get_graph_html(input: GraphHtmlInput) -> Res<String> {
         depth: input.depth.unwrap_or(1),
         grep: input.grep,
         confirmed_only: input.confirmed_only.unwrap_or(false),
+        ids: input.ids.unwrap_or_default(),
+        with_sources: input.with_sources.unwrap_or(false),
     };
     graph_html(&open_model(&home)?, &names, &scope).map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct DossierInput {
+    home: String,
+    ids: Vec<i64>,
+    identity_path: Option<String>,
+}
+
+/// A readable dossier (Markdown) of one or several subjects.
+#[tauri::command]
+fn get_dossier_markdown(input: DossierInput) -> Res<String> {
+    let home = home_path(&input.home)?;
+    let names = names_for(&home, &input.identity_path)?;
+    zanytky_core::dossier_markdown(&open_model(&home)?, &names, &input.ids)
+        .map_err(|e| e.to_string())
+}
+
+#[derive(Deserialize)]
+#[serde(rename_all = "camelCase")]
+struct ArticleInput {
+    home: String,
+    text: String,
+    title: Option<String>,
+    identity_path: Option<String>,
+}
+
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+struct ArticleOutput {
+    analysis: zanytky_core::ArticleAnalysis,
+    markdown: String,
+}
+
+/// The analysis of an article: who the base knows in it, how they are linked, the documents.
+#[tauri::command]
+fn analyze_article_cmd(input: ArticleInput) -> Res<ArticleOutput> {
+    let home = home_path(&input.home)?;
+    let names = names_for(&home, &input.identity_path)?;
+    let model = open_model(&home)?;
+    let registry = open_registry(&home).ok();
+    let analysis = zanytky_core::analyze_article(&model, registry.as_ref(), &names, &input.text)
+        .map_err(|e| e.to_string())?;
+    let title = input.title.unwrap_or_default();
+    let title = if title.trim().is_empty() { "без назви" } else { title.trim() };
+    let markdown = zanytky_core::article_markdown(&analysis, title);
+    Ok(ArticleOutput { analysis, markdown })
 }
 
 #[tauri::command]
@@ -1061,6 +1115,8 @@ pub fn run() {
             get_entity_card,
             get_entity_graph,
             get_graph_html,
+            get_dossier_markdown,
+            analyze_article_cmd,
             merge_two_entities,
             unmerge_one_entity,
             find_entity_paths,
