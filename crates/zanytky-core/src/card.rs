@@ -444,6 +444,10 @@ pub struct GraphScope {
     pub ids: Vec<i64>,
     /// Put the documents (sources) of the statements into the graph as nodes.
     pub with_sources: bool,
+    /// Only the subjects of these kinds (for example `person`); empty = all kinds.
+    pub kinds: Vec<String>,
+    /// Subjects left out of the graph (with their links).
+    pub exclude: Vec<i64>,
 }
 
 const GRAPH_TEMPLATE: &str = include_str!("graph_template.html");
@@ -524,6 +528,28 @@ pub fn graph_html(
     if scope.confirmed_only {
         note.push_str(" Лише підтверджені.");
     }
+    let node_kind: HashMap<&str, &str> = graph
+        .nodes
+        .iter()
+        .map(|n| (n.path.as_str(), n.note_type.as_deref().unwrap_or("")))
+        .collect();
+    let excluded: HashSet<String> = scope.exclude.iter().map(|i| i.to_string()).collect();
+    let allowed = |id: &str| {
+        !excluded.contains(id)
+            && (scope.kinds.is_empty()
+                || node_kind
+                    .get(id)
+                    .is_some_and(|k| scope.kinds.iter().any(|w| w == k)))
+    };
+    if !excluded.is_empty() || !scope.kinds.is_empty() {
+        relations.retain(|r| allowed(&r.source) && allowed(&r.target));
+        if !scope.kinds.is_empty() {
+            note.push_str(&format!(" Лише види: {}.", scope.kinds.join(", ")));
+        }
+        if !excluded.is_empty() {
+            note.push_str(&format!(" Без суб'єктів: {}.", excluded.len()));
+        }
+    }
     let mut keep: HashSet<&str> = HashSet::new();
     for r in &relations {
         keep.insert(r.source.as_str());
@@ -531,7 +557,9 @@ pub fn graph_html(
     }
     let center = scope.around.map(|c| c.to_string());
     for start in &starts {
-        keep.insert(start.as_str());
+        if allowed(start) {
+            keep.insert(start.as_str());
+        }
     }
     let mut nodes: Vec<serde_json::Value> = graph
         .nodes
@@ -644,6 +672,35 @@ mod tests {
         )
         .unwrap();
         assert!(none.contains("\"relations\":[]"));
+    }
+
+    #[test]
+    fn a_graph_can_be_limited_by_kind_and_by_left_out_subjects() {
+        let (_dir, model) = demo_model();
+        let list = entity_list(&model, &HashMap::new()).unwrap();
+        let company = list.iter().find(|r| r.label == "ТОВ «Приклад»").unwrap();
+        let all = graph_html(&model, &HashMap::new(), &GraphScope::default()).unwrap();
+        let without = graph_html(
+            &model,
+            &HashMap::new(),
+            &GraphScope {
+                exclude: vec![company.id],
+                ..GraphScope::default()
+            },
+        )
+        .unwrap();
+        assert!(without.contains("Без суб'єктів: 1"));
+        assert!(!without.contains("ТОВ «Приклад»") && all.contains("ТОВ «Приклад»"));
+        let nothing = graph_html(
+            &model,
+            &HashMap::new(),
+            &GraphScope {
+                kinds: vec!["немає-такого-виду".into()],
+                ..GraphScope::default()
+            },
+        )
+        .unwrap();
+        assert!(nothing.contains("\"relations\":[]") && !nothing.contains("ТОВ «Приклад»"));
     }
 
     fn demo_model() -> (tempfile::TempDir, Model) {

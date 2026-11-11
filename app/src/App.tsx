@@ -12,6 +12,7 @@ import {
 import { fill, LANGS, PACKS, type Lang, type Strings } from "./i18n";
 import { EntitiesTab } from "./EntitiesTab";
 import { ArticleTab } from "./ArticleTab";
+import { SelectionGraph } from "./SelectionGraph";
 import { GraphTab } from "./GraphTab";
 import { ChannelsTab } from "./ChannelsTab";
 import { OverlapsTab } from "./OverlapsTab";
@@ -20,7 +21,7 @@ import { SourcesTab } from "./SourcesTab";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import { notifyDataChanged, onDataChanged, openSectionWindow, windowSection } from "./windowApi";
 
-type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "overview" | "graph" | "article" | "report";
+type Tab = "setup" | "prepare" | "result" | "database" | "entities" | "sources" | "channels" | "overlaps" | "overview" | "graph" | "article" | "report" | "selection";
 
 /** True when any text box in this window still holds unsaved text. */
 function hasUnsavedText(): boolean {
@@ -593,6 +594,7 @@ export function App() {
     ["graph", t.tabGraph],
     ["article", t.tabArticle],
     ["report", t.tabReport],
+    ["selection", t.selectionTitle],
   ];
   const tabTitle = (id: Tab) => tabs.find(([key]) => key === id)?.[1] ?? "";
 
@@ -629,7 +631,7 @@ export function App() {
           </nav>
         ) : (
           <nav>
-            {tabs.map(([id, label]) => (
+            {tabs.filter(([id]) => id !== "selection").map(([id, label]) => (
               <button key={id} className={tab === id ? "tab active" : "tab"} onClick={() => setTab(id)}>
                 {label}
               </button>
@@ -700,6 +702,9 @@ export function App() {
           />
         )}
         {tab === "report" && <ReportTab {...shared} />}
+        {tab === "selection" && (
+          <SelectionGraph t={t} lang={(lang in PACKS ? lang : "uk") as Lang} home={home} identity={identity} run={run} />
+        )}
       </main>
     </div>
   );
